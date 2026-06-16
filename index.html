@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Central Directory // System</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --bg-base: #07090e;
+            --bg-surface: #0c0f17;
+            --border-muted: #1e2538;
+            --accent-glow: #00ff6615;
+            
+            /* Terminal UI Palette */
+            --c-green: #00ff66;
+            --c-blue: #00bcff;
+            --c-amber: #ffb700;
+            --c-text-main: #b4c2e0;
+            --c-text-muted: #536488;
+            
+            --font-mono: 'Share Tech Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            background-color: var(--bg-base);
+            color: var(--c-text-main);
+            font-family: var(--font-mono);
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        /* Ambient scanline texture */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0.4;
+        }
+
+        .layout-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Top Status Bar Dashboard */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border-muted);
+            background: var(--bg-surface);
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .sys-identity h1 {
+            font-size: 1.4rem;
+            color: #fff;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .sys-identity h1 span {
+            color: var(--c-green);
+            animation: blink 1s step-end infinite;
+        }
+
+        .sys-status-metrics {
+            display: flex;
+            gap: 20px;
+            font-size: 0.85rem;
+            color: var(--c-text-muted);
+        }
+
+        .metric span {
+            color: var(--c-blue);
+        }
+
+        /* Directory Grid Items */
+        .directory-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 20px;
+        }
+
+        .node-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-muted);
+            border-radius: 4px;
+            padding: 25px;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            transition: all 0.25s ease;
+        }
+
+        /* Card Hover Effects */
+        .node-card:hover {
+            border-color: var(--card-accent, var(--c-blue));
+            background: linear-gradient(180deg, var(--bg-surface) 0%, rgba(12, 15, 23, 0.4) 100%);
+            box-shadow: 0 0 15px var(--glow-color, rgba(0, 188, 255, 0.1));
+            transform: translateY(-2px);
+        }
+
+        .node-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--c-text-muted);
+            margin-bottom: 15px;
+            border-bottom: 1px dashed var(--border-muted);
+            padding-bottom: 8px;
+        }
+
+        .node-card:hover .node-meta {
+            border-color: var(--card-accent, var(--c-blue));
+        }
+
+        .node-title {
+            font-size: 1.5rem;
+            color: #fff;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .node-desc {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: var(--c-text-main);
+            margin-bottom: 25px;
+        }
+
+        /* Console Style Link / Buttons */
+        .node-action {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--card-accent, var(--c-blue));
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .node-action::before {
+            content: '[ ';
+            color: var(--c-text-muted);
+        }
+        .node-action::after {
+            content: ' ]';
+            color: var(--c-text-muted);
+        }
+
+        /* Unique Accents for specific types of modules */
+        .horror-theme {
+            --card-accent: #8b0000;
+            --glow-color: rgba(139, 0, 0, 0.15);
+        }
+        .horror-theme .node-action {
+            color: #ff3b3b;
+        }
+
+        .marooned-theme {
+            --card-accent: #6ee7b7;
+            --glow-color: rgba(110, 231, 183, 0.15);
+        }
+        .marooned-theme .node-action {
+            color: #6ee7b7;
+        }
+
+        .utility-theme {
+            --card-accent: #ffb700;
+            --glow-color: rgba(255, 183, 0, 0.15);
+        }
+        .utility-theme .node-action {
+            color: #ffb700;
+        }
+
+        .grid-theme {
+            --card-accent: #00e536;
+            --glow-color: rgba(0, 229, 54, 0.15);
+        }
+        .grid-theme .node-action {
+            color: #00ff41;
+        }
+
+        /* System Footer info */
+        footer {
+            margin-top: 40px;
+            border-top: 1px solid var(--border-muted);
+            padding-top: 15px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--c-text-muted);
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        @media (max-width: 600px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .sys-status-metrics {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="layout-wrapper">
+        
+        <header>
+            <div class="sys-identity">
+                <h1>INDEX://MAIN_CORE<span>_</span></h1>
+            </div>
+            <div class="sys-status-metrics">
+                <div class="metric">LOC: <span id="sys-host">LOCALHOST</span></div>
+                <div class="metric">STATUS: <span style="color: var(--c-green);">ONLINE</span></div>
+                <div class="metric">PACKAGES: <span>04</span></div>
+            </div>
+        </header>
+
+        <div class="directory-grid">
+            
+            <a href="hollowhouse.html" class="node-card horror-theme">
+                <div>
+                    <div class="node-meta">
+                        <span>ID: 001/TXT</span>
+                        <span>TAG: HORROR_ADVENTURE</span>
+                    </div>
+                    <h2 class="node-title">THE HOLLOW HOUSE</h2>
+                    <p class="node-desc">A deep text-based psychological engine. Explore rooms, balance sanity attributes, manage real-time puzzle events, and reverse the ritual anchors.</p>
+                </div>
+                <div class="node-action">EXECUTE_MODULE</div>
+            </a>
+
+            <a href="islandescape.html" class="node-card marooned-theme">
+                <div>
+                    <div class="node-meta">
+                        <span>ID: 002/ENV</span>
+                        <span>TAG: RESOURCE_SURVIVAL</span>
+                    </div>
+                    <h2 class="node-title">MAROONED: THE SALT WRECK</h2>
+                    <p class="node-desc">A bleak text-driven survival engine. Explore the terrain, balance hunger and energy attributes, manage timed harvesting events, and construct the vessel components.</p>
+                </div>
+                <div class="node-action">EXECUTE_MODULE</div>
+            </a>
+
+            <a href="silentledger.html" class="node-card utility-theme">
+                <div>
+                    <div class="node-meta">
+                        <span>ID: 003/DOC</span>
+                        <span>TAG: DETECTIVE_DOSSIER</span>
+                    </div>
+                    <h2 class="node-title">OPERATION: SILENT LEDGER</h2>
+                    <p class="node-desc">A deep text-based cold case dossier. Examine incident logs, verify witness interrogation timelines, parse digital server alibis, and unlock sequential data locks.</p>
+                </div>
+                <div class="node-action">EXECUTE_MODULE</div>
+            </a>
+
+            <a href="gridengine.html" class="node-card grid-theme">
+                <div>
+                    <div class="node-meta">
+                        <span>ID: 004/SYS</span>
+                        <span>TAG: POWER_INCREMENTAL</span>
+                    </div>
+                    <h2 class="node-title">GRID ENGINE</h2>
+                    <p class="node-desc">A volatile grid infrastructure simulation. Deploy generators, stack transformer chain bonuses, monitor waveform frequencies, and prevent systemic fault cascades from collapsing the network.</p>
+                </div>
+                <div class="node-action">EXECUTE_MODULE</div>
+            </a>
+
+        </div>
+
+        <footer>
+            SYSTEM TERMINAL v2.0.26 // USER_ACCESS: AUTHORIZED
+        </footer>
+
+    </div>
+
+    <script>
+        document.getElementById('sys-host').textContent = window.location.hostname ? window.location.hostname.toUpperCase() : "LOCAL_FS";
+    </script>
+</body>
+</html>

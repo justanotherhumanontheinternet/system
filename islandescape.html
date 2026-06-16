@@ -1,0 +1,1975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marooned: The Salt Wreck</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Courier New', monospace;
+    background: #0a1612;
+    color: #c9d6c5;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(20,50,40,0.4) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(10,30,25,0.6) 0%, transparent 50%);
+  }
+
+  #game {
+    width: 100%;
+    max-width: 700px;
+    background: #0f1f1a;
+    border: 1px solid #2a4a3c;
+    border-radius: 4px;
+    box-shadow: 0 0 40px rgba(0, 255, 150, 0.05), inset 0 0 60px rgba(0,0,0,0.5);
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #game::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0,255,170,0.015) 0px,
+      transparent 1px,
+      transparent 2px,
+      rgba(0,255,170,0.015) 3px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  h1 {
+    font-size: 22px;
+    letter-spacing: 4px;
+    color: #6ee7b7;
+    text-align: center;
+    text-shadow: 0 0 10px rgba(110, 231, 183, 0.4);
+    margin-bottom: 4px;
+    font-weight: normal;
+  }
+
+  .subtitle {
+    text-align: center;
+    font-size: 11px;
+    color: #4a6e5e;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+
+  #sound-toggle {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 5;
+    background: #122620;
+    border: 1px solid #2a4a3c;
+    color: #6ee7b7;
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 6px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  #sound-toggle:hover { border-color: #6ee7b7; box-shadow: 0 0 8px rgba(110,231,183,0.2); }
+
+  #status-bar {
+    display: flex;
+    justify-content: space-between;
+    background: #0a1612;
+    border: 1px solid #1f3a2e;
+    padding: 8px 12px;
+    border-radius: 3px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: #8fae9c;
+  }
+
+  #status-bar span.label { color: #4a6e5e; }
+  #status-bar b { color: #6ee7b7; }
+
+  #chapter-banner {
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: #a78bfa;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    min-height: 14px;
+  }
+
+  #log {
+    height: 200px;
+    overflow-y: auto;
+    background: #060e0b;
+    border: 1px solid #1f3a2e;
+    border-radius: 3px;
+    padding: 12px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #a8c4b4;
+  }
+
+  #log p {
+    margin-bottom: 6px;
+    animation: fadeIn 0.4s ease;
+  }
+
+  #log p.event { color: #fbbf24; }
+  #log p.success { color: #6ee7b7; }
+  #log p.danger { color: #f87171; }
+  #log p.discovery { color: #a78bfa; font-weight: bold; }
+  #log p.craft { color: #38bdf8; }
+  #log p.story { color: #d4cdb4; font-style: italic; }
+  #log p.chapter { color: #6ee7b7; font-weight: bold; border-top: 1px dashed #2a4a3c; padding-top: 8px; margin-top: 8px; letter-spacing: 1px; }
+  #log p.unlock { color: #fbbf24; font-weight: bold; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  #log::-webkit-scrollbar { width: 6px; }
+  #log::-webkit-scrollbar-thumb { background: #2a4a3c; border-radius: 3px; }
+  #log::-webkit-scrollbar-track { background: #060e0b; }
+
+  #inventory {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+    gap: 6px;
+    margin-bottom: 14px;
+    font-size: 11px;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+
+  #inventory::-webkit-scrollbar { width: 6px; }
+  #inventory::-webkit-scrollbar-thumb { background: #2a4a3c; border-radius: 3px; }
+  #inventory::-webkit-scrollbar-track { background: #060e0b; }
+
+  .item-chip {
+    background: #122620;
+    border: 1px solid #2a4a3c;
+    border-radius: 3px;
+    padding: 6px 8px;
+    text-align: center;
+    color: #8fae9c;
+    transition: all 0.2s;
+  }
+
+  .item-chip.have {
+    color: #6ee7b7;
+    border-color: #3a6a52;
+    background: #16302a;
+  }
+
+  .item-chip .qty {
+    display: block;
+    font-size: 14px;
+    color: #fff;
+    margin-top: 2px;
+  }
+
+  .item-chip.have .qty { color: #6ee7b7; }
+
+  #actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  #actions.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  button {
+    font-family: 'Courier New', monospace;
+    background: #122620;
+    border: 1px solid #2a4a3c;
+    color: #c9d6c5;
+    padding: 12px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 13px;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  button:hover:not(:disabled) {
+    background: #1c3c30;
+    border-color: #6ee7b7;
+    color: #6ee7b7;
+    box-shadow: 0 0 10px rgba(110,231,183,0.2);
+  }
+
+  button:active:not(:disabled) { transform: scale(0.97); }
+
+  button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  button.primary {
+    grid-column: 1 / -1;
+    background: #16302a;
+    border-color: #3a6a52;
+    color: #6ee7b7;
+    font-size: 14px;
+    padding: 14px;
+  }
+
+  /* Section tabs */
+  #section-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .tab-btn {
+    flex: 1;
+    background: #0a1612;
+    border: 1px solid #1f3a2e;
+    color: #5a8270;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .tab-btn.active {
+    color: #6ee7b7;
+    border-color: #3a6a52;
+    background: #16302a;
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  #craft-section h3, #quest-section h3 {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #4a6e5e;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .craft-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #0a1612;
+    border: 1px solid #1f3a2e;
+    border-radius: 3px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+
+  .craft-item .req {
+    color: #5a8270;
+    font-size: 11px;
+    margin-top: 2px;
+  }
+
+  .craft-item .req span.met { color: #6ee7b7; }
+  .craft-item .req span.unmet { color: #f87171; }
+
+  .craft-item.done {
+    border-color: #3a6a52;
+    background: #0f2018;
+  }
+
+  .craft-item.done .name { color: #6ee7b7; }
+
+  .craft-item.locked {
+    opacity: 0.4;
+  }
+
+  .craft-item .tag {
+    display: inline-block;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: #4a6e5e;
+    border: 1px solid #2a4a3c;
+    border-radius: 2px;
+    padding: 1px 5px;
+    margin-left: 6px;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+  .craft-item .tag.unlock-tag { color: #fbbf24; border-color: #5a4a1f; }
+
+  #boat-progress {
+    margin-bottom: 14px;
+  }
+
+  #boat-progress h3 {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #4a6e5e;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .progress-track {
+    height: 18px;
+    background: #060e0b;
+    border: 1px solid #1f3a2e;
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #1c3c30, #6ee7b7);
+    transition: width 0.5s ease;
+    box-shadow: 0 0 10px rgba(110,231,183,0.3);
+  }
+
+  .progress-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: #c9d6c5;
+    text-shadow: 0 0 4px #000;
+  }
+
+  #win-screen, #restart-section {
+    text-align: center;
+    padding: 20px;
+    display: none;
+  }
+
+  #win-screen.show, #restart-section.show { display: block; }
+
+  #win-screen h2 {
+    font-size: 24px;
+    color: #6ee7b7;
+    text-shadow: 0 0 20px rgba(110,231,183,0.6);
+    letter-spacing: 4px;
+    margin-bottom: 10px;
+  }
+
+  .hidden { display: none !important; }
+
+  /* Timed action overlay */
+  #timer-overlay {
+    display: none;
+    background: #0a1612;
+    border: 1px solid #2a4a3c;
+    border-radius: 3px;
+    padding: 16px;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  #timer-overlay.show { display: block; }
+
+  #timer-overlay .ta-title {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #6ee7b7;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  #timer-bar-track {
+    height: 14px;
+    background: #060e0b;
+    border: 1px solid #1f3a2e;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  #timer-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #f87171, #fbbf24, #6ee7b7);
+    width: 100%;
+    transition: width 0.1s linear;
+  }
+
+  #ta-field {
+    position: relative;
+    height: 150px;
+    background: #060e0b;
+    border: 1px solid #1f3a2e;
+    border-radius: 3px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+
+  /* ---- SHORE: drifting tide targets ---- */
+  .ta-target {
+    position: absolute;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #6ee7b7;
+    border-radius: 50%;
+    background: rgba(110,231,183,0.12);
+    color: #6ee7b7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    animation: pulseTarget 0.9s ease-in-out infinite;
+  }
+  .ta-target:hover { background: rgba(110,231,183,0.25); }
+
+  @keyframes pulseTarget {
+    0%, 100% { box-shadow: 0 0 0 rgba(110,231,183,0); }
+    50% { box-shadow: 0 0 12px rgba(110,231,183,0.5); }
+  }
+
+  /* ---- EXPLORE: branching path game ---- */
+  #path-track {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    margin-bottom: 8px;
+    gap: 4px;
+  }
+  .path-step {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid #2a4a3c;
+    background: #0a1612;
+    flex-shrink: 0;
+  }
+  .path-step.walked { background: #1c3c30; border-color: #6ee7b7; }
+  .path-step.current { border-color: #a78bfa; box-shadow: 0 0 8px rgba(167,139,250,0.6); }
+  .path-connector { width: 10px; height: 1px; background: #2a4a3c; flex-shrink: 0; }
+
+  #path-prompt {
+    text-align: center;
+    font-size: 13px;
+    color: #d4cdb4;
+    margin-bottom: 12px;
+    min-height: 18px;
+  }
+
+  #path-choices {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    height: 70px;
+  }
+
+  .path-choice {
+    flex: 1;
+    max-width: 150px;
+    border: 1px solid #3a3a5a;
+    background: rgba(167,139,250,0.08);
+    color: #a78bfa;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.15s;
+  }
+  .path-choice .arrow { font-size: 18px; }
+  .path-choice:hover { background: rgba(167,139,250,0.22); border-color: #a78bfa; box-shadow: 0 0 10px rgba(167,139,250,0.3); }
+  .path-choice.good { background: rgba(110,231,183,0.25) !important; border-color: #6ee7b7 !important; color: #6ee7b7 !important; }
+  .path-choice.bad { background: rgba(248,113,113,0.25) !important; border-color: #f87171 !important; color: #f87171 !important; }
+  .path-choice:disabled { cursor: default; }
+
+  /* ---- FORAGE: simon-says pattern of bushes ---- */
+  #forage-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    height: 100%;
+    padding: 10px;
+  }
+  .forage-bush {
+    border: 1px solid #5a4a1f;
+    background: rgba(251,191,36,0.08);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fbbf24;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .forage-bush:hover { background: rgba(251,191,36,0.16); }
+  .forage-bush.flash { background: #fbbf24; color: #1a1505; box-shadow: 0 0 18px rgba(251,191,36,0.9); transform: scale(1.06); }
+  .forage-bush.correct { background: rgba(110,231,183,0.4); border-color: #6ee7b7; color: #6ee7b7; }
+  .forage-bush.wrong { background: rgba(248,113,113,0.4); border-color: #f87171; color: #f87171; }
+  .forage-bush.disabled { pointer-events: none; opacity: 0.5; }
+
+  /* ---- FISHING: bobber ---- */
+  #fish-bobber {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid #38bdf8;
+    background: rgba(56,189,248,0.1);
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    left: 50%;
+    top: 20px;
+    transform: translateX(-50%);
+    transition: top 0.15s linear;
+  }
+  #fish-bobber.bite {
+    border-color: #6ee7b7;
+    background: rgba(110,231,183,0.3);
+    color: #6ee7b7;
+    animation: biteFlash 0.3s infinite;
+    cursor: pointer;
+  }
+  @keyframes biteFlash {
+    0%, 100% { box-shadow: 0 0 4px rgba(110,231,183,0.4); }
+    50% { box-shadow: 0 0 16px rgba(110,231,183,0.9); }
+  }
+
+  #ta-result {
+    font-size: 12px;
+    color: #8fae9c;
+    letter-spacing: 1px;
+  }
+
+  @media (max-width: 480px) {
+    #actions { grid-template-columns: 1fr; }
+    #actions.cols-3 { grid-template-columns: 1fr; }
+    #inventory { grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); }
+    #path-choices { flex-direction: column; height: auto; }
+    .path-choice { max-width: none; height: 50px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <button id="sound-toggle" onclick="toggleSound()">Sound: Off</button>
+  <h1>MAROONED</h1>
+  <div class="subtitle">the salt wreck</div>
+  <div id="chapter-banner"></div>
+
+  <div id="status-bar">
+    <div><span class="label">HUNGER</span> <b id="hunger-val">100</b></div>
+    <div><span class="label">ENERGY</span> <b id="energy-val">100</b></div>
+    <div><span class="label">DAY</span> <b id="day-val">1</b></div>
+  </div>
+
+  <div id="log"></div>
+
+  <div id="timer-overlay">
+    <div class="ta-title" id="ta-title">Gathering...</div>
+    <div id="timer-bar-track"><div id="timer-bar-fill"></div></div>
+    <div id="ta-field"></div>
+    <div id="ta-result">Click the glowing markers before time runs out.</div>
+  </div>
+
+  <div id="inventory"></div>
+
+  <div id="actions">
+    <button id="btn-shore" onclick="gatherShore()">Gather on Shore</button>
+    <button id="btn-explore" onclick="exploreIsland()">Explore Island</button>
+    <button id="btn-forage" onclick="forageFood()">Forage Food</button>
+    <button id="btn-fish" onclick="goFishing()" style="display:none;">Go Fishing</button>
+    <button id="btn-rest" onclick="rest()">Rest (Sleep)</button>
+  </div>
+
+  <div id="boat-progress">
+    <h3>Vessel Construction</h3>
+    <div class="progress-track">
+      <div class="progress-fill" id="boat-fill" style="width:0%"></div>
+      <div class="progress-label" id="boat-label">Stage 0 of 8</div>
+    </div>
+  </div>
+
+  <div id="section-tabs">
+    <div class="tab-btn active" data-tab="craft" onclick="switchTab('craft')">Crafting</div>
+    <div class="tab-btn" data-tab="quest" onclick="switchTab('quest')">Boat Quests</div>
+  </div>
+
+  <div id="craft-section" class="tab-panel active">
+    <h3>Tools &amp; Materials</h3>
+    <div id="craft-list"></div>
+  </div>
+
+  <div id="quest-section" class="tab-panel">
+    <h3>Boat Quest Ladder</h3>
+    <div id="quest-list"></div>
+  </div>
+
+  <div id="win-screen">
+    <h2>YOU ESCAPED!</h2>
+    <p id="win-text"></p>
+  </div>
+
+  <div id="restart-section">
+    <button class="primary" onclick="initGame()">Start New Voyage</button>
+  </div>
+</div>
+
+<script>
+// ================= AUDIO =================
+let audioCtx = null;
+let soundOn = false;
+let musicNodes = [];
+
+function toggleSound() {
+  soundOn = !soundOn;
+  document.getElementById('sound-toggle').textContent = 'Sound: ' + (soundOn ? 'On' : 'Off');
+  if (soundOn) startMusic(); else stopMusic();
+}
+
+function startMusic() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  const master = audioCtx.createGain();
+  master.gain.value = 0.0;
+  master.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 2);
+  musicNodes.push(master);
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 400;
+  master.connect(filter);
+  filter.connect(audioCtx.destination);
+  musicNodes.push(filter);
+
+  const droneFreqs = [55, 55.6, 110];
+  droneFreqs.forEach((f, i) => {
+    const osc = audioCtx.createOscillator();
+    osc.type = i === 2 ? 'sine' : 'triangle';
+    osc.frequency.value = f;
+    const g = audioCtx.createGain();
+    g.gain.value = i === 2 ? 0.4 : 0.5;
+    osc.connect(g);
+    g.connect(master);
+    osc.start();
+    musicNodes.push(osc, g);
+  });
+
+  let dir = 1;
+  filter.frequency.linearRampToValueAtTime(900, audioCtx.currentTime + 8);
+  const sweepInterval = setInterval(() => {
+    if (!soundOn) { clearInterval(sweepInterval); return; }
+    const now = audioCtx.currentTime;
+    const target = dir > 0 ? 900 : 250;
+    filter.frequency.linearRampToValueAtTime(target, now + 8);
+    dir *= -1;
+  }, 8000);
+  musicNodes.push({ stop: () => clearInterval(sweepInterval) });
+
+  const bellInterval = setInterval(() => {
+    if (!soundOn) { clearInterval(bellInterval); return; }
+    playBell();
+  }, 6000 + Math.random() * 6000);
+  musicNodes.push({ stop: () => clearInterval(bellInterval) });
+}
+
+function playBell() {
+  if (!audioCtx || !soundOn) return;
+  const notes = [220, 261.6, 293.7, 329.6, 392, 440];
+  const freq = notes[Math.floor(Math.random() * notes.length)];
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+  const g = audioCtx.createGain();
+  g.gain.value = 0;
+  osc.connect(g);
+  g.connect(audioCtx.destination);
+  const now = audioCtx.currentTime;
+  g.gain.linearRampToValueAtTime(0.05, now + 0.5);
+  g.gain.linearRampToValueAtTime(0, now + 4);
+  osc.start(now);
+  osc.stop(now + 4.2);
+}
+
+function playChime(type) {
+  if (!audioCtx || !soundOn) return;
+  const now = audioCtx.currentTime;
+  let freqs;
+  switch (type) {
+    case 'success': freqs = [523.3, 659.3]; break;
+    case 'craft': freqs = [392, 523.3, 659.3]; break;
+    case 'danger': freqs = [196, 174.6]; break;
+    case 'discovery': freqs = [659.3, 880, 1046.5]; break;
+    case 'unlock': freqs = [523.3, 659.3, 784, 1046.5]; break;
+    case 'tone': freqs = [880]; break;
+    case 'tonelow': freqs = [330]; break;
+    default: freqs = [440];
+  }
+  freqs.forEach((f, i) => {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = f;
+    const g = audioCtx.createGain();
+    g.gain.value = 0;
+    osc.connect(g);
+    g.connect(audioCtx.destination);
+    const start = now + i * 0.08;
+    g.gain.linearRampToValueAtTime(0.07, start + 0.05);
+    g.gain.linearRampToValueAtTime(0, start + 0.6);
+    osc.start(start);
+    osc.stop(start + 0.7);
+  });
+}
+
+function stopMusic() {
+  musicNodes.forEach(n => {
+    try {
+      if (n.stop && typeof n.stop === 'function') n.stop();
+      if (n.disconnect) n.disconnect();
+    } catch(e) {}
+  });
+  musicNodes = [];
+}
+
+// ================= STATE =================
+let state = {};
+let timedActionActive = false;
+
+// ---- ITEM DEFINITIONS ----
+const ITEMS = {
+  // raw - shore
+  driftwood:    { label: 'Driftwood' },
+  vine:         { label: 'Vine' },
+  stone:        { label: 'Stone' },
+  // raw - explore
+  palmFrond:    { label: 'Palm Frond' },
+  flint:        { label: 'Flint' },
+  resin:        { label: 'Resin' },
+  clay:         { label: 'Clay' },
+  feather:      { label: 'Feather' },
+  glassShard:   { label: 'Sea Glass' },
+  metalScrap:   { label: 'Metal Scrap' },
+  tarPatch:     { label: 'Tar Patch' },
+  copperWire:   { label: 'Copper Wire' },
+  bone:         { label: 'Bone Fragment' },
+  ink:          { label: 'Squid Ink' },
+  coral:        { label: 'Coral Chunk' },
+  oldMap:       { label: 'Torn Chart' },
+  compassPart:  { label: 'Compass Part' },
+  silverLocket: { label: 'Silver Locket' },
+  beeswax:      { label: 'Beeswax' },
+  // raw - forage
+  fruit:        { label: 'Wild Fruit' },
+  shellfish:    { label: 'Shellfish' },
+  // raw - fishing
+  rawFish:      { label: 'Raw Fish' },
+  pearl:        { label: 'Black Pearl' },
+  eel:          { label: 'Eel' },
+  deepScale:    { label: 'Deep Scale' },
+
+  // tier 1 crafted (basic materials)
+  rope:         { label: 'Rope' },
+  sharpStone:   { label: 'Sharpened Stone' },
+  cookedFish:   { label: 'Cooked Fish' },
+  driedFruit:   { label: 'Dried Rations' },
+  cordage:      { label: 'Fine Cordage' },
+  hardwoodPlank:{ label: 'Hardwood Plank' },
+  glassLens:    { label: 'Ground Lens' },
+  tannedHide:   { label: 'Tanned Hide' },
+
+  // tier 2 crafted (tools, unlock activities)
+  stoneAxe:     { label: 'Stone Axe', tool: true },
+  fishingRod:   { label: 'Fishing Rod', tool: true },
+  divingMask:   { label: 'Diving Mask', tool: true },
+  signalTorch:  { label: 'Signal Torch', tool: true },
+  trapCage:     { label: 'Snare Trap', tool: true },
+  lanternOil:   { label: 'Lantern Oil' },
+  cloth:        { label: 'Sailcloth' },
+  brassFitting: { label: 'Brass Fitting' },
+
+  // tier 3 crafted (advanced components)
+  lantern:      { label: 'Lantern', tool: true },
+  compass:      { label: 'Compass', tool: true },
+  reinforcedHull:{ label: 'Reinforced Plank' },
+  netRope:      { label: 'Fishing Net', tool: true },
+
+  // boat components
+  hull:         { label: 'Hull Frame' },
+  outrigger:    { label: 'Outrigger' },
+  mast:         { label: 'Mast' },
+  sail:         { label: 'Sail' },
+  rudder:       { label: 'Rudder' },
+  figurehead:   { label: 'Figurehead' }
+};
+
+// ---- CRAFTING (Tools & Materials tab) ----
+const CRAFT_RECIPES = [
+  {
+    id: 'rope',
+    name: 'Braid Rope',
+    desc: 'Twist vines into sturdy cordage.',
+    requires: { vine: 4 },
+    produces: { rope: 2 },
+    repeatable: true
+  },
+  {
+    id: 'sharpStone',
+    name: 'Sharpen a Stone',
+    desc: 'Knap a stone into a crude blade edge.',
+    requires: { stone: 2 },
+    produces: { sharpStone: 1 },
+    repeatable: true
+  },
+  {
+    id: 'cookedFish',
+    name: 'Cook Fish on the Fire',
+    desc: 'Roast raw fish over coals. Restores far more hunger than raw.',
+    requires: { rawFish: 1 },
+    produces: { cookedFish: 1 },
+    repeatable: true,
+    requiresUnlock: 'fishing'
+  },
+  {
+    id: 'driedFruit',
+    name: 'Dry Rations',
+    desc: 'Sun-dry fruit and shellfish into rations that keep for days.',
+    requires: { fruit: 2, shellfish: 1 },
+    produces: { driedFruit: 1 },
+    repeatable: true
+  },
+  {
+    id: 'tannedHide',
+    name: 'Tan Eel Hide',
+    desc: 'Cure eel skin with tar and salt until it\'s tough and flexible.',
+    requires: { eel: 1, tarPatch: 1 },
+    produces: { tannedHide: 1 },
+    repeatable: true,
+    requiresUnlock: 'fishing'
+  },
+  {
+    id: 'glassLens',
+    name: 'Grind a Lens',
+    desc: 'Patiently grind sea glass against stone until it\'s optically clear.',
+    requires: { glassShard: 2, stone: 1 },
+    produces: { glassLens: 1 },
+    repeatable: true
+  },
+  {
+    id: 'cordage',
+    name: 'Weave Fine Cordage',
+    desc: 'Tightly woven rope and palm fiber — strong enough for rigging.',
+    requires: { rope: 2, palmFrond: 2 },
+    produces: { cordage: 1 },
+    repeatable: true
+  },
+  {
+    id: 'stoneAxe',
+    name: 'Bind a Stone Axe',
+    desc: 'Lash a sharpened stone to a driftwood haft. Without this, the deep jungle hardwood stays standing forever.',
+    requires: { sharpStone: 1, driftwood: 2, rope: 1 },
+    produces: { stoneAxe: 1 },
+    unlocks: 'axe',
+    unlockMsg: 'You can now harvest Hardwood Planks from the jungle groves while exploring.'
+  },
+  {
+    id: 'fishingRod',
+    name: 'Build a Fishing Rod',
+    desc: 'A flexible hardwood pole, line of fine cordage, and a hook bent from metal scrap.',
+    requires: { hardwoodPlank: 1, cordage: 1, metalScrap: 1 },
+    produces: { fishingRod: 1 },
+    unlocks: 'fishing',
+    unlockMsg: 'A new action is available: Go Fishing. Reel in unique catches from the reef.'
+  },
+  {
+    id: 'divingMask',
+    name: 'Craft a Diving Mask',
+    desc: 'A ground glass lens set in a resin-sealed wood frame, sealed watertight.',
+    requires: { glassLens: 1, resin: 2, hardwoodPlank: 1 },
+    produces: { divingMask: 1 },
+    unlocks: 'diving',
+    unlockMsg: 'Exploring the reef now has a chance to surface rare deep-water finds.'
+  },
+  {
+    id: 'trapCage',
+    name: 'Build a Snare Trap',
+    desc: 'A simple trigger-cage of bent wood and cordage for catching small game.',
+    requires: { hardwoodPlank: 1, cordage: 2, vine: 2 },
+    produces: { trapCage: 1 },
+    unlocks: 'trapping',
+    unlockMsg: 'Foraging now occasionally yields Feathers and Bone Fragments from trapped game.'
+  },
+  {
+    id: 'signalTorch',
+    name: 'Make a Signal Torch',
+    desc: 'A driftwood haft wrapped in resin-soaked cloth — burns long and bright.',
+    requires: { driftwood: 1, resin: 1, cloth: 1 },
+    produces: { signalTorch: 1 },
+    repeatable: true
+  },
+  {
+    id: 'lanternOilCraft',
+    name: 'Render Lantern Oil',
+    desc: 'Beeswax and fish oil rendered slowly over the fire.',
+    requires: { beeswax: 1, rawFish: 1 },
+    produces: { lanternOil: 1 },
+    repeatable: true,
+    requiresUnlock: 'fishing'
+  },
+  {
+    id: 'clothWeave',
+    name: 'Weave Sailcloth',
+    desc: 'Palm fiber and tanned hide, woven tight on a driftwood frame.',
+    requires: { palmFrond: 3, tannedHide: 1 },
+    produces: { cloth: 1 },
+    repeatable: true,
+    requiresUnlock: 'fishing'
+  },
+  {
+    id: 'brassFitting',
+    name: 'Cast Brass Fittings',
+    desc: 'Melt metal scrap and copper wire together in a clay mold over high heat.',
+    requires: { metalScrap: 2, copperWire: 1, clay: 1 },
+    produces: { brassFitting: 1 },
+    repeatable: true
+  },
+  {
+    id: 'lantern',
+    name: 'Build a Signal Lantern',
+    desc: 'Sea glass, brass fittings, and lantern oil — so passing ships can see you in the dark.',
+    requires: { glassShard: 2, brassFitting: 1, lanternOil: 2 },
+    produces: { lantern: 1 }
+  },
+  {
+    id: 'compass',
+    name: 'Assemble a Compass',
+    desc: 'Fragments of brass and a sliver of magnetized metal, set into a ground glass face.',
+    requires: { compassPart: 3, glassLens: 1, brassFitting: 1 },
+    produces: { compass: 1 }
+  },
+  {
+    id: 'reinforcedHull',
+    name: 'Reinforce Hull Planking',
+    desc: 'Hardwood planks bound with cordage and sealed in tar — tougher than raw planks.',
+    requires: { hardwoodPlank: 2, cordage: 1, tarPatch: 1 },
+    produces: { reinforcedHull: 2 },
+    repeatable: true
+  },
+  {
+    id: 'netRope',
+    name: 'Knot a Fishing Net',
+    desc: 'A wide net of fine cordage — cast it for bigger, stranger catches.',
+    requires: { cordage: 3, rope: 2 },
+    produces: { netRope: 1 },
+    unlocks: 'netting',
+    unlockMsg: 'Fishing now has a chance to surface rare deep-sea creatures.'
+  }
+];
+
+// ---- BOAT QUEST LADDER (must be completed strictly in order) ----
+const QUEST_LADDER = [
+  {
+    id: 'hull',
+    name: 'Lay the Hull Frame',
+    desc: 'The skeleton of your escape — driftwood ribs reinforced with planking and bound with rope.',
+    requires: { driftwood: 8, reinforcedHull: 4, rope: 3 },
+    produces: { hull: 1 },
+    boatStage: 1
+  },
+  {
+    id: 'sealHull',
+    name: 'Seal the Hull',
+    desc: 'Pack the seams with resin and tar so the sea stays outside.',
+    requires: { resin: 3, tarPatch: 2 },
+    produces: {},
+    boatStage: 2
+  },
+  {
+    id: 'outrigger',
+    name: 'Fit the Outriggers',
+    desc: 'Twin stabilizer beams, bound with cordage and palm fronds, so the hull won\'t roll in open swell.',
+    requires: { hardwoodPlank: 2, palmFrond: 4, cordage: 2 },
+    produces: { outrigger: 1 },
+    boatStage: 3
+  },
+  {
+    id: 'mast',
+    name: 'Raise the Mast',
+    desc: 'A single straight hardwood spar, stepped into the hull and braced with brass fittings.',
+    requires: { hardwoodPlank: 2, brassFitting: 2, rope: 2 },
+    produces: { mast: 1 },
+    boatStage: 4
+  },
+  {
+    id: 'sail',
+    name: 'Sew the Sail',
+    desc: 'Salvaged sailcloth, stitched panel by panel with fine cordage thread.',
+    requires: { cloth: 4, cordage: 3 },
+    produces: { sail: 1 },
+    boatStage: 5
+  },
+  {
+    id: 'rudder',
+    name: 'Carve the Rudder',
+    desc: 'Hardwood and brass fittings, shaped to bite the water and hold a course.',
+    requires: { hardwoodPlank: 1, brassFitting: 1 },
+    produces: { rudder: 1 },
+    boatStage: 6
+  },
+  {
+    id: 'lanternQuest',
+    name: 'Mount the Signal Lantern',
+    desc: 'Fix the completed lantern to the stern.',
+    requires: { lantern: 1 },
+    produces: {},
+    boatStage: 7
+  },
+  {
+    id: 'compassQuest',
+    name: 'Set the Compass',
+    desc: 'Mount the compass at the helm so you can hold a bearing once you\'re past the reef.',
+    requires: { compass: 1 },
+    produces: {},
+    boatStage: 7
+  },
+  {
+    id: 'figurehead',
+    name: 'Carve the Figurehead',
+    desc: 'A final, unnecessary thing. Bone, pearl, and a sliver of ink-stained wood — something to name the boat by.',
+    requires: { bone: 2, pearl: 1, ink: 1 },
+    produces: { figurehead: 1 },
+    boatStage: 8
+  }
+];
+
+// ---- STORY CHAPTERS ----
+const CHAPTERS = [
+  { day: 1, text: 'CHAPTER I — THE WRECK', body: 'The Meridian Star went down in the night. You woke on cold sand with the tide pulling at your boots and the wreck groaning against the reef like something dying slowly. The island beyond the dunes is silent — too silent. You\'ll need wood, vine, and stone before anything else.' },
+  { day: 3, text: 'CHAPTER II — FOOTPRINTS', body: 'Three days in, and the hunger is a constant low hum. While foraging, you find a line of footprints in the wet sand — bare, human, and far too fresh to be your own. They lead into the jungle and do not come back out.' },
+  { day: 6, boatStage: 1, text: 'CHAPTER III — THE RIBS', body: 'The hull frame rises from the sand like the ribcage of some great drowned animal. At night you hear something moving through the palms in slow, deliberate circles — never closer, never further. You start sleeping with a sharpened stake nearby.' },
+  { day: 10, boatStage: 3, text: 'CHAPTER IV — THE OLD CAMP', body: 'Deeper in the interior you find the remains of another camp — older, overgrown, abandoned mid-build. A boat frame just like yours, rotted to lace. Whoever they were, they got this far too. Carved into a nearby tree: a single word, half-eaten by moss. You can\'t quite make it out.' },
+  { day: 14, boatStage: 5, text: 'CHAPTER V — THE TIDE POOLS', body: 'The sail takes shape, heavy and patched but real. Down at the tide pools you find things that shouldn\'t wash up this far from open water — sea glass worn smooth, strange compass fragments, a locket with no photo inside. The island has been collecting things for a long time.' },
+  { day: 18, boatStage: 7, text: 'CHAPTER VI — THE LIGHT', body: 'With the lantern mounted and the compass set, you finally have a way to be seen and a way to be found. That night, far out past the reef, you see a light answer yours — once, twice — then nothing. You\'re not sure if it was a ship, or something else entirely. Either way: it\'s time to finish this.' }
+];
+
+// ---- EXPLORE EVENTS (one-time discoveries + repeatable outcomes) ----
+const EXPLORE_EVENTS = [
+  { id: 'wreck', text: 'You find the wreck of the Meridian Star\'s stern section, half-buried in sand. Inside the flooded cabin: scrap metal and copper wire.', give: { metalScrap: 3, copperWire: 2 }, type: 'discovery', once: true },
+  { id: 'cave', text: 'A cave behind a waterfall opens into a chamber lined with flint deposits, clay, and old dry firewood.', give: { flint: 3, clay: 2, driftwood: 2 }, type: 'discovery', once: true },
+  { id: 'cloth1', text: 'Torn sailcloth — far too large to be from your own ship — is tangled in the mangroves, along with a honeycomb dripping wax.', give: { palmFrond: 2, beeswax: 2 }, type: 'discovery', once: true },
+  { id: 'resin1', text: 'A lightning-scarred tree weeps thick golden resin, gallons of it, pooled at the roots.', give: { resin: 4 }, type: 'discovery', once: true },
+  { id: 'tarpit', text: 'At the island\'s dead center, a black tar pit bubbles slowly, untouched by wind or rain.', give: { tarPatch: 4 }, type: 'discovery', once: true },
+  { id: 'oldcamp', text: 'You find the old castaway camp from your dream — except it\'s real. Rope, a torn chart, and a journal too waterlogged to read save for one line: "it watches from the treeline, never the water."', give: { rope: 2, oldMap: 1, vine: 2 }, type: 'discovery', once: true },
+  { id: 'hardwoodGrove', text: 'Dense jungle hardwood towers overhead — straight, dry, perfect for planking. But the trunks are too thick for bare hands.', give: {}, type: 'event', once: true, needsAxe: true },
+  { id: 'tidepools', text: 'In the tide pools you find sea glass worn to frosted marbles and fragments of an old brass compass.', give: { glassShard: 2, compassPart: 2 }, type: 'discovery', once: true },
+  { id: 'reef', text: 'At low tide, the reef exposes coral chunks and a faded silver locket tangled in kelp.', give: { coral: 2, silverLocket: 1 }, type: 'discovery', once: true },
+  { id: 'boneyard', text: 'A clearing of bleached bones — driftwood-pale, animal, you tell yourself — gives up a few usable fragments.', give: { bone: 2 }, type: 'discovery', once: true },
+  { id: 'squidcave', text: 'A tide-flooded grotto holds the ink sac of something enormous, long dead. It still stains the water black.', give: { ink: 1, compassPart: 1 }, type: 'discovery', once: true },
+  { id: 'signalrock', text: 'High on the eastern cliff, scorch marks circle an old signal fire. Someone was rescued from here once. Or wanted to be.', give: { copperWire: 1, oldMap: 1 }, type: 'discovery', once: true },
+
+  { id: 'east_cliffs', text: 'The eastern cliffs give up driftwood and loose stone washed up by the tide.', give: { driftwood: 2, stone: 1 }, type: 'success', once: false, repeatable: true },
+  { id: 'interior', text: 'The interior jungle yields vines and palm fronds in tangled abundance.', give: { vine: 2, palmFrond: 1 }, type: 'success', once: false, repeatable: true },
+  { id: 'shallows', text: 'Wading the shallows, you scoop up a few pieces of sea glass and a stray bit of metal scrap.', give: { glassShard: 1, metalScrap: 1 }, type: 'success', once: false, repeatable: true },
+  { id: 'nothing', text: 'You wander for a long while but find nothing of note. The jungle feels like it\'s watching you walk away.', give: {}, type: '', once: false, repeatable: true },
+  { id: 'storm', text: 'A sudden squall rolls in off the water. You take shelter under a rock overhang, soaked and shivering.', give: {}, type: 'danger', once: false, repeatable: true, energyCost: 15 },
+  { id: 'ankle', text: 'You twist your ankle scrambling over loose volcanic rock. It throbs the rest of the day.', give: {}, type: 'danger', once: false, repeatable: true, energyCost: 10 },
+  { id: 'eyes', text: 'For a moment, deep in the tree line, you\'re certain something is looking back at you. When you blink, it\'s gone.', give: {}, type: 'event', once: false, repeatable: true, energyCost: 5 },
+
+  { id: 'hardwoodHarvest', text: 'With your stone axe, you fell a section of jungle hardwood and shape it into planks.', give: { hardwoodPlank: 2 }, type: 'discovery', once: false, repeatable: true, requiresFlag: 'axe' },
+
+  { id: 'diveDeep', text: 'You dive past the reef wall into deeper water and find a black pearl wedged in a dead oyster.', give: { pearl: 1 }, type: 'discovery', once: false, repeatable: true, requiresFlag: 'diving' }
+];
+
+const SHORE_FLAVOR = [
+  'You comb the tideline as gulls wheel overhead.',
+  'The surf hisses back from the sand, leaving treasure and trash in equal measure.',
+  'Salt crusts your hands as you dig through wet sand.',
+  'The wreck groans somewhere out past the reef — a reminder of how you got here.',
+  'Crabs scatter as you turn over a half-buried log.'
+];
+
+const FORAGE_FLAVOR_SUCCESS = [
+  'You crack open a few coconuts and gather wild fruit from low branches.',
+  'A patch of wild bananas, low and overripe, fills your pack gratefully.',
+  'You find a tidepool thick with mussels and small crabs.',
+  'Breadfruit, fallen and split open, makes for easy pickings.'
+];
+
+const FORAGE_FLAVOR_FAIL = [
+  'The usual spots are picked clean. Even the crabs seem to be hiding.',
+  'You spend an hour digging for shellfish and find only empty shells.',
+  'The fruit trees nearby are bare — something got here first.'
+];
+
+const TRAP_FLAVOR = [
+  'Your snare trap caught something small overnight — feathers and bone left behind.',
+  'A bird struggled into your trap. You salvage feathers and a bone fragment.'
+];
+
+const FISH_CATCH_TABLE = [
+  { item: 'rawFish', weight: 55, label: 'Raw Fish' },
+  { item: 'eel', weight: 15, label: 'Eel' },
+  { item: 'deepScale', weight: 10, label: 'Deep Scale', requiresFlag: 'netting' },
+  { item: 'pearl', weight: 6, label: 'Black Pearl', requiresFlag: 'netting' },
+  { item: 'compassPart', weight: 14, label: 'Compass Part' }
+];
+
+// ---- EXPLORE PATH FLAVOR (branching maze) ----
+const PATH_PROMPTS = [
+  'The trail splits ahead.',
+  'A fallen log blocks one route.',
+  'You hear water somewhere close.',
+  'The canopy thins in one direction.',
+  'Something rustles off to one side.',
+  'The ground turns soft and marshy to your left.',
+  'A faint trail of broken branches leads onward.'
+];
+const PATH_LABELS = [
+  ['Left Trail', 'Right Trail'],
+  ['High Ground', 'Low Ground'],
+  ['Through the Reeds', 'Around the Rocks'],
+  ['Follow the Water', 'Cut Inland'],
+  ['Push Through', 'Go Around']
+];
+
+// ================= INIT =================
+function initGame() {
+  state = {
+    inventory: {},
+    hunger: 100,
+    energy: 100,
+    day: 1,
+    crafted: {},
+    discovered: {},
+    chaptersShown: {},
+    flags: {}, // axe, fishing, diving, trapping, netting
+    boatStage: 0,
+    gameOver: false
+  };
+  Object.keys(ITEMS).forEach(k => state.inventory[k] = 0);
+
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('win-screen').classList.remove('show');
+  document.getElementById('restart-section').classList.remove('show');
+  document.getElementById('timer-overlay').classList.remove('show');
+  document.getElementById('chapter-banner').textContent = '';
+  document.getElementById('btn-fish').style.display = 'none';
+  document.getElementById('actions').classList.remove('cols-3');
+  setActionsEnabled(true);
+  switchTab('craft');
+
+  showChapter(CHAPTERS[0]);
+  log('The shore is littered with driftwood. Survive, gather, and find a way off this island — before whatever else lives here finds you first.', 'event');
+  renderAll();
+}
+
+// ================= TAB SWITCHING =================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('craft-section').classList.toggle('active', tab === 'craft');
+  document.getElementById('quest-section').classList.toggle('active', tab === 'quest');
+}
+
+// ================= LOG =================
+function log(text, cls) {
+  const p = document.createElement('p');
+  if (cls) p.className = cls;
+  p.textContent = text;
+  const logEl = document.getElementById('log');
+  logEl.appendChild(p);
+  logEl.scrollTop = logEl.scrollHeight;
+  if (cls) playChime(cls);
+}
+
+function showChapter(ch) {
+  if (state.chaptersShown[ch.text]) return;
+  state.chaptersShown[ch.text] = true;
+  log(ch.text, 'chapter');
+  log(ch.body, 'story');
+  document.getElementById('chapter-banner').textContent = ch.text;
+}
+
+function checkChapters() {
+  CHAPTERS.forEach(ch => {
+    if (state.chaptersShown[ch.text]) return;
+    const dayOk = !ch.day || state.day >= ch.day;
+    const stageOk = !ch.boatStage || state.boatStage >= ch.boatStage;
+    if (dayOk && stageOk) showChapter(ch);
+  });
+}
+
+// ================= TIME / SURVIVAL =================
+function setActionsEnabled(enabled) {
+  document.querySelectorAll('#actions button').forEach(b => {
+    if (b.id === 'btn-fish' && b.style.display === 'none') return;
+    b.disabled = !enabled;
+  });
+}
+
+function advanceTime(energyCost, hungerCost) {
+  state.energy = Math.max(0, state.energy - energyCost);
+  state.hunger = Math.max(0, state.hunger - hungerCost);
+
+  if (state.hunger <= 0) {
+    state.energy = Math.max(0, state.energy - 10);
+    log('Hunger gnaws at you fiercely. You feel weaker.', 'danger');
+  }
+  if (state.energy <= 0) {
+    log('You collapse from exhaustion and sleep through the night involuntarily.', 'danger');
+    state.energy = 30;
+    state.hunger = Math.max(0, state.hunger - 10);
+    state.day++;
+  }
+
+  checkChapters();
+
+  if (state.energy <= 0 && state.hunger <= 0) {
+    gameOverDeath();
+  }
+}
+
+function gameOverDeath() {
+  state.gameOver = true;
+  log('Your strength finally gives out. The last thing you hear is something moving closer through the palms...', 'danger');
+  setActionsEnabled(false);
+  document.getElementById('restart-section').classList.add('show');
+  stopMusic();
+}
+
+function checkDeath() {
+  if (state.energy <= 0 && state.hunger <= 0 && !state.gameOver) {
+    gameOverDeath();
+  }
+}
+
+// ================= UNLOCK HANDLING =================
+function applyUnlock(flag, msg) {
+  if (state.flags[flag]) return;
+  state.flags[flag] = true;
+  if (msg) log(msg, 'unlock');
+
+  if (flag === 'fishing') {
+    document.getElementById('btn-fish').style.display = '';
+    document.getElementById('actions').classList.add('cols-3');
+  }
+}
+
+// ================= HELPERS SHARED BY MINI-GAMES =================
+function openOverlay(title, hint) {
+  const overlay = document.getElementById('timer-overlay');
+  const resultEl = document.getElementById('ta-result');
+  const titleEl = document.getElementById('ta-title');
+  overlay.classList.add('show');
+  titleEl.textContent = title;
+  resultEl.textContent = hint;
+  document.getElementById('timer-bar-fill').style.width = '100%';
+  document.getElementById('ta-field').innerHTML = '';
+  timedActionActive = true;
+  setActionsEnabled(false);
+}
+
+function closeOverlay() {
+  document.getElementById('timer-overlay').classList.remove('show');
+  timedActionActive = false;
+  setActionsEnabled(true);
+}
+
+function runCountdown(totalMs, onTick, onDone) {
+  const fill = document.getElementById('timer-bar-fill');
+  const startTime = Date.now();
+  const interval = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const remaining = Math.max(0, totalMs - elapsed);
+    fill.style.width = (remaining / totalMs * 100) + '%';
+    if (onTick) onTick(remaining);
+    if (remaining <= 0) {
+      clearInterval(interval);
+      onDone();
+    }
+  }, 100);
+  return interval;
+}
+
+// ================= MINI-GAME 1: SHORE — TIDE SWEEP (click bursts as they wash in) =================
+function gatherShore() {
+  if (state.gameOver || timedActionActive) return;
+
+  openOverlay('Combing the shoreline... (10s)', 'Click the markers before the tide pulls them back out.');
+  const field = document.getElementById('ta-field');
+  let hits = 0, spawned = 0;
+  let active = true;
+
+  function spawnWave() {
+    if (!active) return;
+    const count = rand(1, 3);
+    for (let i = 0; i < count; i++) {
+      const t = document.createElement('div');
+      t.className = 'ta-target';
+      t.textContent = '+';
+      const r = field.getBoundingClientRect();
+      const maxX = Math.max(10, r.width - 38);
+      const maxY = Math.max(10, r.height - 38);
+      t.style.left = Math.floor(Math.random() * maxX) + 'px';
+      t.style.top = Math.floor(Math.random() * maxY) + 'px';
+      spawned++;
+      let clicked = false;
+      t.onclick = () => {
+        if (clicked) return;
+        clicked = true;
+        hits++;
+        t.style.borderColor = '#6ee7b7';
+        t.style.background = 'rgba(110,231,183,0.4)';
+        t.textContent = '✓';
+        playChime('success');
+        setTimeout(() => t.remove(), 120);
+      };
+      field.appendChild(t);
+      setTimeout(() => { if (!clicked) t.remove(); }, 1300);
+    }
+  }
+
+  const spawnInterval = setInterval(spawnWave, 750);
+  spawnWave();
+
+  runCountdown(10000, null, () => {
+    active = false;
+    clearInterval(spawnInterval);
+    closeOverlay();
+
+    const flavor = SHORE_FLAVOR[rand(0, SHORE_FLAVOR.length - 1)];
+    let gained = [];
+    if (hits > 0) {
+      const dw = hits;
+      const st = rand(0, Math.ceil(hits / 2));
+      const vn = rand(0, Math.floor(hits / 2));
+      if (dw > 0) { state.inventory.driftwood += dw; gained.push(`${dw} Driftwood`); }
+      if (st > 0) { state.inventory.stone += st; gained.push(`${st} Stone`); }
+      if (vn > 0) { state.inventory.vine += vn; gained.push(`${vn} Vine`); }
+    }
+    if (gained.length) {
+      log(`${flavor} You gather: ${gained.join(', ')}.`, 'success');
+    } else {
+      log(`${flavor} This time, your hands come up empty.`, '');
+    }
+    advanceTime(8, 6);
+    renderAll();
+    checkDeath();
+  });
+}
+
+// ================= MINI-GAME 2: EXPLORE — BRANCHING TRAIL =================
+// Pick a path repeatedly; each choice has a hidden "good" side weighted to
+// favor the better-looking flavor text. No reflexes required — it's about
+// reading the island, with a bit of luck.
+function exploreIsland() {
+  if (state.gameOver || timedActionActive) return;
+
+  if (state.energy < 20) {
+    log('You\'re too exhausted to venture into the island\'s interior. Rest first.', 'danger');
+    return;
+  }
+
+  openOverlay('Pushing into the interior...', 'Choose your route at each fork. Read the island, trust your gut.');
+  const field = document.getElementById('ta-field');
+  field.innerHTML = `
+    <div id="path-track"></div>
+    <div id="path-prompt"></div>
+    <div id="path-choices"></div>
+  `;
+
+  const totalForks = 4;
+  let fork = 0;
+  let goodChoices = 0;
+
+  const trackEl = document.getElementById('path-track');
+  function renderTrack() {
+    trackEl.innerHTML = '';
+    for (let i = 0; i < totalForks; i++) {
+      if (i > 0) {
+        const c = document.createElement('div');
+        c.className = 'path-connector';
+        trackEl.appendChild(c);
+      }
+      const s = document.createElement('div');
+      s.className = 'path-step' + (i < fork ? ' walked' : '') + (i === fork ? ' current' : '');
+      trackEl.appendChild(s);
+    }
+  }
+  renderTrack();
+
+  function nextFork() {
+    if (fork >= totalForks) {
+      finishExplore();
+      return;
+    }
+    document.getElementById('path-prompt').textContent = PATH_PROMPTS[rand(0, PATH_PROMPTS.length - 1)];
+    const labels = PATH_LABELS[rand(0, PATH_LABELS.length - 1)];
+    const goodSide = rand(0, 1); // which button is "the better read" this fork
+    const choicesEl = document.getElementById('path-choices');
+    choicesEl.innerHTML = '';
+
+    labels.forEach((label, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'path-choice';
+      btn.innerHTML = `<span class="arrow">${i === 0 ? '\u2190' : '\u2192'}</span><span>${label}</span>`;
+      btn.onclick = () => {
+        document.querySelectorAll('.path-choice').forEach(b => b.disabled = true);
+        const isGood = i === goodSide;
+        btn.classList.add(isGood ? 'good' : 'bad');
+        playChime(isGood ? 'success' : 'danger');
+        if (isGood) goodChoices++;
+        fork++;
+        renderTrack();
+        setTimeout(nextFork, 450);
+      };
+      choicesEl.appendChild(btn);
+    });
+  }
+  nextFork();
+
+  function finishExplore() {
+    closeOverlay();
+    const hits = goodChoices; // reuse "hits" scaling from before: 0-4 good reads
+
+    let pool = EXPLORE_EVENTS.filter(e => {
+      if (e.once && state.discovered[e.id]) return false;
+      if (e.requiresFlag && !state.flags[e.requiresFlag]) return false;
+      if (e.id === 'hardwoodGrove' && state.flags.axe) return false;
+      return true;
+    });
+    let evt = pool[rand(0, pool.length - 1)];
+
+    log(evt.text, evt.type || '');
+    if (evt.give) {
+      Object.entries(evt.give).forEach(([k, v]) => {
+        if (v > 0) {
+          let amt = v;
+          if (evt.repeatable) amt = Math.max(0, v - 1) + (hits > 0 ? 1 : 0) + Math.floor(hits / 2);
+          if (amt > 0) state.inventory[k] += amt;
+        }
+      });
+    }
+
+    if (evt.once) state.discovered[evt.id] = true;
+
+    if (hits >= totalForks) {
+      log('You read every fork right. Confident and unhurried, you cover more ground than usual.', 'success');
+    } else if (hits === 0) {
+      log('Every guess went wrong today. You stumble out of the brush scratched and turned around.', 'danger');
+    }
+
+    const energyCost = 15 + (evt.energyCost || 0) - Math.min(5, hits);
+    advanceTime(Math.max(8, energyCost), 10);
+    renderAll();
+    checkDeath();
+  }
+}
+
+// ================= MINI-GAME 3: FORAGE — SIMON-SAYS BUSH PATTERN =================
+// A sequence of bushes lights up; repeat the pattern by clicking them in
+// order. Pattern grows each round. Memory-based, calmer pace than the others.
+const FORAGE_SYMBOLS = ['\u2766', '\u273F', '\u2740', '\u2741', '\u2742', '\u2618', '\u269C', '\u2698'];
+
+function forageFood() {
+  if (state.gameOver || timedActionActive) return;
+
+  openOverlay('Foraging for food...', 'Watch the bushes flash, then click them back in the same order.');
+  const field = document.getElementById('ta-field');
+  field.innerHTML = '<div id="forage-grid"></div>';
+  const grid = document.getElementById('forage-grid');
+
+  const bushCount = 8;
+  const bushes = [];
+  for (let i = 0; i < bushCount; i++) {
+    const b = document.createElement('div');
+    b.className = 'forage-bush';
+    b.textContent = FORAGE_SYMBOLS[i];
+    b.dataset.idx = i;
+    grid.appendChild(b);
+    bushes.push(b);
+  }
+
+  let round = 0;
+  let maxRounds = 4;
+  let sequence = [];
+  let playerPos = 0;
+  let score = 0;
+  let inputLocked = true;
+
+  function flashBush(idx, duration, cb) {
+    const b = bushes[idx];
+    b.classList.add('flash');
+    playChime('tone');
+    setTimeout(() => {
+      b.classList.remove('flash');
+      if (cb) cb();
+    }, duration);
+  }
+
+  function playSequence() {
+    inputLocked = true;
+    let i = 0;
+    function step() {
+      if (i >= sequence.length) {
+        inputLocked = false;
+        return;
+      }
+      flashBush(sequence[i], 450, () => {
+        i++;
+        setTimeout(step, 180);
+      });
+    }
+    step();
+  }
+
+  function nextRound() {
+    round++;
+    if (round > maxRounds) {
+      finishForage();
+      return;
+    }
+    sequence.push(rand(0, bushCount - 1));
+    playerPos = 0;
+    document.getElementById('ta-result').textContent = `Round ${round} of ${maxRounds} — watch closely...`;
+    setTimeout(playSequence, 500);
+  }
+
+  bushes.forEach((b, idx) => {
+    b.onclick = () => {
+      if (inputLocked) return;
+      if (idx === sequence[playerPos]) {
+        b.classList.add('correct');
+        playChime('success');
+        setTimeout(() => b.classList.remove('correct'), 200);
+        playerPos++;
+        if (playerPos >= sequence.length) {
+          score++;
+          inputLocked = true;
+          document.getElementById('ta-result').textContent = 'Correct! Next round...';
+          setTimeout(nextRound, 700);
+        }
+      } else {
+        b.classList.add('wrong');
+        playChime('danger');
+        setTimeout(() => b.classList.remove('wrong'), 250);
+        inputLocked = true;
+        document.getElementById('ta-result').textContent = 'Wrong bush — that round\'s a bust.';
+        setTimeout(nextRound, 900);
+      }
+    };
+  });
+
+  nextRound();
+
+  function finishForage() {
+    closeOverlay();
+    const hits = score; // 0..maxRounds correct rounds completed
+    if (hits > 0) {
+      const flavor = FORAGE_FLAVOR_SUCCESS[rand(0, FORAGE_FLAVOR_SUCCESS.length - 1)];
+      const fr = Math.ceil(hits / 2) + (hits >= maxRounds ? 1 : 0);
+      const sh = Math.floor(hits / 2);
+      if (fr > 0) state.inventory.fruit += fr;
+      if (sh > 0) state.inventory.shellfish += sh;
+      const gain = 6 + hits * 4;
+      state.hunger = Math.min(100, state.hunger + gain);
+      log(`${flavor} Gained ${fr} Wild Fruit, ${sh} Shellfish. Hunger +${gain}.`, 'success');
+
+      if (state.flags.trapping && rand(1, 10) > 6) {
+        state.inventory.feather += 1;
+        state.inventory.bone += 1;
+        log(TRAP_FLAVOR[rand(0, TRAP_FLAVOR.length - 1)], 'discovery');
+      }
+    } else {
+      const flavor = FORAGE_FLAVOR_FAIL[rand(0, FORAGE_FLAVOR_FAIL.length - 1)];
+      log(flavor, '');
+    }
+    advanceTime(10, 4);
+    renderAll();
+    checkDeath();
+  }
+}
+
+// ================= MINI-GAME 4: FISHING — BOBBER BITE WINDOW (kept, tuned) =================
+function goFishing() {
+  if (state.gameOver || timedActionActive) return;
+  if (!state.flags.fishing) return;
+
+  openOverlay('Fishing... (15s)', 'Wait for the bobber to glow, then click it fast!');
+  const field = document.getElementById('ta-field');
+
+  const bobber = document.createElement('div');
+  bobber.id = 'fish-bobber';
+  bobber.textContent = '\u25CB';
+  field.appendChild(bobber);
+
+  let hits = 0;
+  let biteActive = false;
+  let biteTimeout = null;
+  let driftTimeout = null;
+  let running = true;
+
+  function drift() {
+    if (!running) return;
+    const r = field.getBoundingClientRect();
+    const maxY = Math.max(10, r.height - 28);
+    const newTop = Math.floor(Math.random() * maxY);
+    bobber.style.top = newTop + 'px';
+    driftTimeout = setTimeout(drift, 900 + Math.random() * 700);
+  }
+  drift();
+
+  function scheduleBite() {
+    if (!running) return;
+    biteTimeout = setTimeout(() => {
+      if (!running) return;
+      biteActive = true;
+      bobber.classList.add('bite');
+      bobber.textContent = '!';
+      setTimeout(() => {
+        if (biteActive) {
+          biteActive = false;
+          bobber.classList.remove('bite');
+          bobber.textContent = '\u25CB';
+        }
+        scheduleBite();
+      }, 700);
+    }, 1200 + Math.random() * 1800);
+  }
+  scheduleBite();
+
+  bobber.onclick = () => {
+    if (!biteActive) return;
+    biteActive = false;
+    bobber.classList.remove('bite');
+    bobber.textContent = '\u2713';
+    hits++;
+    playChime('success');
+    setTimeout(() => { if (running) bobber.textContent = '\u25CB'; }, 200);
+  };
+
+  runCountdown(15000, null, () => {
+    running = false;
+    clearTimeout(biteTimeout);
+    clearTimeout(driftTimeout);
+    closeOverlay();
+
+    if (hits <= 0) {
+      log('The line stays still all afternoon. Not a single bite.', '');
+    } else {
+      let gained = {};
+      for (let i = 0; i < hits; i++) {
+        const table = FISH_CATCH_TABLE.filter(f => !f.requiresFlag || state.flags[f.requiresFlag]);
+        const totalWeight = table.reduce((s, f) => s + f.weight, 0);
+        let roll = Math.random() * totalWeight;
+        let pick = table[0];
+        for (const f of table) {
+          if (roll < f.weight) { pick = f; break; }
+          roll -= f.weight;
+        }
+        gained[pick.item] = (gained[pick.item] || 0) + 1;
+      }
+      const parts = [];
+      Object.entries(gained).forEach(([k, v]) => {
+        state.inventory[k] += v;
+        const label = FISH_CATCH_TABLE.find(f => f.item === k)?.label || ITEMS[k].label;
+        parts.push(`${v} ${label}`);
+      });
+      const isBig = gained.pearl || gained.deepScale || gained.eel;
+      log(`You reel in: ${parts.join(', ')}.`, isBig ? 'discovery' : 'success');
+    }
+    advanceTime(10, 8);
+    renderAll();
+    checkDeath();
+  });
+}
+
+// ================= REST (no mini-game, by design) =================
+function rest() {
+  if (state.gameOver || timedActionActive) return;
+
+  openOverlay('Sleeping... (6s)', 'The fire crackles low. Something rustles, far off, in the dark.');
+  document.getElementById('ta-field').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#5a8270;font-size:12px;letter-spacing:2px;">— time passes —</div>';
+
+  runCountdown(6000, null, () => {
+    closeOverlay();
+
+    let gain = rand(25, 40);
+    let hungerLoss = 12;
+    if (state.inventory.driedFruit > 0) {
+      state.inventory.driedFruit -= 1;
+      hungerLoss = Math.max(0, hungerLoss - 8);
+      log('You eat a portion of dried rations before sleeping.', '');
+    }
+    if (state.inventory.cookedFish > 0) {
+      state.inventory.cookedFish -= 1;
+      state.hunger = Math.min(100, state.hunger + 15);
+      log('You finish off a cooked fish before turning in.', '');
+    }
+
+    state.energy = Math.min(100, state.energy + gain);
+    state.hunger = Math.max(0, state.hunger - hungerLoss);
+    state.day++;
+    log(`You wake by the dying embers. Energy restored (+${gain}). Day ${state.day} begins.`, 'event');
+    checkChapters();
+    renderAll();
+    checkDeath();
+  });
+}
+
+// ================= CRAFTING (Tools & Materials) =================
+function canCraft(recipe) {
+  if (recipe.requiresUnlock && !state.flags[recipe.requiresUnlock]) return false;
+  return Object.entries(recipe.requires).every(([item, amt]) => state.inventory[item] >= amt);
+}
+
+function craftItem(id) {
+  if (state.gameOver || timedActionActive) return;
+  const recipe = CRAFT_RECIPES.find(r => r.id === id);
+  if (!recipe) return;
+
+  if (!recipe.repeatable && state.crafted[id]) return;
+  if (!canCraft(recipe)) {
+    log('You don\'t have the materials for that yet.', 'danger');
+    return;
+  }
+
+  Object.entries(recipe.requires).forEach(([item, amt]) => {
+    state.inventory[item] -= amt;
+  });
+  if (recipe.produces) {
+    Object.entries(recipe.produces).forEach(([item, amt]) => {
+      if (amt > 0) state.inventory[item] = (state.inventory[item] || 0) + amt;
+    });
+  }
+
+  state.crafted[id] = (state.crafted[id] || 0) + 1;
+
+  log(`Crafted: ${recipe.name}.`, 'craft');
+
+  if (recipe.unlocks) {
+    applyUnlock(recipe.unlocks, recipe.unlockMsg);
+  }
+
+  advanceTime(10, 6);
+  checkChapters();
+  renderAll();
+  checkDeath();
+}
+
+// ================= QUESTS (Boat Quest Ladder) =================
+function canCraftQuest(recipe) {
+  return Object.entries(recipe.requires).every(([item, amt]) => state.inventory[item] >= amt);
+}
+
+function craftQuest(id) {
+  if (state.gameOver || timedActionActive) return;
+  const recipe = QUEST_LADDER.find(r => r.id === id);
+  if (!recipe) return;
+
+  const idx = QUEST_LADDER.findIndex(r => r.id === id);
+  for (let i = 0; i < idx; i++) {
+    if (!state.crafted[QUEST_LADDER[i].id]) {
+      log(`You must complete "${QUEST_LADDER[i].name}" first.`, 'danger');
+      return;
+    }
+  }
+
+  if (state.crafted[id]) return;
+  if (!canCraftQuest(recipe)) {
+    log('You don\'t have the materials for that yet.', 'danger');
+    return;
+  }
+
+  Object.entries(recipe.requires).forEach(([item, amt]) => {
+    state.inventory[item] -= amt;
+  });
+  if (recipe.produces) {
+    Object.entries(recipe.produces).forEach(([item, amt]) => {
+      if (amt > 0) state.inventory[item] = (state.inventory[item] || 0) + amt;
+    });
+  }
+
+  state.crafted[id] = true;
+  if (recipe.boatStage) state.boatStage = Math.max(state.boatStage, recipe.boatStage);
+
+  log(`Completed: ${recipe.name}.`, 'craft');
+
+  advanceTime(14, 10);
+  checkChapters();
+
+  if (state.boatStage >= 8 && QUEST_LADDER.every(r => state.crafted[r.id])) {
+    winGame();
+  }
+
+  renderAll();
+  checkDeath();
+}
+
+function winGame() {
+  state.gameOver = true;
+  const winText = `Day ${state.day}. The boat slides off the sand and into the surf, every joint groaning but holding. The lantern burns at the stern; the compass needle finds north and stays there. Behind you, the island recedes — and for just a moment, at the tree line, you think you see a figure raise one hand. You don't wave back. The horizon opens wide, and for the first time since the wreck, you breathe easy.`;
+  document.getElementById('win-text').textContent = winText;
+  document.getElementById('win-screen').classList.add('show');
+  document.getElementById('restart-section').classList.add('show');
+  setActionsEnabled(false);
+  log('The vessel is complete. It\'s time to leave this island behind — for good, or so you hope.', 'success');
+  stopMusic();
+}
+
+// ================= RENDER =================
+function renderAll() {
+  document.getElementById('hunger-val').textContent = state.hunger;
+  document.getElementById('energy-val').textContent = state.energy;
+  document.getElementById('day-val').textContent = state.day;
+
+  const invEl = document.getElementById('inventory');
+  invEl.innerHTML = '';
+  const boatPartKeys = ['hull','outrigger','mast','sail','rudder','figurehead'];
+  Object.entries(ITEMS).forEach(([key, info]) => {
+    const qty = state.inventory[key] || 0;
+    if (boatPartKeys.includes(key) && qty === 0) return;
+    if (qty === 0 && !info.tool) return;
+    if (info.tool && qty === 0) return;
+    const chip = document.createElement('div');
+    chip.className = 'item-chip' + (qty > 0 ? ' have' : '');
+    chip.innerHTML = `${info.label}<span class="qty">${qty}</span>`;
+    invEl.appendChild(chip);
+  });
+  if (invEl.children.length === 0) {
+    const chip = document.createElement('div');
+    chip.className = 'item-chip';
+    chip.textContent = 'Empty-handed';
+    invEl.appendChild(chip);
+  }
+
+  const pct = (state.boatStage / 8) * 100;
+  document.getElementById('boat-fill').style.width = pct + '%';
+  document.getElementById('boat-label').textContent = `Stage ${state.boatStage} of 8`;
+
+  const craftListEl = document.getElementById('craft-list');
+  craftListEl.innerHTML = '';
+  CRAFT_RECIPES.forEach(recipe => {
+    const timesCrafted = state.crafted[recipe.id] || 0;
+    const done = !recipe.repeatable && timesCrafted > 0;
+    const lockedByUnlock = recipe.requiresUnlock && !state.flags[recipe.requiresUnlock];
+
+    const div = document.createElement('div');
+    div.className = 'craft-item' + (done ? ' done' : '') + (lockedByUnlock ? ' locked' : '');
+
+    let reqStr;
+    if (lockedByUnlock) {
+      reqStr = `<span class="unmet">Requires unlock: ${unlockLabel(recipe.requiresUnlock)}</span>`;
+    } else {
+      reqStr = Object.entries(recipe.requires).map(([item, amt]) => {
+        const have = state.inventory[item] || 0;
+        const met = have >= amt;
+        return `<span class="${met ? 'met' : 'unmet'}">${ITEMS[item].label} ${have}/${amt}</span>`;
+      }).join(' · ');
+    }
+
+    let tagHtml = '';
+    if (recipe.unlocks) tagHtml += `<span class="tag unlock-tag">unlocks: ${unlockLabel(recipe.unlocks)}</span>`;
+    if (recipe.repeatable) tagHtml += `<span class="tag">repeatable${timesCrafted > 0 ? ' x' + timesCrafted : ''}</span>`;
+
+    div.innerHTML = `
+      <div style="flex:1">
+        <div class="name">${done ? '✓ ' : ''}${recipe.name}${tagHtml}</div>
+        <div class="req">${recipe.desc}</div>
+        <div class="req">${reqStr}</div>
+      </div>
+    `;
+
+    if (!done) {
+      const btn = document.createElement('button');
+      btn.textContent = 'Craft';
+      btn.style.marginLeft = '10px';
+      btn.disabled = !canCraft(recipe);
+      btn.onclick = () => craftItem(recipe.id);
+      div.appendChild(btn);
+    }
+
+    craftListEl.appendChild(div);
+  });
+
+  const questListEl = document.getElementById('quest-list');
+  questListEl.innerHTML = '';
+  QUEST_LADDER.forEach((recipe, idx) => {
+    const prevDone = idx === 0 || state.crafted[QUEST_LADDER[idx-1].id];
+    const done = !!state.crafted[recipe.id];
+    const div = document.createElement('div');
+    div.className = 'craft-item' + (done ? ' done' : '') + (!done && !prevDone ? ' locked' : '');
+
+    let reqStr;
+    if (!prevDone && !done) {
+      reqStr = '<span class="unmet">Locked — complete the previous step first</span>';
+    } else {
+      reqStr = Object.entries(recipe.requires).map(([item, amt]) => {
+        const have = state.inventory[item] || 0;
+        const met = have >= amt;
+        return `<span class="${met ? 'met' : 'unmet'}">${ITEMS[item].label} ${have}/${amt}</span>`;
+      }).join(' · ');
+    }
+
+    div.innerHTML = `
+      <div style="flex:1">
+        <div class="name">${done ? '✓ ' : ''}${recipe.name} <span class="tag">stage ${recipe.boatStage}</span></div>
+        <div class="req">${recipe.desc}</div>
+        <div class="req">${reqStr}</div>
+      </div>
+    `;
+
+    if (!done) {
+      const btn = document.createElement('button');
+      btn.textContent = 'Build';
+      btn.style.marginLeft = '10px';
+      btn.disabled = !canCraftQuest(recipe) || !prevDone;
+      btn.onclick = () => craftQuest(recipe.id);
+      div.appendChild(btn);
+    }
+
+    questListEl.appendChild(div);
+  });
+}
+
+function unlockLabel(flag) {
+  switch (flag) {
+    case 'axe': return 'Stone Axe';
+    case 'fishing': return 'Fishing Rod';
+    case 'diving': return 'Diving Mask';
+    case 'trapping': return 'Snare Trap';
+    case 'netting': return 'Fishing Net';
+    default: return flag;
+  }
+}
+
+// ================= UTIL =================
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// Start
+initGame();
+</script>
+
+</body>
+</html>

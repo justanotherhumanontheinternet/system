@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRID ENGINE — Infrastructure Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g:#00e536;--g2:#00ff41;--g3:#00a828;--g4:#004d12;
+  --a:#ff8c00;--a2:#ffb347;--r:#ff2020;--r2:#ff6060;
+  --b:#003dff;--b2:#4d79ff;
+  --bg:#070a07;--bg2:#0c110c;--bg3:#111811;--bg4:#0a0f0a;
+  --border:#1c261c;--border2:#263326;
+  --txt:#7db87d;--txt2:#4a6e4a;--txt3:#2a402a;
+  --mono:'Share Tech Mono',monospace;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--g);font-family:var(--mono);font-size:12px}
+/* scrollbars */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--g3)}
+
+/* LAYOUT */
+#shell{display:grid;grid-template-rows:auto 1fr auto;height:100vh;gap:0}
+#topbar{background:var(--bg2);border-bottom:1px solid var(--border2);padding:4px 10px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+#topbar .sys-id{color:var(--g2);font-size:14px;letter-spacing:3px;font-weight:bold}
+#topbar .sep{color:var(--txt3);margin:0 2px}
+.stat-chip{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:80px}
+.stat-chip .lbl{font-size:9px;color:var(--txt3);letter-spacing:2px;text-transform:uppercase}
+.stat-chip .val{font-size:13px;color:var(--g2)}
+.stat-chip .val.warn{color:var(--a)}
+.stat-chip .val.crit{color:var(--r);animation:blink .6s step-end infinite}
+@keyframes blink{50%{opacity:.3}}
+.chip-sep{width:1px;height:36px;background:var(--border2);margin:0 4px}
+#gamebody{display:grid;grid-template-columns:230px 1fr 260px;overflow:hidden;gap:0}
+
+/* PANELS */
+.panel{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.panel-head{background:var(--bg3);border-bottom:1px solid var(--border2);padding:5px 10px;font-size:10px;letter-spacing:3px;color:var(--txt2);text-transform:uppercase;flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.panel-head span{color:var(--txt3);font-size:9px;letter-spacing:1px}
+.panel-body{flex:1;overflow-y:auto;overflow-x:hidden;padding:6px}
+
+/* CENTER PANEL */
+#centerpanel{background:var(--bg4);display:flex;flex-direction:column;gap:0;border:none}
+
+/* OSCILLOSCOPE */
+#oscbox{flex-shrink:0;background:var(--bg);border-bottom:1px solid var(--border2);padding:6px 10px}
+#oscbox .osc-head{font-size:9px;color:var(--txt3);letter-spacing:2px;margin-bottom:4px;display:flex;justify-content:space-between}
+#osccanvas{width:100%;height:64px;display:block}
+
+/* MAIN STATS GRID */
+#mainstats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.mstat{background:var(--bg3);border:1px solid var(--border);padding:6px 8px}
+.mstat .ml{font-size:9px;color:var(--txt3);letter-spacing:2px;margin-bottom:3px;text-transform:uppercase}
+.mstat .mv{font-size:16px;color:var(--g2);line-height:1}
+.mstat .ms{font-size:10px;color:var(--txt2);margin-top:2px}
+.mstat.warn .mv{color:var(--a)}
+.mstat.crit .mv{color:var(--r)}
+
+/* TECH TREE */
+#techtree{flex:1;overflow-y:auto;padding:8px 10px}
+#techtree h3{font-size:9px;letter-spacing:3px;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:4px}
+.tech-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;margin-bottom:6px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;transition:border-color .15s}
+.tech-row:hover:not(.locked-t){border-color:var(--g3)}
+.tech-row.locked-t{opacity:.45;cursor:default}
+.tech-row.done-t{border-color:var(--g4);opacity:.6}
+.tech-row.done-t .tr{color:var(--g3)}
+.tech-name{font-size:11px;color:var(--g2);margin-bottom:2px}
+.tech-desc{font-size:9px;color:var(--txt2);line-height:1.5}
+.tech-cost{font-size:10px;color:var(--a);white-space:nowrap;text-align:right}
+.tech-cost.can{color:var(--g)}
+.tech-row .tr{font-size:9px;color:var(--txt3);margin-top:2px}
+
+/* NODE GRID (left panel) */
+.node-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
+.node{border:1px solid var(--border);padding:4px 2px;text-align:center;cursor:pointer;position:relative;transition:border-color .1s;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.node:hover{border-color:var(--g3)}
+.node.empty-n{border-color:var(--border);background:var(--bg);cursor:default}
+.node .ntype{font-size:7px;color:var(--txt3);letter-spacing:1px;text-transform:uppercase}
+.node .npower{font-size:10px;color:var(--g2);line-height:1}
+.node .nstatus{font-size:7px;line-height:1}
+.node.gen-n{background:#091209}
+.node.xfm-n{background:#0a0a14}
+.node.bat-n{background:#0f0d08}
+.node.brk-n{background:#120808}
+.node.FAULT{border-color:var(--r)!important;background:#140404!important}
+.node.FAULT .npower{color:var(--r)}
+.node.OVERLOAD{border-color:var(--a)!important}
+.node.OVERLOAD .npower{color:var(--a)}
+.node.MAINT{border-color:var(--b2)!important}
+.node.MAINT .npower{color:var(--b2)}
+.node.IDLE{opacity:.5}
+
+/* build menu */
+#buildmenu{padding:6px;border-top:1px solid var(--border);flex-shrink:0}
+#buildmenu .bm-head{font-size:9px;color:var(--txt3);letter-spacing:2px;margin-bottom:5px;text-transform:uppercase}
+.bm-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4px}
+.bm-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--txt);padding:5px 6px;cursor:pointer;text-align:left;font-family:var(--mono);font-size:10px;line-height:1.5;transition:border-color .15s}
+.bm-btn:hover{border-color:var(--g3);color:var(--g2)}
+.bm-btn .bc{color:var(--a);font-size:9px}
+.bm-btn .bl{color:var(--txt3);font-size:9px}
+.bm-btn.sel-b{border-color:var(--g);color:var(--g2)}
+.bm-btn:disabled{opacity:.35;cursor:default}
+
+/* EVENT LOG (right panel) */
+#eventlog{flex:1;overflow-y:auto;padding:6px}
+.ev{font-size:10px;line-height:1.6;padding:3px 6px;border-left:2px solid var(--border);margin-bottom:2px;color:var(--txt2)}
+.ev.ev-ok{border-color:var(--g3);color:var(--g)}
+.ev.ev-warn{border-color:var(--a);color:var(--a2)}
+.ev.ev-crit{border-color:var(--r);color:var(--r2)}
+.ev.ev-info{border-color:var(--b2);color:var(--b2)}
+.ev .et{color:var(--txt3);margin-right:4px;font-size:9px}
+
+/* right panel bottom: actions */
+#actionbox{padding:6px;border-top:1px solid var(--border);flex-shrink:0}
+.act-head{font-size:9px;color:var(--txt3);letter-spacing:2px;margin-bottom:5px;text-transform:uppercase}
+.act-btn{display:block;width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--txt);padding:5px 8px;cursor:pointer;font-family:var(--mono);font-size:10px;margin-bottom:4px;text-align:left;transition:border-color .15s}
+.act-btn:hover{border-color:var(--g3);color:var(--g2)}
+.act-btn:disabled{opacity:.3;cursor:default}
+.act-btn .ac{float:right;color:var(--a);font-size:9px}
+
+/* bottom bar */
+#bottombar{background:var(--bg2);border-top:1px solid var(--border2);padding:3px 10px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.bb-item{font-size:9px;color:var(--txt3);letter-spacing:1px}
+.bb-item span{color:var(--txt2)}
+
+/* MODAL */
+#modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;align-items:center;justify-content:center}
+#modal-bg.open{display:flex}
+#modal{background:var(--bg2);border:1px solid var(--border2);padding:20px;max-width:400px;width:90%;max-height:80vh;overflow-y:auto}
+#modal h2{font-size:12px;letter-spacing:3px;color:var(--g2);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+#modal p{font-size:11px;color:var(--txt);line-height:1.8;margin-bottom:8px}
+#modal table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:12px}
+#modal td{padding:4px 6px;border:1px solid var(--border);color:var(--txt)}
+#modal td:first-child{color:var(--txt3);width:50%}
+.modal-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.mbtn{background:none;border:1px solid var(--border2);color:var(--txt);padding:6px 14px;cursor:pointer;font-family:var(--mono);font-size:10px;transition:border-color .15s}
+.mbtn:hover{border-color:var(--g3);color:var(--g2)}
+.mbtn.danger{border-color:var(--r);color:var(--r)}
+.mbtn.primary{border-color:var(--g);color:var(--g)}
+.warn-txt{color:var(--a)}
+.crit-txt{color:var(--r)}
+.ok-txt{color:var(--g)}
+
+/* speed controls */
+#speedbox{display:flex;gap:4px;align-items:center}
+.spd-btn{background:none;border:1px solid var(--border);color:var(--txt3);padding:2px 8px;cursor:pointer;font-family:var(--mono);font-size:9px;letter-spacing:1px}
+.spd-btn.active{border-color:var(--g3);color:var(--g)}
+.spd-btn:hover{border-color:var(--txt2)}
+</style>
+</head>
+<body>
+<div id="shell">
+<div id="topbar">
+  <div class="sys-id">⚡ GRID ENGINE</div>
+  <div class="sep">|</div>
+  <div class="stat-chip"><div class="lbl">Credits</div><div class="val" id="hd-credits">0</div></div>
+  <div class="chip-sep"></div>
+  <div class="stat-chip"><div class="lbl">Net Power</div><div class="val" id="hd-netpower">0 MW</div></div>
+  <div class="chip-sep"></div>
+  <div class="stat-chip"><div class="lbl">Grid Load</div><div class="val" id="hd-load">0%</div></div>
+  <div class="chip-sep"></div>
+  <div class="stat-chip"><div class="lbl">Stability</div><div class="val" id="hd-stability">100%</div></div>
+  <div class="chip-sep"></div>
+  <div class="stat-chip"><div class="lbl">Uptime</div><div class="val" id="hd-uptime">00:00:00</div></div>
+  <div style="flex:1"></div>
+  <div id="speedbox">
+    <span style="font-size:9px;color:var(--txt3);margin-right:4px">SPEED</span>
+    <button class="spd-btn active" onclick="setSpeed(1)">1×</button>
+    <button class="spd-btn" onclick="setSpeed(2)">2×</button>
+    <button class="spd-btn" onclick="setSpeed(5)">5×</button>
+    <button class="spd-btn" onclick="setSpeed(10)">10×</button>
+  </div>
+</div>
+
+<div id="gamebody">
+  <div class="panel">
+    <div class="panel-head">Node Grid <span id="node-count">0/25 NODES</span></div>
+    <div class="panel-body" id="node-panel">
+      <div class="node-grid" id="node-grid"></div>
+    </div>
+    <div id="buildmenu">
+      <div class="bm-head">Build — select then click empty node</div>
+      <div class="bm-grid">
+        <button class="bm-btn" id="bb-gen" onclick="selectBuild('GEN')">
+          ⚙ Generator<br><span class="bc">₡ 50</span><span class="bl"> +12 MW base</span>
+        </button>
+        <button class="bm-btn" id="bb-xfm" onclick="selectBuild('XFM')">
+          🔁 Transformer<br><span class="bc">₡ 80</span><span class="bl"> ×1.6 chain bonus</span>
+        </button>
+        <button class="bm-btn" id="bb-bat" onclick="selectBuild('BAT')">
+          🔋 Battery<br><span class="bc">₡ 120</span><span class="bl"> buffer 200 MWh</span>
+        </button>
+        <button class="bm-btn" id="bb-brk" onclick="selectBuild('BRK')">
+          ⚡ Breaker<br><span class="bc">₡ 60</span><span class="bl"> isolate faults</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="centerpanel" class="panel">
+    <div id="oscbox">
+      <div class="osc-head">
+        <span>GRID WAVEFORM — LIVE STABILITY MONITOR</span>
+        <span id="osc-freq">50.0 Hz</span>
+      </div>
+      <canvas id="osccanvas" height="64"></canvas>
+    </div>
+    <div id="mainstats">
+      <div class="mstat" id="ms-gen"><div class="ml">Gross Output</div><div class="mv" id="ms-gen-v">0 MW</div><div class="ms" id="ms-gen-s">0 generators</div></div>
+      <div class="mstat" id="ms-loss"><div class="ml">Losses</div><div class="mv" id="ms-loss-v">0 MW</div><div class="ms" id="ms-loss-s">leak + maint</div></div>
+      <div class="mstat" id="ms-bat"><div class="ml">Battery Reserve</div><div class="mv" id="ms-bat-v">0 MWh</div><div class="ms" id="ms-bat-s">0 cap</div></div>
+      <div class="mstat" id="ms-cps"><div class="ml">Credits/sec</div><div class="mv" id="ms-cps-v">0.00</div><div class="ms" id="ms-cps-s">efficiency: —</div></div>
+    </div>
+    <div id="techtree">
+      <h3>Research Lab — Infrastructure Upgrades</h3>
+      <div id="tech-list"></div>
+    </div>
+  </div>
+
+  <div class="panel" style="border-right:none">
+    <div class="panel-head">Event Log <span id="ev-count">0 EVENTS</span></div>
+    <div id="eventlog" class="panel-body"></div>
+    <div id="actionbox">
+      <div class="act-head">System Actions</div>
+      <button class="act-btn" onclick="doEmergencyRepair()">⚠ Emergency Repair All <span class="ac" id="er-cost">₡ —</span></button>
+      <button class="act-btn" onclick="doRebalance()">⚖ Rebalance Load</button>
+      <button class="act-btn" onclick="doDiagnostic()">📡 Full Diagnostic</button>
+      <button class="act-btn" onclick="doFlushBattery()">🔋 Dump Battery → Credits</button>
+    </div>
+  </div>
+</div>
+
+<div id="bottombar">
+  <div class="bb-item">GRID: <span id="bb-grid">OFFLINE</span></div>
+  <div class="bb-item">FAULT NODES: <span id="bb-faults">0</span></div>
+  <div class="bb-item">MAINT NODES: <span id="bb-maint">0</span></div>
+  <div class="bb-item">LEAK RATE: <span id="bb-leak">0%</span></div>
+  <div class="bb-item">XFMR EFFICIENCY: <span id="bb-xfme">—</span></div>
+  <div class="bb-item">CASCADES AVERTED: <span id="bb-cascades">0</span></div>
+  <div class="bb-item">TOTAL EARNED: <span id="bb-totalearned">₡ 0</span></div>
+</div>
+</div>
+
+<div id="modal-bg">
+  <div id="modal">
+    <h2 id="modal-title">NODE DETAIL</h2>
+    <div id="modal-body"></div>
+    <div class="modal-btns" id="modal-btns"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ─── GAME STATE ───────────────────────────────────────────────────────────────
+const G = {
+  credits: 100,
+  totalEarned: 0,
+  tick: 0,           // seconds elapsed
+  speed: 1,
+  gridOnline: false,
+  cascadesAverted: 0,
+  eventCount: 0,
+  selectedBuild: null,
+  nodes: [],         // array of node objects, length 25 (5×5 grid)
+  oscHistory: [],    // waveform data
+  uptime: 0,
+  lastNodeId: 0,
+
+  // Upgrades / research
+  techs: {
+    coolant:    { name:'Coolant System',      desc:'Reduces fault chance by 35% on all generators.',                     cost:200,  done:false, req:null },
+    supercond:  { name:'Superconductors',     desc:'Halves baseline power leak from 8% to 4%.',                          cost:350,  done:false, req:'coolant' },
+    advxfm:    { name:'Adv. Transformers',    desc:'Transformer chain bonus ×1.6 → ×2.1.',                               cost:500,  done:false, req:'supercond' },
+    predictor:  { name:'Fault Predictor',     desc:'MAINT warnings appear 10 s before fault. Free.',                    cost:280,  done:false, req:'coolant' },
+    battech:    { name:'Solid-State Batteries',desc:'Battery capacity 200 → 450 MWh each.',                             cost:400,  done:false, req:null },
+    quickrep:   { name:'Rapid-Response Teams',desc:'Emergency repair cost reduced by 40%.',                             cost:300,  done:false, req:'predictor' },
+    gridai:     { name:'Grid AI',             desc:'Auto-rebalance every 30 s at no cost. Cascade risk −25%.',          cost:800,  done:false, req:'advxfm' },
+    fusion:     { name:'Fusion Tap',          desc:'Unlock FUSION nodes: 60 MW, but 3× leak rate.',                     cost:1500, done:false, req:'gridai' },
+    isolators:  { name:'Fault Isolators',     desc:'Breakers now auto-trigger on FAULT events within 1 tile.',          cost:450,  done:false, req:'predictor' },
+    harvester:  { name:'Energy Harvester',    desc:'Battery discharge earns 1.5× credits instead of 1×.',               cost:600,  done:false, req:'battech' },
+  },
+};
+
+// ─── NODE DEFINITIONS ─────────────────────────────────────────────────────────
+const NODE_DEFS = {
+  GEN:  { label:'GEN',  baseMW:12,  buildCost:50,  maintCost:0.8,  faultChance:0.004, leakPct:0.08, style:'gen-n' },
+  XFM:  { label:'XFM',  baseMW:0,   buildCost:80,  maintCost:0.5,  faultChance:0.002, leakPct:0.03, style:'xfm-n' },
+  BAT:  { label:'BAT',  baseMW:0,   buildCost:120, maintCost:0.3,  faultChance:0.001, leakPct:0.01, style:'bat-n' },
+  BRK:  { label:'BRK',  baseMW:0,   buildCost:60,  maintCost:0.2,  faultChance:0.0005,leakPct:0.005,style:'brk-n' },
+  FUSION:{ label:'FUS', baseMW:60,  buildCost:800, maintCost:4,    faultChance:0.01,  leakPct:0.24, style:'gen-n' },
+};
+
+// ─── NODE STATES ──────────────────────────────────────────────────────────────
+function makeNode(type, id) {
+  return {
+    id, type, state:'ACTIVE',
+    hp: 100,            // 0–100 health
+    maintTimer: 0,      // countdown to fault if in MAINT
+    faultTimer: 0,
+    heat: 0,            // 0–1 overload heat
+    batCharge: 0,       // for BAT only
+    boosted: false,     // XFM chain bonus
+  };
+}
+
+// ─── INITIALIZE ───────────────────────────────────────────────────────────────
+function init() {
+  G.nodes = Array.from({length:25}, (_,i) => null);
+  renderNodeGrid();
+  renderTechTree();
+  logEvent('SYSTEM','Grid Engine v4.1 — Infrastructure online. Deploy generators to begin extraction.','info');
+  logEvent('SYSTEM','Select a build type below the node grid, then click an empty slot.','info');
+  requestAnimationFrame(oscLoop);
+  setInterval(gameTick, 1000);
+}
+
+// ─── TICK ─────────────────────────────────────────────────────────────────────
+let lastTickTime = Date.now();
+let aiTimer = 0;
+
+function gameTick() {
+  const now = Date.now();
+  lastTickTime = now;
+
+  for (let s = 0; s < G.speed; s++) {
+    G.tick++;
+    G.uptime++;
+    aiTimer++;
+    processNodes();
+    computeEconomy();
+    if (aiTimer >= 30 && G.techs.gridai.done) { doRebalance(true); aiTimer = 0; }
+  }
+  updateUI();
+}
+
+function processNodes() {
+  const faultMult = G.techs.coolant.done ? 0.65 : 1.0;
+  const cascadeMult = G.techs.gridai.done ? 0.75 : 1.0;
+
+  G.nodes.forEach((node, idx) => {
+    if (!node) return;
+    const def = NODE_DEFS[node.type];
+
+    // Health degradation
+    if (node.state === 'ACTIVE' || node.state === 'OVERLOAD') {
+      node.hp -= 0.02 + (node.heat * 0.05);
+      if (node.hp < 0) node.hp = 0;
+    }
+
+    // Fault chance per tick
+    if (node.state === 'ACTIVE' || node.state === 'OVERLOAD') {
+      const chance = def.faultChance * faultMult * (node.heat > 0.7 ? 2.5 : 1) * (node.hp < 30 ? 2 : 1);
+      if (Math.random() < chance) {
+        if (G.techs.predictor.done && node.state === 'ACTIVE') {
+          node.state = 'MAINT';
+          node.maintTimer = 10;
+          logEvent(`NODE-${idx}`, `[${node.type}] Pre-fault warning. Maintenance window: 10s.`, 'warn');
+        } else {
+          triggerFault(node, idx, cascadeMult);
+        }
+      }
+    }
+
+    // MAINT countdown
+    if (node.state === 'MAINT') {
+      node.maintTimer--;
+      if (node.maintTimer <= 0) {
+        triggerFault(node, idx, cascadeMult);
+      }
+    }
+
+    // Heat simulation
+    if (node.state === 'ACTIVE') {
+      const targetHeat = computeLoadPct() / 100;
+      node.heat += (targetHeat - node.heat) * 0.05;
+      if (node.heat > 0.85 && node.type !== 'BRK') node.state = 'OVERLOAD';
+    }
+    if (node.state === 'OVERLOAD') {
+      node.heat += 0.02;
+      if (node.heat > 1) {
+        triggerFault(node, idx, cascadeMult);
+      }
+    }
+    if (node.state === 'FAULT' || node.state === 'IDLE') {
+      node.heat = Math.max(0, node.heat - 0.03);
+    }
+
+    // Battery charging
+    if (node.type === 'BAT' && node.state === 'ACTIVE') {
+      const cap = G.techs.battech.done ? 450 : 200;
+      const netMW = computeNetMW();
+      if (netMW > 0) {
+        node.batCharge = Math.min(cap, node.batCharge + netMW * 0.01);
+      }
+    }
+
+    // Breaker auto-isolate (isolators tech)
+    if (node.type === 'BRK' && G.techs.isolators.done && node.state === 'ACTIVE') {
+      const adj = getAdjacent(idx);
+      adj.forEach(a => {
+        if (G.nodes[a] && G.nodes[a].state === 'FAULT') {
+          G.nodes[a].state = 'IDLE';
+          G.cascadesAverted++;
+          logEvent(`BRK-${idx}`,`[BREAKER] Isolated FAULT at node ${a}. Cascade prevented.`,'ok');
+        }
+      });
+    }
+  });
+}
+
+function triggerFault(node, idx, cascadeMult) {
+  if (node.state === 'FAULT') return;
+  node.state = 'FAULT';
+  node.hp = Math.max(0, node.hp - 20);
+  logEvent(`NODE-${idx}`, `[${node.type}] FAULT DETECTED — node ${idx} offline. Manual repair required.`, 'crit');
+
+  const adj = getAdjacent(idx);
+  adj.forEach(a => {
+    if (!G.nodes[a] || G.nodes[a].state === 'FAULT') return;
+    if (Math.random() < 0.18 * cascadeMult) {
+      G.nodes[a].state = 'FAULT';
+      G.nodes[a].hp = Math.max(0, G.nodes[a].hp - 10);
+      logEvent(`CASCADE`,`[CASCADE] Fault propagated to node ${a} (${G.nodes[a].type}).`,'crit');
+    }
+  });
+}
+
+function getAdjacent(idx) {
+  const row = Math.floor(idx/5), col = idx%5;
+  const out = [];
+  if (row>0) out.push(idx-5);
+  if (row<4) out.push(idx+5);
+  if (col>0) out.push(idx-1);
+  if (col<4) out.push(idx+1);
+  return out;
+}
+
+// ─── ECONOMY ──────────────────────────────────────────────────────────────────
+function computeNetMW() {
+  let gross = 0;
+  let xfmMult = 1;
+  const xfmBonus = G.techs.advxfm.done ? 2.1 : 1.6;
+  let xfmCount = 0;
+
+  G.nodes.forEach(n => {
+    if (!n || n.state === 'FAULT' || n.state === 'IDLE' || n.state === 'MAINT') return;
+    const def = NODE_DEFS[n.type];
+    if (n.type === 'GEN' || n.type === 'FUSION') gross += def.baseMW;
+    if (n.type === 'XFM') xfmCount++;
+  });
+
+  if (xfmCount > 0) xfmMult = Math.pow(xfmBonus, Math.min(xfmCount, 3));
+
+  let afterXFM = gross * (xfmCount > 0 ? xfmMult : 1);
+
+  const leakPct = G.techs.supercond.done ? 0.04 : 0.08;
+  const leaked = afterXFM * leakPct;
+
+  return Math.max(0, afterXFM - leaked);
+}
+
+function computeGrossMW() {
+  let gross = 0;
+  G.nodes.forEach(n => {
+    if (!n || n.state === 'FAULT' || n.state === 'IDLE' || n.state === 'MAINT') return;
+    const def = NODE_DEFS[n.type];
+    if (n.type === 'GEN' || n.type === 'FUSION') gross += def.baseMW;
+  });
+  return gross;
+}
+
+function computeLossMW() {
+  const gross = computeGrossMW();
+  const leakPct = G.techs.supercond.done ? 0.04 : 0.08;
+  return gross * leakPct;
+}
+
+function computeMaintCost() {
+  let m = 0;
+  G.nodes.forEach(n => {
+    if (!n) return;
+    m += NODE_DEFS[n.type].maintCost;
+  });
+  return m;
+}
+
+function computeLoadPct() {
+  const genCount = G.nodes.filter(n => n && (n.type==='GEN'||n.type==='FUSION') && n.state==='ACTIVE').length;
+  const xfmCount = G.nodes.filter(n => n && n.type==='XFM' && n.state==='ACTIVE').length;
+  if (genCount === 0) return 0;
+  const ratio = genCount / Math.max(1, xfmCount * 2);
+  return Math.min(100, Math.round(ratio * 55));
+}
+
+function computeStability() {
+  const faultCount = G.nodes.filter(n => n && n.state==='FAULT').length;
+  const total = G.nodes.filter(n => n).length;
+  if (total === 0) return 100;
+  const overload = G.nodes.filter(n => n && n.state==='OVERLOAD').length;
+  return Math.max(0, Math.round(100 - (faultCount/total)*60 - (overload/total)*20));
+}
+
+function computeEconomy() {
+  const netMW = computeNetMW();
+  const stability = computeStability();
+  const cps = (netMW * 0.08) * (stability/100);
+  G.credits += cps;
+  G.totalEarned += cps;
+
+  const maint = computeMaintCost();
+  G.credits -= maint / 10;
+  G.credits = Math.max(0, G.credits);
+
+  G.oscHistory.push(stability);
+  if (G.oscHistory.length > 300) G.oscHistory.shift();
+
+  G.gridOnline = netMW > 0;
+}
+
+// ─── UI UPDATE ────────────────────────────────────────────────────────────────
+function updateUI() {
+  const net = computeNetMW();
+  const gross = computeGrossMW();
+  const loss = computeLossMW();
+  const load = computeLoadPct();
+  const stab = computeStability();
+  const maint = computeMaintCost();
+  const leakPct = G.techs.supercond.done ? 0.04 : 0.08;
+  const xfmCount = G.nodes.filter(n=>n&&n.type==='XFM'&&n.state==='ACTIVE').length;
+  const genCount = G.nodes.filter(n=>n&&(n.type==='GEN'||n.type==='FUSION')&&n.state==='ACTIVE').length;
+  const batTotal = G.nodes.filter(n=>n&&n.type==='BAT').reduce((a,n)=>a+n.batCharge,0);
+  const batCap = G.nodes.filter(n=>n&&n.type==='BAT').length * (G.techs.battech.done?450:200);
+  const faults = G.nodes.filter(n=>n&&n.state==='FAULT').length;
+  const maintN = G.nodes.filter(n=>n&&n.state==='MAINT').length;
+  const cps = (net * 0.08) * (stab/100) - maint/10;
+  const xfmBonus = G.techs.advxfm.done ? 2.1 : 1.6;
+  const xfmEff = xfmCount > 0 ? `×${Math.pow(xfmBonus,Math.min(xfmCount,3)).toFixed(2)}` : '—';
+
+  el('hd-credits').textContent = '₡ ' + fmt(G.credits);
+  const netEl = el('hd-netpower');
+  netEl.textContent = fmt1(net) + ' MW';
+  netEl.className = 'val' + (net < 0 ? ' crit' : net === 0 ? ' warn' : '');
+  const loadEl = el('hd-load');
+  loadEl.textContent = load + '%';
+  loadEl.className = 'val' + (load > 80 ? ' crit' : load > 60 ? ' warn' : '');
+  const stabEl = el('hd-stability');
+  stabEl.textContent = stab + '%';
+  stabEl.className = 'val' + (stab < 50 ? ' crit' : stab < 75 ? ' warn' : '');
+  el('hd-uptime').textContent = formatTime(G.uptime);
+
+  el('ms-gen-v').textContent = fmt1(gross) + ' MW';
+  el('ms-gen-s').textContent = genCount + ' active generators';
+  setMstatClass('ms-gen', gross > 0 ? '' : 'warn');
+
+  el('ms-loss-v').textContent = fmt1(loss + maint/10*10) + ' MW+₡';
+  el('ms-loss-s').textContent = `${(leakPct*100).toFixed(0)}% leak + ₡${fmt1(maint)}/s maint`;
+  setMstatClass('ms-loss', loss > gross*0.3 ? 'crit' : loss > gross*0.15 ? 'warn' : '');
+
+  el('ms-bat-v').textContent = fmt1(batTotal) + ' MWh';
+  el('ms-bat-s').textContent = `cap ${fmt1(batCap)} MWh`;
+
+  const cpsEl = el('ms-cps-v');
+  cpsEl.textContent = fmt2(cps);
+  setMstatClass('ms-cps', cps < 0 ? 'crit' : cps < 0.5 ? 'warn' : '');
+  el('ms-cps-s').textContent = `efficiency: ${stab}%`;
+
+  el('bb-grid').textContent = G.gridOnline ? 'ONLINE' : 'OFFLINE';
+  el('bb-grid').style.color = G.gridOnline ? 'var(--g2)' : 'var(--r)';
+  el('bb-faults').textContent = faults;
+  el('bb-faults').style.color = faults > 0 ? 'var(--r)' : 'var(--txt2)';
+  el('bb-maint').textContent = maintN;
+  el('bb-maint').style.color = maintN > 0 ? 'var(--a)' : 'var(--txt2)';
+  el('bb-leak').textContent = (leakPct*100).toFixed(0) + '%';
+  el('bb-xfme').textContent = xfmEff;
+  el('bb-cascades').textContent = G.cascadesAverted;
+  el('bb-totalearned').textContent = '₡ ' + fmt(G.totalEarned);
+
+  const built = G.nodes.filter(n=>n).length;
+  el('node-count').textContent = built + '/25 NODES';
+
+  const repairCost = calcRepairCost();
+  el('er-cost').textContent = repairCost > 0 ? '₡ '+fmt(repairCost) : '—';
+
+  const freqJitter = (50 + (stab-100)*0.15 + (Math.random()-0.5)*0.1).toFixed(1);
+  el('osc-freq').textContent = freqJitter + ' Hz';
+  el('osc-freq').style.color = stab < 60 ? 'var(--r)' : stab < 80 ? 'var(--a)' : 'var(--txt2)';
+
+  renderNodeGrid();
+  renderTechTree();
+}
+
+function setMstatClass(id, cls) {
+  const el2 = el(id);
+  if(el2) el2.className = 'mstat ' + cls;
+}
+
+// ─── NODE GRID RENDER ─────────────────────────────────────────────────────────
+function renderNodeGrid() {
+  const grid = el('node-grid');
+  if (grid.children.length !== 25) {
+    grid.innerHTML = '';
+    for (let i = 0; i < 25; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'node empty-n';
+      cell.id = 'node-' + i;
+      cell.onclick = () => nodeClick(i);
+      grid.appendChild(cell);
+    }
+  }
+  G.nodes.forEach((node, i) => {
+    const cell = el('node-'+i);
+    if (!node) {
+      cell.className = 'node empty-n';
+      cell.innerHTML = `<div style="color:var(--txt3);font-size:9px">${i}</div>`;
+    } else {
+      const def = NODE_DEFS[node.type];
+      cell.className = `node ${def.style} ${node.state}`;
+      const mw = (node.type==='GEN'||node.type==='FUSION') ? def.baseMW : (node.type==='BAT' ? fmt1(node.batCharge) : '—');
+      const statusColor = {ACTIVE:'var(--g3)',FAULT:'var(--r)',OVERLOAD:'var(--a)',MAINT:'var(--b2)',IDLE:'var(--txt3)'}[node.state];
+      cell.innerHTML = `
+        <div class="ntype">${def.label}</div>
+        <div class="npower">${mw}</div>
+        <div class="nstatus" style="color:${statusColor}">${node.state}</div>
+        <div style="height:2px;background:${hpColor(node.hp)};width:${node.hp}%;margin-top:2px;max-width:38px"></div>
+      `;
+    }
+  });
+}
+
+function hpColor(hp) {
+  if (hp > 60) return 'var(--g3)';
+  if (hp > 30) return 'var(--a)';
+  return 'var(--r)';
+}
+
+// ─── BUILD / CLICK ────────────────────────────────────────────────────────────
+function selectBuild(type) {
+  G.selectedBuild = (G.selectedBuild === type) ? null : type;
+  ['GEN','XFM','BAT','BRK'].forEach(t => {
+    const btn = el('bb-'+t.toLowerCase());
+    if(btn) btn.className = 'bm-btn' + (G.selectedBuild===t ? ' sel-b' : '');
+  });
+}
+
+function nodeClick(idx) {
+  if (G.selectedBuild && !G.nodes[idx]) {
+    const def = NODE_DEFS[G.selectedBuild];
+    if (G.credits < def.buildCost) {
+      logEvent('BUILD','Insufficient credits to build ' + G.selectedBuild + '. Need ₡' + def.buildCost, 'warn');
+      return;
+    }
+    if (G.selectedBuild === 'FUSION' && !G.techs.fusion.done) {
+      logEvent('BUILD','Fusion Tap technology not yet researched.','warn'); return;
+    }
+    G.credits -= def.buildCost;
+    G.nodes[idx] = makeNode(G.selectedBuild, idx);
+    logEvent('BUILD', `[${G.selectedBuild}] deployed at node ${idx}. Cost: ₡${def.buildCost}.`, 'ok');
+  } else if (G.nodes[idx]) {
+    openNodeModal(idx);
+  }
+}
+
+// ─── NODE MODAL ───────────────────────────────────────────────────────────────
+let modalNode = null;
+function openNodeModal(idx) {
+  modalNode = idx;
+  const node = G.nodes[idx];
+  const def = NODE_DEFS[node.type];
+  const leakPct = G.techs.supercond.done ? 0.04 : 0.08;
+
+  el('modal-title').textContent = `NODE ${idx} — ${def.label} — ${node.state}`;
+
+  let extra = '';
+  if (node.type === 'BAT') {
+    const cap = G.techs.battech.done ? 450 : 200;
+    extra = `<tr><td>Charge</td><td>${fmt1(node.batCharge)} / ${cap} MWh (${Math.round(node.batCharge/cap*100)}%)</td></tr>`;
+  }
+  if (node.type === 'GEN' || node.type === 'FUSION') {
+    extra = `<tr><td>Output</td><td>${def.baseMW} MW</td></tr>
+             <tr><td>Leak Loss</td><td>${fmt1(def.baseMW*leakPct)} MW (${(leakPct*100).toFixed(0)}%)</td></tr>`;
+  }
+  if (node.type === 'XFM') {
+    const xfmBonus = G.techs.advxfm.done ? 2.1 : 1.6;
+    extra = `<tr><td>Chain Bonus</td><td>×${xfmBonus} per stacked XFM (max 3)</td></tr>`;
+  }
+
+  const repairCost = Math.round(def.buildCost * 0.3 * (node.hp < 30 ? 1.5 : 1) * (G.techs.quickrep.done ? 0.6 : 1));
+
+  el('modal-body').innerHTML = `
+    <table>
+      <tr><td>Type</td><td>${def.label}</td></tr>
+      <tr><td>State</td><td class="${node.state==='FAULT'?'crit-txt':node.state==='OVERLOAD'?'warn-txt':'ok-txt'}">${node.state}</td></tr>
+      <tr><td>Health</td><td class="${node.hp<30?'crit-txt':node.hp<60?'warn-txt':'ok-txt'}">${Math.round(node.hp)}%</td></tr>
+      <tr><td>Heat</td><td class="${node.heat>0.7?'warn-txt':''}">${Math.round(node.heat*100)}%</td></tr>
+      <tr><td>Maint Cost</td><td>₡ ${def.maintCost}/s</td></tr>
+      ${extra}
+      ${node.state==='MAINT'?`<tr><td>Fault In</td><td class="crit-txt">${node.maintTimer}s</td></tr>`:''}
+    </table>
+    <p style="font-size:10px;color:var(--txt2)">${nodeAdvice(node)}</p>
+  `;
+
+  const btns = el('modal-btns');
+  btns.innerHTML = '';
+  const addBtn = (txt, fn, cls='') => {
+    const b = document.createElement('button');
+    b.className = 'mbtn ' + cls;
+    b.textContent = txt;
+    b.onclick = fn;
+    btns.appendChild(b);
+  };
+
+  if (node.state === 'FAULT' || node.hp < 80) {
+    addBtn(`Repair — ₡${repairCost}`, () => repairNode(idx, repairCost), 'primary');
+  }
+  if (node.state === 'ACTIVE' || node.state === 'OVERLOAD') {
+    addBtn('Force Idle', () => { G.nodes[idx].state='IDLE'; closeModal(); logEvent(`NODE-${idx}`,'Node forced idle.','info'); }, '');
+  }
+  if (node.state === 'IDLE') {
+    addBtn('Restart', () => { G.nodes[idx].state='ACTIVE'; closeModal(); logEvent(`NODE-${idx}`,'Node restarted.','ok'); }, 'primary');
+  }
+  addBtn(`Demolish — refund ₡${Math.round(def.buildCost*0.2)}`, () => demolishNode(idx), 'danger');
+  addBtn('Close', closeModal, '');
+
+  el('modal-bg').classList.add('open');
+}
+
+function nodeAdvice(node) {
+  if (node.state === 'FAULT') return 'Node is offline. Repair immediately to restore output. Faults can cascade to adjacent nodes.';
+  if (node.state === 'OVERLOAD') return 'WARNING: Node is overloading. Add Transformers to distribute load or risk imminent fault cascade.';
+  if (node.state === 'MAINT') return 'Pre-fault maintenance window active. Repair before timer expires to avoid hard fault.';
+  if (node.hp < 30) return 'Critical health. Fault probability elevated 2×. Repair urgently.';
+  if (node.hp < 60) return 'Degraded health. Schedule repair when credits allow.';
+  if (node.type === 'XFM') return 'Transformer multiplies generator output. Stack up to 3 for maximum chain bonus.';
+  if (node.type === 'BAT') return 'Battery absorbs excess output. Discharge manually for credits or use as stability buffer.';
+  if (node.type === 'BRK') return 'Breaker prevents cascade faults when placed adjacent to generators. With Fault Isolators tech, triggers automatically.';
+  return 'Node operating nominally.';
+}
+
+function repairNode(idx, cost) {
+  if (G.credits < cost) { logEvent('REPAIR','Insufficient credits.','warn'); closeModal(); return; }
+  G.credits -= cost;
+  G.nodes[idx].state = 'ACTIVE';
+  G.nodes[idx].hp = 100;
+  G.nodes[idx].heat = 0;
+  logEvent(`NODE-${idx}`, `[${G.nodes[idx].type}] Repaired. HP restored to 100%.`, 'ok');
+  closeModal();
+}
+
+function demolishNode(idx) {
+  const def = NODE_DEFS[G.nodes[idx].type];
+  const refund = Math.round(def.buildCost * 0.2);
+  G.credits += refund;
+  logEvent(`NODE-${idx}`, `[${G.nodes[idx].type}] Demolished. Refund: ₡${refund}.`, 'info');
+  G.nodes[idx] = null;
+  closeModal();
+}
+
+function closeModal() {
+  const modal = el('modal-bg');
+  if(modal) modal.classList.remove('open');
+}
+
+// ─── SYSTEM ACTIONS ───────────────────────────────────────────────────────────
+function calcRepairCost() {
+  let cost = 0;
+  G.nodes.forEach((n,i) => {
+    if (!n) return;
+    const def = NODE_DEFS[n.type];
+    if (n.state === 'FAULT' || n.hp < 80) {
+      cost += Math.round(def.buildCost * 0.3 * (n.hp < 30 ? 1.5 : 1) * (G.techs.quickrep.done ? 0.6 : 1));
+    }
+  });
+  return cost;
+}
+
+function doEmergencyRepair() {
+  const cost = calcRepairCost();
+  if (cost === 0) { logEvent('REPAIR','No nodes require repair.','info'); return; }
+  if (G.credits < cost) { logEvent('REPAIR',`Emergency repair requires ₡${fmt(cost)}. Insufficient funds.`,'crit'); return; }
+  G.credits -= cost;
+  let count = 0;
+  G.nodes.forEach((n,i) => {
+    if (!n) return;
+    if (n.state === 'FAULT' || n.hp < 80) {
+      n.state = 'ACTIVE'; n.hp = 100; n.heat = 0; count++;
+    }
+  });
+  logEvent('REPAIR', `Emergency repair complete. ${count} nodes restored. Cost: ₡${fmt(cost)}.`, 'ok');
+}
+
+function doRebalance(auto=false) {
+  let count = 0;
+  G.nodes.forEach(n => {
+    if (!n) return;
+    if (n.state === 'OVERLOAD') { n.state = 'ACTIVE'; n.heat = 0.5; count++; }
+    else if (n.heat > 0.6) { n.heat = 0.4; count++; }
+  });
+  if (!auto) logEvent('REBALANCE', `Load rebalanced. ${count} nodes cooled.`, 'ok');
+}
+
+function doDiagnostic() {
+  const genCount = G.nodes.filter(n=>n&&(n.type==='GEN'||n.type==='FUSION')).length;
+  const xfmCount = G.nodes.filter(n=>n&&n.type==='XFM').length;
+  const batCount = G.nodes.filter(n=>n&&n.type==='BAT').length;
+  const brkCount = G.nodes.filter(n=>n&&n.type==='BRK').length;
+  const faults = G.nodes.filter(n=>n&&n.state==='FAULT').length;
+  const lowHp = G.nodes.filter(n=>n&&n.hp<40).length;
+  const maint = computeMaintCost();
+  const cps = (computeNetMW() * 0.08) * (computeStability()/100);
+
+  logEvent('DIAG','━━━ FULL DIAGNOSTIC ━━━','info');
+  logEvent('DIAG',`Nodes: ${genCount} GEN, ${xfmCount} XFM, ${batCount} BAT, ${brkCount} BRK`,'info');
+  logEvent('DIAG',`Faults: ${faults} | Low HP: ${lowHp} | Maint: ₡${fmt1(maint)}/s`,'info');
+  logEvent('DIAG',`Net Credits/s: ₡${fmt2(cps)} | Stability: ${computeStability()}%`,'info');
+  if (faults > 0) logEvent('DIAG',`⚠ ${faults} node(s) in FAULT — emergency repair recommended.`,'crit');
+  if (maint > cps * 1.5) logEvent('DIAG','⚠ Maintenance cost exceeding output revenue. Grid is net-negative.','warn');
+  if (xfmCount === 0 && genCount > 2) logEvent('DIAG','⚠ No transformers deployed — high load risk. Add XFM nodes.','warn');
+  if (batCount === 0) logEvent('DIAG','ℹ No battery buffer — grid has no stability reserve.','info');
+  logEvent('DIAG','━━━ END DIAGNOSTIC ━━━','info');
+}
+
+function doFlushBattery() {
+  let totalMWh = 0;
+  G.nodes.forEach(n => {
+    if (!n || n.type !== 'BAT' || n.state === 'FAULT') return;
+    totalMWh += n.batCharge;
+    n.batCharge = 0;
+  });
+  if (totalMWh < 1) { logEvent('BAT','No battery charge to discharge.','warn'); return; }
+  const mult = G.techs.harvester.done ? 1.5 : 1.0;
+  const earned = totalMWh * 0.05 * mult;
+  G.credits += earned;
+  G.totalEarned += earned;
+  logEvent('BAT', `Battery discharged: ${fmt1(totalMWh)} MWh → ₡${fmt2(earned)} (×${mult} multiplier).`, 'ok');
+}
+
+// ─── TECH TREE ────────────────────────────────────────────────────────────────
+function renderTechTree() {
+  const list = el('tech-list');
+  const keys = Object.keys(G.techs);
+  let html = '';
+  keys.forEach(key => {
+    const t = G.techs[key];
+    const prereqDone = !t.req || G.techs[t.req].done;
+    const canAfford = G.credits >= t.cost;
+    const locked = !prereqDone;
+    const done = t.done;
+    let cls = 'tech-row';
+    if (done) cls += ' done-t';
+    else if (locked) cls += ' locked-t';
+    const costCls = canAfford && !done && !locked ? 'tech-cost can' : 'tech-cost';
+    const reqLabel = t.req ? ` Req: ${G.techs[t.req].name}` : '';
+    html += `<div class="${cls}" onclick="researchTech('${key}')">
+      <div>
+        <div class="tech-name">${t.name}</div>
+        <div class="tech-desc">${t.desc}${locked ? `<br><span style="color:var(--r2)">LOCKED —${reqLabel}</span>` : ''}</div>
+        <div class="tr">${done ? '✓ RESEARCHED' : ''}</div>
+      </div>
+      <div class="${costCls}">${done ? '' : '₡' + fmt(t.cost)}</div>
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+
+function researchTech(key) {
+  const t = G.techs[key];
+  if (t.done) return;
+  if (t.req && !G.techs[t.req].done) { logEvent('RESEARCH',`Prerequisites not met: ${G.techs[t.req].name} required.`,'warn'); return; }
+  if (G.credits < t.cost) { logEvent('RESEARCH',`Insufficient credits for ${t.name}. Need ₡${fmt(t.cost)}.`,'warn'); return; }
+  G.credits -= t.cost;
+  t.done = true;
+  logEvent('RESEARCH', `[RESEARCH] ${t.name} unlocked. ${t.desc}`, 'ok');
+  if (key === 'fusion') {
+    const bm = el('buildmenu').querySelector('.bm-grid');
+    if (!el('bb-fusion')) {
+      const b = document.createElement('button');
+      b.className = 'bm-btn'; b.id = 'bb-fusion';
+      b.onclick = () => selectBuild('FUSION');
+      b.innerHTML = '⚡ Fusion Tap<br><span class="bc">₡ 800</span><span class="bl"> +60 MW, 3× leak</span>';
+      bm.appendChild(b);
+    }
+  }
+}
+
+// ─── OSCILLOSCOPE ─────────────────────────────────────────────────────────────
+const oscCanvas = document.getElementById('osccanvas');
+const oscCtx = oscCanvas.getContext('2d');
+let oscPhase = 0;
+
+function oscLoop() {
+  const W = oscCanvas.offsetWidth;
+  const H = oscCanvas.height;
+  oscCanvas.width = W;
+
+  oscCtx.clearRect(0, 0, W, H);
+
+  // Grid lines
+  oscCtx.strokeStyle = '#111811';
+  oscCtx.lineWidth = 0.5;
+  for (let x = 0; x < W; x += W/10) {
+    oscCtx.beginPath(); oscCtx.moveTo(x,0); oscCtx.lineTo(x,H); oscCtx.stroke();
+  }
+  for (let y = 0; y < H; y += H/4) {
+    oscCtx.beginPath(); oscCtx.moveTo(0,y); oscCtx.lineTo(W,y); oscCtx.stroke();
+  }
+
+  const stab = computeStability();
+  const hist = G.oscHistory;
+
+  if (hist.length < 2) {
+    oscCtx.strokeStyle = '#00a828';
+    oscCtx.lineWidth = 1;
+    oscCtx.beginPath();
+    oscCtx.moveTo(0, H/2);
+    oscCtx.lineTo(W, H/2);
+    oscCtx.stroke();
+  } else {
+    oscPhase += 0.08 * G.speed;
+    const color = stab < 50 ? '#ff2020' : stab < 75 ? '#ff8c00' : '#00e536';
+    oscCtx.strokeStyle = color;
+    oscCtx.lineWidth = 1.5;
+    oscCtx.shadowBlur = 4;
+    oscCtx.shadowColor = color;
+    oscCtx.beginPath();
+
+    const len = Math.min(hist.length, W);
+    for (let i = 0; i < len; i++) {
+      const x = (i/len) * W;
+      const s = hist[hist.length - len + i] / 100;
+      const noise = (Math.random()-0.5) * (1-s) * 8;
+      const sine = Math.sin(i * 0.3 + oscPhase) * (H*0.15) * (2 - s);
+      const y = H/2 - (s - 0.5) * H * 0.5 + sine + noise;
+      if (i===0) oscCtx.moveTo(x,y); else oscCtx.lineTo(x,y);
+    }
+    oscCtx.stroke();
+    oscCtx.shadowBlur = 0;
+  }
+
+  oscCtx.strokeStyle = '#1c261c';
+  oscCtx.lineWidth = 0.5;
+  oscCtx.beginPath(); oscCtx.moveTo(0,H/2); oscCtx.lineTo(W,H/2); oscCtx.stroke();
+
+  requestAnimationFrame(oscLoop);
+}
+
+// ─── EVENT LOG ────────────────────────────────────────────────────────────────
+const MAX_EVENTS = 120;
+function logEvent(src, msg, type='info') {
+  G.eventCount++;
+  const log = el('eventlog');
+  if(!log) return;
+  const div = document.createElement('div');
+  const typeMap = {ok:'ev-ok',warn:'ev-warn',crit:'ev-crit',info:'ev-info'};
+  div.className = 'ev ' + (typeMap[type]||'ev-info');
+  const t = formatTime(G.uptime);
+  div.innerHTML = `<span class="et">[${t}]</span><span style="color:var(--txt3)">[${src}]</span> ${msg}`;
+  log.appendChild(div);
+  if (log.children.length > MAX_EVENTS) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+  el('ev-count').textContent = G.eventCount + ' EVENTS';
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function el(id) { return document.getElementById(id); }
+function fmt(n) { return Math.floor(n).toLocaleString(); }
+function fmt1(n) { return n.toFixed(1); }
+function fmt2(n) { return n.toFixed(2); }
+function formatTime(s) {
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+function setSpeed(s) {
+  G.speed = s;
+  document.querySelectorAll('.spd-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === s+'×');
+  });
+}
+
+// Persistent DOM Listener binding mapping updates
+document.addEventListener('DOMContentLoaded', () => {
+    const backdrop = el('modal-bg');
+    if(backdrop) {
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) closeModal();
+        });
+    }
+});
+
+// ─── KEYBOARD ─────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === '1') setSpeed(1);
+  if (e.key === '2') setSpeed(2);
+  if (e.key === '5') setSpeed(5);
+  if (e.key === '0') setSpeed(10);
+  if (e.key === 'g') selectBuild('GEN');
+  if (e.key === 'x') selectBuild('XFM');
+  if (e.key === 'b') selectBuild('BAT');
+  if (e.key === 'r') selectBuild('BRK');
+});
+
+// ─── START ────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

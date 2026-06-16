@@ -1,0 +1,2603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Hollow House</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --black: #0a0a0f;
+    --deep: #0f0f18;
+    --panel: #12121e;
+    --border: #1e1e30;
+    --crimson: #8b0000;
+    --crimson-bright: #b50000;
+    --crimson-glow: #c0000044;
+    --teal: #2d5a5a;
+    --teal-bright: #3d7a7a;
+    --parchment: #c9b99a;
+    --bone: #e8dcc8;
+    --ash: #7a7a8a;
+    --mono: 'Share Tech Mono', monospace;
+    --serif: 'IM Fell English', Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--black);
+    color: var(--parchment);
+    font-family: var(--serif);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, #1a0a0a 0%, transparent 60%),
+                radial-gradient(ellipse at 50% 100%, #0a0a1a 0%, transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 1; opacity: 0.35;
+  }
+
+  #app { position: relative; z-index: 2; max-width: 900px; margin: 0 auto; padding: 20px; }
+
+  #game-header {
+    text-align: center; padding: 30px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  #game-header h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    color: var(--bone);
+    letter-spacing: 0.12em;
+    text-shadow: 0 0 40px var(--crimson-glow), 0 0 80px #00000088;
+    font-style: italic;
+  }
+  #game-header .subtitle {
+    font-size: 0.8rem; font-family: var(--mono);
+    color: var(--ash); letter-spacing: 0.3em; margin-top: 6px;
+    text-transform: uppercase;
+  }
+
+  #hud {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 20px; align-items: center;
+  }
+  .hud-pill {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 4px; padding: 6px 14px;
+    font-family: var(--mono); font-size: 0.75rem; color: var(--ash);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .hud-pill span.val { color: var(--bone); }
+  #sanity-bar-wrap { flex: 1; min-width: 120px; }
+  #sanity-bar-bg { background: var(--border); border-radius: 2px; height: 6px; }
+  #sanity-bar { height: 6px; border-radius: 2px; background: var(--teal-bright);
+    transition: width 0.5s, background 0.5s; }
+
+  #game-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 32px 36px;
+    position: relative;
+    overflow: hidden;
+    min-height: 320px;
+  }
+  #game-panel::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--crimson) 50%, transparent);
+    opacity: 0.6;
+  }
+
+  #scene-chapter {
+    font-family: var(--mono); font-size: 0.68rem;
+    color: var(--crimson); letter-spacing: 0.35em;
+    text-transform: uppercase; margin-bottom: 18px;
+  }
+
+  #scene-title {
+    font-size: 1.55rem; color: var(--bone);
+    margin-bottom: 18px; font-style: italic;
+    line-height: 1.3;
+  }
+
+  #scene-text {
+    font-size: 1.02rem; line-height: 1.85;
+    color: var(--parchment); margin-bottom: 28px;
+  }
+  #scene-text p { margin-bottom: 14px; }
+  #scene-text em { color: var(--bone); font-style: italic; }
+  #scene-text .ominous { color: var(--crimson); font-style: italic; }
+  #scene-text .whisper { color: var(--ash); font-size: 0.88em; font-style: italic; }
+
+  #choices { display: flex; flex-direction: column; gap: 10px; }
+
+  .choice-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--parchment);
+    font-family: var(--serif);
+    font-size: 0.97rem;
+    padding: 14px 20px;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 4px;
+    position: relative;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+    line-height: 1.4;
+  }
+  .choice-btn::before {
+    content: '›';
+    position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+    color: var(--crimson); opacity: 0; transition: opacity 0.2s;
+    font-size: 1.2rem;
+  }
+  .choice-btn:hover {
+    border-color: var(--crimson);
+    color: var(--bone);
+    background: #1a0a0a;
+    padding-left: 28px;
+  }
+  .choice-btn:hover::before { opacity: 1; }
+  .choice-btn:active { background: #200a0a; }
+
+  #history-nav {
+    margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  }
+  #history-nav .nav-label {
+    font-family: var(--mono); font-size: 0.68rem;
+    color: var(--ash); letter-spacing: 0.2em; text-transform: uppercase;
+  }
+  .hist-btn {
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--ash); font-family: var(--mono); font-size: 0.7rem;
+    padding: 4px 10px; border-radius: 3px; cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .hist-btn:hover { border-color: var(--teal); color: var(--teal-bright); }
+  .hist-btn.current { border-color: var(--crimson); color: var(--crimson); }
+
+  #achievements-panel {
+    margin-top: 20px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 20px 24px;
+  }
+  #achievements-panel h3 {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--ash); margin-bottom: 14px;
+  }
+  #achievements-grid {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .ach-badge {
+    background: var(--deep); border: 1px solid var(--border);
+    border-radius: 4px; padding: 8px 12px;
+    font-size: 0.78rem; font-family: var(--mono);
+    color: var(--ash); display: flex; align-items: center; gap: 6px;
+    transition: border-color 0.3s;
+    position: relative;
+    cursor: default;
+  }
+  .ach-badge.unlocked {
+    border-color: var(--teal); color: var(--teal-bright);
+    text-shadow: 0 0 8px var(--teal);
+  }
+  /* Locked badges show question marks and no tooltip */
+  .ach-badge.locked .ach-icon { filter: grayscale(1); opacity: 0.3; }
+  .ach-badge.locked .ach-label { color: var(--border); }
+  .ach-badge .ach-icon { font-size: 1rem; }
+  /* Tooltip only shows for UNLOCKED badges */
+  .ach-badge .ach-tip {
+    display: none; position: absolute; bottom: calc(100% + 6px); left: 0;
+    background: var(--deep); border: 1px solid var(--teal);
+    padding: 6px 10px; white-space: nowrap; font-size: 0.7rem;
+    color: var(--bone); z-index: 10; border-radius: 3px;
+    pointer-events: none;
+  }
+  .ach-badge.unlocked:hover .ach-tip { display: block; }
+
+  #toast {
+    position: fixed; bottom: 30px; right: 30px;
+    background: var(--panel); border: 1px solid var(--teal);
+    border-radius: 6px; padding: 14px 20px;
+    font-family: var(--mono); font-size: 0.8rem;
+    color: var(--teal-bright); max-width: 300px;
+    transform: translateY(20px); opacity: 0;
+    transition: transform 0.3s, opacity 0.3s;
+    z-index: 100; pointer-events: none;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast .toast-title { color: var(--bone); font-size: 0.7rem; margin-bottom: 4px; letter-spacing: 0.15em; }
+
+  /* ── DEATH SCREEN ── */
+  #death-screen {
+    display: none; position: fixed; inset: 0;
+    background: #000000ee; z-index: 200;
+    align-items: center; justify-content: center;
+    flex-direction: column; text-align: center;
+  }
+  #death-screen.active { display: flex; }
+  #death-content {
+    max-width: 500px; padding: 40px;
+    animation: deathFade 0.8s ease;
+  }
+  #death-tag {
+    font-family: var(--mono); color: var(--crimson);
+    letter-spacing: 0.5em; font-size: 0.75rem;
+    text-transform: uppercase; margin-bottom: 20px;
+    animation: pulse-crimson 2s infinite;
+  }
+  #death-title {
+    font-size: 2rem; color: var(--bone);
+    font-style: italic; margin-bottom: 16px;
+  }
+  #death-msg {
+    color: var(--parchment); font-size: 0.95rem;
+    line-height: 1.8; margin-bottom: 30px;
+  }
+  #death-stats {
+    font-family: var(--mono); font-size: 0.75rem;
+    color: var(--ash); margin-bottom: 30px;
+  }
+  #death-restart {
+    background: var(--crimson); color: var(--bone);
+    border: none; padding: 14px 36px;
+    font-family: var(--mono); font-size: 0.85rem;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    border-radius: 4px; cursor: pointer;
+    transition: background 0.2s;
+    box-shadow: 0 0 30px var(--crimson-glow);
+  }
+  #death-restart:hover { background: var(--crimson-bright); }
+
+  #minigame-overlay {
+    position: fixed; inset: 0; background: #000000ee;
+    display: none; align-items: center; justify-content: center;
+    z-index: 50;
+  }
+  #minigame-overlay.active { display: flex; }
+  #minigame-box {
+    background: var(--panel); border: 1px solid var(--crimson);
+    border-radius: 8px; padding: 36px 40px;
+    max-width: 580px; width: 95%;
+    box-shadow: 0 0 60px var(--crimson-glow);
+  }
+  #minigame-box h2 {
+    font-family: var(--mono); color: var(--crimson);
+    letter-spacing: 0.25em; font-size: 0.85rem;
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  #minigame-box .mg-title {
+    font-size: 1.4rem; color: var(--bone);
+    margin-bottom: 14px; font-style: italic;
+  }
+  #minigame-box .mg-desc {
+    color: var(--parchment); font-size: 0.92rem;
+    line-height: 1.7; margin-bottom: 20px;
+  }
+  #minigame-content { margin-bottom: 20px; }
+
+  /* ── TIMER BAR ── */
+  .mg-timer-wrap {
+    margin-bottom: 14px;
+  }
+  .mg-timer-label {
+    font-family: var(--mono); font-size: 0.68rem;
+    color: var(--ash); letter-spacing: 0.2em;
+    text-transform: uppercase; margin-bottom: 4px;
+    display: flex; justify-content: space-between;
+  }
+  .mg-timer-bg { background: var(--border); border-radius: 2px; height: 5px; }
+  .mg-timer-bar {
+    height: 5px; border-radius: 2px;
+    background: var(--teal-bright);
+    transition: background 0.3s;
+  }
+  .mg-attempts-left {
+    font-family: var(--mono); font-size: 0.72rem;
+    color: var(--ash); margin-bottom: 10px;
+    display: flex; gap: 6px; align-items: center;
+  }
+  .life { color: var(--crimson); font-size: 1rem; }
+  .life.dead { color: var(--border); }
+
+  /* Code Lock */
+  .code-lock { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .code-digit {
+    width: 54px; height: 70px;
+    background: var(--deep); border: 2px solid var(--border);
+    border-radius: 4px; font-family: var(--mono);
+    font-size: 2rem; color: var(--bone); text-align: center;
+    cursor: pointer; transition: border-color 0.2s;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  .code-digit:hover { border-color: var(--crimson); }
+  .code-digit.correct { border-color: var(--teal); color: var(--teal-bright); }
+  .code-digit.wrong { border-color: var(--crimson); animation: shake 0.3s; }
+  .code-hint { text-align: center; font-family: var(--mono); font-size: 0.78rem;
+    color: var(--ash); margin-bottom: 12px; }
+
+  /* Memory Game */
+  .memory-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; max-width: 320px; margin: 0 auto;
+  }
+  .mem-card {
+    aspect-ratio: 1; background: var(--deep);
+    border: 2px solid var(--border); border-radius: 4px;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 1.6rem;
+    transition: transform 0.2s, border-color 0.2s;
+    user-select: none;
+  }
+  .mem-card:hover:not(.flipped):not(.matched) { border-color: var(--teal); }
+  .mem-card.flipped, .mem-card.matched { background: #1a2a2a; }
+  .mem-card.matched { border-color: var(--teal); }
+  .mem-card .card-face { display: none; }
+  .mem-card.flipped .card-face, .mem-card.matched .card-face { display: block; }
+
+  /* Simon / Sequence */
+  .simon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 260px; margin: 0 auto; }
+  .simon-btn {
+    aspect-ratio: 1; border-radius: 8px; border: 2px solid transparent;
+    cursor: pointer; transition: filter 0.1s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; filter: brightness(0.5);
+  }
+  .simon-btn.active { filter: brightness(1.5); transform: scale(0.96); }
+  .simon-btn:hover { filter: brightness(0.8); }
+
+  /* Riddle */
+  .riddle-input {
+    background: var(--deep); border: 2px solid var(--border);
+    border-radius: 4px; padding: 10px 14px;
+    font-family: var(--mono); font-size: 1rem;
+    color: var(--bone); width: 100%;
+    outline: none; transition: border-color 0.2s;
+  }
+  .riddle-input:focus { border-color: var(--teal); }
+
+  /* Stealth Timer */
+  .stealth-bar-bg { background: var(--border); height: 12px; border-radius: 6px; overflow: hidden; }
+  .stealth-bar { height: 100%; background: var(--teal-bright);
+    border-radius: 6px; transition: width 0.1s linear, background 0.3s; }
+  .stealth-zones { display: flex; gap: 10px; justify-content: center;
+    margin-top: 12px; flex-wrap: wrap; }
+  .stealth-zone {
+    background: var(--deep); border: 2px solid var(--border);
+    border-radius: 4px; padding: 8px 18px;
+    font-family: var(--mono); font-size: 0.9rem;
+    color: var(--parchment); cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .stealth-zone:hover { border-color: var(--crimson); background: #1a0a0a; }
+
+  /* Cipher */
+  .cipher-table { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-bottom: 12px; }
+  .cipher-pair { font-family: var(--mono); font-size: 0.75rem; color: var(--ash);
+    background: var(--deep); border: 1px solid var(--border);
+    padding: 3px 7px; border-radius: 3px; }
+
+  .mg-btn {
+    background: var(--crimson); color: var(--bone);
+    border: none; padding: 10px 24px; border-radius: 4px;
+    font-family: var(--mono); font-size: 0.82rem;
+    letter-spacing: 0.15em; cursor: pointer;
+    transition: background 0.2s;
+    text-transform: uppercase;
+  }
+  .mg-btn:hover { background: var(--crimson-bright); }
+  .mg-btn.teal { background: var(--teal); }
+  .mg-btn.teal:hover { background: var(--teal-bright); }
+  .mg-result { margin-top: 14px; font-family: var(--mono); font-size: 0.85rem; }
+  .mg-result.success { color: var(--teal-bright); }
+  .mg-result.fail { color: var(--crimson); }
+
+  #ending-screen {
+    display: none; text-align: center; padding: 40px 20px;
+  }
+  #ending-screen.active { display: block; }
+  #ending-tag {
+    font-family: var(--mono); font-size: 0.7rem;
+    letter-spacing: 0.4em; text-transform: uppercase;
+    color: var(--crimson); margin-bottom: 16px;
+  }
+  #ending-title {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    color: var(--bone); font-style: italic;
+    margin-bottom: 20px; line-height: 1.3;
+  }
+  #ending-text {
+    font-size: 1rem; line-height: 1.85;
+    color: var(--parchment); max-width: 600px;
+    margin: 0 auto 30px;
+  }
+  #ending-stats {
+    display: flex; gap: 20px; justify-content: center;
+    flex-wrap: wrap; margin-bottom: 30px;
+  }
+  .ending-stat {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 4px; padding: 12px 20px;
+    font-family: var(--mono); font-size: 0.78rem;
+    color: var(--ash);
+  }
+  .ending-stat span { display: block; color: var(--bone); font-size: 1.1rem; margin-top: 4px; }
+  #restart-btn {
+    background: var(--crimson); color: var(--bone);
+    border: none; padding: 14px 32px;
+    font-family: var(--mono); font-size: 0.85rem;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    border-radius: 4px; cursor: pointer;
+    transition: background 0.2s;
+  }
+  #restart-btn:hover { background: var(--crimson-bright); }
+
+  .fade-in { animation: fadeIn 0.5s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+  @keyframes pulse-crimson {
+    0%,100% { box-shadow: none; opacity: 1; }
+    50% { box-shadow: 0 0 30px var(--crimson-glow); opacity: 0.7; }
+  }
+  @keyframes deathFade {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes bloodDrip {
+    0% { transform: translateY(-100%); opacity: 0; }
+    20% { opacity: 1; }
+    100% { transform: translateY(100vh); opacity: 0.6; }
+  }
+  .blood-drip {
+    position: fixed; top: 0; width: 3px;
+    background: linear-gradient(to bottom, transparent, var(--crimson), #4a0000);
+    border-radius: 0 0 50% 50%;
+    animation: bloodDrip 2s ease-in forwards;
+    pointer-events: none; z-index: 199;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--black); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--crimson); }
+
+  @media (max-width: 600px) {
+    #game-panel { padding: 20px 16px; }
+    #game-header h1 { font-size: 1.8rem; }
+    #minigame-box { padding: 24px 18px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="game-header">
+    <h1>The Hollow House</h1>
+    <div class="subtitle">A Dark Journey — Choose Wisely</div>
+  </header>
+
+  <div id="hud">
+    <div class="hud-pill">Chapter <span class="val" id="hud-chapter">–</span></div>
+    <div class="hud-pill">Sanity <span class="val" id="hud-sanity">100</span>%</div>
+    <div class="hud-pill hud-pill--bar" id="sanity-bar-wrap">
+      <div id="sanity-bar-bg"><div id="sanity-bar" style="width:100%"></div></div>
+    </div>
+    <div class="hud-pill">Decisions <span class="val" id="hud-decisions">0</span></div>
+    <div class="hud-pill">🏆 <span class="val" id="hud-ach">0</span></div>
+    <div class="hud-pill" id="music-pill" style="cursor:pointer" title="Toggle ambient music" onclick="toggleMusic()">
+      ♪ <span class="val" id="music-label">Music On</span>
+    </div>
+  </div>
+
+  <div id="game-panel">
+    <div id="scene-chapter"></div>
+    <div id="scene-title"></div>
+    <div id="scene-text"></div>
+    <div id="choices"></div>
+  </div>
+
+  <div id="history-nav">
+    <span class="nav-label">History:</span>
+    <div id="history-btns"></div>
+  </div>
+
+  <div id="achievements-panel">
+    <h3>Achievements</h3>
+    <div id="achievements-grid"></div>
+  </div>
+
+  <div id="ending-screen">
+    <div id="ending-tag">ENDING</div>
+    <div id="ending-title"></div>
+    <div id="ending-text"></div>
+    <div id="ending-stats"></div>
+    <button id="restart-btn" onclick="restartGame()">Begin Again</button>
+  </div>
+</div>
+
+<div id="toast"><div class="toast-title">ACHIEVEMENT UNLOCKED</div><div id="toast-msg"></div></div>
+
+<div id="minigame-overlay">
+  <div id="minigame-box">
+    <h2 id="mg-label">Mini-Game</h2>
+    <div class="mg-title" id="mg-title"></div>
+    <div class="mg-desc" id="mg-desc"></div>
+    <div id="minigame-content"></div>
+    <div id="mg-result-area"></div>
+  </div>
+</div>
+
+<!-- DEATH SCREEN -->
+<div id="death-screen">
+  <div id="death-content">
+    <div id="death-tag">✦ YOU HAVE PERISHED ✦</div>
+    <div id="death-title">The House Claimed You</div>
+    <div id="death-msg"></div>
+    <div id="death-stats"></div>
+    <button id="death-restart" onclick="triggerRestart()">⟳ Begin Again From The Start</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// SOUND ENGINE
+// ═══════════════════════════════════════════════════════════════
+const SOUND = (() => {
+  let ctx = null;
+  let masterGain = null;
+  let musicGain = null;
+  let sfxGain = null;
+  let musicNodes = [];
+  let currentMood = null;
+  let musicEnabled = true;
+  const MUSIC_VOL = 0.14;
+  const SFX_VOL = 0.4;
+
+  function ensureCtx() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = ctx.createGain(); masterGain.gain.value = 1;
+    masterGain.connect(ctx.destination);
+    musicGain = ctx.createGain(); musicGain.gain.value = MUSIC_VOL;
+    musicGain.connect(masterGain);
+    sfxGain = ctx.createGain(); sfxGain.gain.value = SFX_VOL;
+    sfxGain.connect(masterGain);
+  }
+
+  function resume() { ctx && ctx.state === 'suspended' && ctx.resume(); }
+
+  // ── MUSIC MOODS ──
+  const MOODS = {
+    calm(ctx, g) {
+      const nodes = [];
+      [55, 82.4, 110].forEach((f, i) => {
+        const o = ctx.createOscillator(), og = ctx.createGain();
+        const lfo = ctx.createOscillator(), lg = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        lfo.type = 'sine'; lfo.frequency.value = 0.04 + i * 0.01;
+        lg.gain.value = f * 0.004;
+        og.gain.setValueAtTime(0, ctx.currentTime);
+        og.gain.linearRampToValueAtTime(0.06 - i * 0.015, ctx.currentTime + 3);
+        lfo.connect(lg); lg.connect(o.frequency);
+        o.connect(og); og.connect(g);
+        o.start(); lfo.start(); nodes.push(o, lfo, og, lg);
+      });
+      return nodes;
+    },
+    tense(ctx, g) {
+      const nodes = [];
+      const drone = ctx.createOscillator(), dg = ctx.createGain();
+      drone.type = 'sawtooth'; drone.frequency.value = 36.7;
+      dg.gain.setValueAtTime(0, ctx.currentTime);
+      dg.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 2);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 180;
+      drone.connect(lp); lp.connect(dg); dg.connect(g); drone.start();
+      nodes.push(drone, dg, lp);
+      const mid = ctx.createOscillator(), mg2 = ctx.createGain();
+      const trem = ctx.createOscillator(), tg = ctx.createGain();
+      mid.type = 'triangle'; mid.frequency.value = 110;
+      trem.type = 'sine'; trem.frequency.value = 3.5;
+      tg.gain.value = 0.03; mg2.gain.value = 0.04;
+      trem.connect(tg); tg.connect(mg2.gain);
+      mid.connect(mg2); mg2.connect(g); mid.start(); trem.start();
+      nodes.push(mid, mg2, trem, tg);
+      return nodes;
+    },
+    horror(ctx, g) {
+      const nodes = [];
+      [29.1, 31.5, 34.6].forEach(f => {
+        const o = ctx.createOscillator(), og = ctx.createGain();
+        o.type = 'sawtooth'; o.frequency.value = f;
+        og.gain.setValueAtTime(0, ctx.currentTime);
+        og.gain.linearRampToValueAtTime(0.055, ctx.currentTime + 1.5);
+        o.connect(og); og.connect(g); o.start(); nodes.push(o, og);
+      });
+      [220, 233, 246].forEach((f, i) => {
+        const o = ctx.createOscillator(), og = ctx.createGain();
+        const lfo = ctx.createOscillator(), lg = ctx.createGain();
+        o.type = 'triangle'; o.frequency.value = f;
+        lfo.type = 'sine'; lfo.frequency.value = 0.12 + i * 0.03;
+        lg.gain.value = 3; og.gain.value = 0.018;
+        lfo.connect(lg); lg.connect(o.frequency);
+        o.connect(og); og.connect(g); o.start(); lfo.start();
+        nodes.push(o, og, lfo, lg);
+      });
+      return nodes;
+    },
+    cellar(ctx, g) {
+      const nodes = [];
+      [18.3, 24.5, 29.1].forEach(f => {
+        const o = ctx.createOscillator(), og = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        og.gain.setValueAtTime(0, ctx.currentTime); og.gain.linearRampToValueAtTime(0.09, ctx.currentTime + 3);
+        o.connect(og); og.connect(g); o.start(); nodes.push(o, og);
+      });
+      const pulse = ctx.createOscillator(), pg = ctx.createGain();
+      pulse.type = 'sine'; pulse.frequency.value = 0.25; pg.gain.value = 0.03;
+      pulse.connect(pg); pg.connect(g.gain); pulse.start(); nodes.push(pulse, pg);
+      return nodes;
+    },
+    resolution(ctx, g) {
+      const nodes = [];
+      const pentatonic = [261.6, 293.7, 329.6, 392, 440, 523.3];
+      pentatonic.forEach((f, i) => {
+        const o = ctx.createOscillator(), og = ctx.createGain();
+        o.type = 'sine';
+        const d = ctx.currentTime + 0.5 + i * 1.4;
+        o.frequency.value = f;
+        og.gain.setValueAtTime(0, d);
+        og.gain.linearRampToValueAtTime(0.07, d + 0.05);
+        og.gain.exponentialRampToValueAtTime(0.001, d + 3);
+        o.connect(og); og.connect(g); o.start(d); o.stop(d + 3.1); nodes.push(o, og);
+      });
+      return nodes;
+    },
+    minigame(ctx, g) {
+      const nodes = [];
+      const b = ctx.createOscillator(), bg = ctx.createGain();
+      b.type = 'square'; b.frequency.value = 55;
+      bg.gain.setValueAtTime(0, ctx.currentTime); bg.gain.linearRampToValueAtTime(0.025, ctx.currentTime + 0.5);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 120;
+      b.connect(lp); lp.connect(bg); bg.connect(g); b.start(); nodes.push(b, bg, lp);
+      const hi = ctx.createOscillator(), hg = ctx.createGain();
+      hi.type = 'sine'; hi.frequency.value = 660;
+      const hiLFO = ctx.createOscillator(), hlg = ctx.createGain();
+      hiLFO.type = 'sine'; hiLFO.frequency.value = 6; hlg.gain.value = 20;
+      hg.gain.setValueAtTime(0, ctx.currentTime); hg.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 1);
+      hiLFO.connect(hlg); hlg.connect(hi.frequency);
+      hi.connect(hg); hg.connect(g); hi.start(); hiLFO.start(); nodes.push(hi, hg, hiLFO, hlg);
+      return nodes;
+    }
+  };
+
+  function moodForScene(id) {
+    if (!id) return 'calm';
+    if (id.startsWith('ending_')) return 'resolution';
+    const s = id.toLowerCase();
+    if (s.includes('cellar') || s.includes('basement') || s.includes('c4_')) return 'cellar';
+    if (s.includes('creature') || s.includes('red_door') || s.includes('mirror_step') || s.includes('seventh') || s.includes('call_out')) return 'horror';
+    if (s.includes('c2_') || s.includes('c3_') || s.includes('room7') || s.includes('keeper') || s.includes('hide')) return 'tense';
+    return 'calm';
+  }
+
+  function stopMusic(fadeSecs = 1.5) {
+    if (!musicGain) return;
+    musicGain.gain.cancelScheduledValues(ctx.currentTime);
+    musicGain.gain.setValueAtTime(musicGain.gain.value, ctx.currentTime);
+    musicGain.gain.linearRampToValueAtTime(0, ctx.currentTime + fadeSecs);
+    const old = musicNodes;
+    setTimeout(() => {
+      old.forEach(n => { try { n.stop && n.stop(); n.disconnect && n.disconnect(); } catch(e){} });
+    }, (fadeSecs + 0.2) * 1000);
+    musicNodes = [];
+    setTimeout(() => {
+      if (musicGain) { musicGain.gain.setValueAtTime(MUSIC_VOL, ctx.currentTime); }
+    }, (fadeSecs + 0.3) * 1000);
+  }
+
+  function playMood(mood) {
+    ensureCtx(); resume();
+    if (!musicEnabled) return;
+    if (mood === currentMood) return;
+    currentMood = mood;
+    stopMusic(1.8);
+    const builder = MOODS[mood] || MOODS.calm;
+    setTimeout(() => {
+      if (!musicEnabled) return;
+      musicNodes = builder(ctx, musicGain);
+    }, 200);
+  }
+
+  // ── SFX ──
+  function playClick() {
+    ensureCtx(); resume();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(220, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.08);
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    o.connect(g); g.connect(sfxGain); o.start(); o.stop(ctx.currentTime + 0.15);
+  }
+
+  function playDoor() {
+    ensureCtx(); resume();
+    // Creak sound
+    const bufSize = ctx.sampleRate * 0.6;
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.4)) * 0.8;
+    }
+    const ns = ctx.createBufferSource(), g = ctx.createGain();
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 300; bp.Q.value = 2;
+    ns.buffer = buf; g.gain.value = 0.5;
+    ns.connect(bp); bp.connect(g); g.connect(sfxGain); ns.start();
+  }
+
+  function playWhisper() {
+    ensureCtx(); resume();
+    const bufSize = ctx.sampleRate * 1;
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.sin(i / bufSize * Math.PI) * 0.4;
+    }
+    const ns = ctx.createBufferSource(), g = ctx.createGain();
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1500;
+    const rev = ctx.createConvolver();
+    ns.buffer = buf; g.gain.value = 0.35;
+    ns.connect(hp); hp.connect(g); g.connect(sfxGain); ns.start();
+  }
+
+  function playAchievement() {
+    ensureCtx(); resume();
+    const freqs = [523.3, 659.3, 783.99, 1046.5];
+    freqs.forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const t = ctx.currentTime + i * 0.12;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.2, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t + 0.55);
+    });
+  }
+
+  function playDeath() {
+    ensureCtx(); resume();
+    // Descending doom chord
+    stopMusic(0.3);
+    currentMood = null;
+    [55, 58, 61, 65].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f * 2, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(f * 0.5, ctx.currentTime + 3);
+      g.gain.setValueAtTime(0, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.15 - i * 0.02, ctx.currentTime + 0.2);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3.5);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400 - i * 50;
+      o.connect(lp); lp.connect(g); g.connect(sfxGain); o.start(); o.stop(ctx.currentTime + 3.6);
+    });
+    // Heartbeat stops
+    setTimeout(() => {
+      [0, 200].forEach(delay => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = 60;
+        const t = ctx.currentTime + delay / 1000;
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.4, t + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t + 0.35);
+      });
+    }, 500);
+  }
+
+  function playSuccess() {
+    ensureCtx(); resume();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(440, ctx.currentTime);
+    o.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+    o.frequency.setValueAtTime(880, ctx.currentTime + 0.2);
+    g.gain.setValueAtTime(0.25, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    o.connect(g); g.connect(sfxGain); o.start(); o.stop(ctx.currentTime + 0.65);
+  }
+
+  function playFail() {
+    ensureCtx(); resume();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(200, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.3);
+    g.gain.setValueAtTime(0.2, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500;
+    o.connect(lp); lp.connect(g); g.connect(sfxGain); o.start(); o.stop(ctx.currentTime + 0.45);
+  }
+
+  function playHeartbeat() {
+    ensureCtx(); resume();
+    [0, 0.25].forEach(delay => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 50;
+      const t = ctx.currentTime + delay;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.3, t + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t + 0.3);
+    });
+  }
+
+  function playTimerTick() {
+    ensureCtx(); resume();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'square'; o.frequency.value = 880;
+    g.gain.setValueAtTime(0.08, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2000;
+    o.connect(lp); lp.connect(g); g.connect(sfxGain); o.start(); o.stop(ctx.currentTime + 0.07);
+  }
+
+  return {
+    setScene(id) { playMood(moodForScene(id)); },
+    playMinigame() { playMood('minigame'); },
+    endMinigame(id) { currentMood = null; playMood(moodForScene(id)); },
+    sfx: { click: playClick, door: playDoor, whisper: playWhisper, achievement: playAchievement,
+            death: playDeath, success: playSuccess, fail: playFail, heartbeat: playHeartbeat,
+            tick: playTimerTick },
+    toggle() {
+    ensureCtx(); resume();
+    musicEnabled = !musicEnabled;
+    if (!musicEnabled) { stopMusic(0.5); currentMood = null; }
+    // CHANGED: replaced 'this.setScene' with 'SOUND.setScene' 
+    else { currentMood = null; SOUND.setScene(typeof STATE !== 'undefined' && STATE.current ? STATE.current : 'start'); }
+    return musicEnabled;
+    },
+    init() { ensureCtx(); resume(); }
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// MUSIC TOGGLE
+// ═══════════════════════════════════════════════════════════════
+let musicOn = true;
+function toggleMusic() {
+  musicOn = SOUND.toggle();
+  document.getElementById('music-label').textContent = musicOn ? 'Music On' : 'Music Off';
+  const pill = document.getElementById('music-pill');
+  pill.style.borderColor = musicOn ? 'var(--teal)' : '';
+  pill.style.color = musicOn ? 'var(--teal-bright)' : '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+const STATE = {
+  current: 'start',
+  sanity: 100,
+  chapter: 1,
+  decisions: 0,
+  flags: {},
+  history: [],
+  achievements: {},
+  endingReached: null
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ACHIEVEMENTS — descriptions hidden until unlocked
+// ═══════════════════════════════════════════════════════════════
+const ACHIEVEMENTS = {
+  first_choice:    { icon:'🕯️', label:'First Step',         desc:'Make your first choice.',                  unlocked: false },
+  curious:         { icon:'🔍', label:'Morbid Curiosity',   desc:'Investigate 5 items.',                     unlocked: false },
+  coward:          { icon:'🏃', label:'Coward\'s Path',      desc:'Run from danger 3 times.',                 unlocked: false },
+  brave:           { icon:'⚔️', label:'Reckless Courage',   desc:'Never flee from danger.',                  unlocked: false },
+  code_breaker:    { icon:'🔐', label:'Code Breaker',        desc:'Crack the cipher lock on first try.',     unlocked: false },
+  memory_master:   { icon:'🧠', label:'Eidetic Memory',      desc:'Complete the memory game without errors.', unlocked: false },
+  stealth_god:     { icon:'👁️', label:'Shadow Walker',       desc:'Pass the stealth challenge perfectly.',   unlocked: false },
+  riddler:         { icon:'❓', label:'The Riddler',          desc:'Solve the riddle on the first attempt.',  unlocked: false },
+  sequence_keeper: { icon:'🎵', label:'Sequence Keeper',     desc:'Complete the sequence game flawlessly.',  unlocked: false },
+  low_sanity:      { icon:'🌀', label:'Edge of Madness',     desc:'Reach below 20% sanity.',                 unlocked: false },
+  all_clues:       { icon:'📜', label:'Archivist',           desc:'Collect all clues in Chapter 2.',         unlocked: false },
+  mercy:           { icon:'🕊️', label:'Mercy',               desc:'Spare the creature in the cellar.',       unlocked: false },
+  ruthless:        { icon:'🔪', label:'Ruthless',            desc:'Destroy the creature in the cellar.',     unlocked: false },
+  ten_decisions:   { icon:'📖', label:'Deep Reader',         desc:'Make 10 decisions.',                      unlocked: false },
+  twenty_decisions:{ icon:'📚', label:'Obsessed',            desc:'Make 20 decisions.',                      unlocked: false },
+  survivor:        { icon:'🌅', label:'Survivor',            desc:'Reach the Escape ending.',                unlocked: false },
+  truth_seeker:    { icon:'🔭', label:'Truth Seeker',        desc:'Discover the full truth of the house.',   unlocked: false },
+  sacrifice:       { icon:'💀', label:'The Willing',         desc:'Choose to sacrifice yourself.',           unlocked: false },
+  burned_it_down:  { icon:'🔥', label:'Scorched Earth',      desc:'Burn the house to the ground.',           unlocked: false },
+  ghost_king:      { icon:'👑', label:'Lord of the Hollow',  desc:'Become one with the house.',              unlocked: false },
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SCENES (full scene data)
+// ═══════════════════════════════════════════════════════════════
+const SCENES = {
+start: {
+  chapter: 'Chapter I — The Awakening',
+  title: 'Eyes Open in Darkness',
+  text: `<p>You wake to the smell of <em>damp stone and something else</em> — iron, perhaps, or old blood. Your head throbs. The room around you is massive, a vaulted ceiling lost in shadow above stone walls draped with rotting tapestries depicting hunts that never ended well.</p>
+<p>You are lying on a cold floor. A single candle burns on a mantle across the room. You do not remember how you got here. You do not remember much of anything, except your name — and even that feels uncertain.</p>
+<p class="whisper">"You shouldn't have come back here," something whispers from inside the walls.</p>`,
+  choices: [
+    { text: 'Stand up and examine the room.', next: 'c1_examine_room', sanity: 0 },
+    { text: 'Lie still and listen carefully.', next: 'c1_listen', sanity: 0 },
+    { text: 'Call out into the darkness.', next: 'c1_call_out', sanity: -5 }
+  ]
+},
+c1_examine_room: {
+  chapter: 'Chapter I — The Awakening',
+  title: 'The Grand Hall',
+  text: `<p>You rise carefully, bones aching as though you've been still for days. The room is a grand hall — or what remains of one. Furniture lies overturned. Paintings have been slashed. A grandfather clock in the corner has stopped at <em>3:14</em>.</p>
+<p>Three exits present themselves: a heavy oak door to the north, a servants' corridor half-hidden behind a fallen bookcase, and a shattered window to the east through which cold air and moonlight pour.</p>
+<p>Near the fireplace, something glints. A brass key on a chain — and next to it, what appears to be a crumpled note.</p>`,
+  flags: { 'c1_room_examined': true },
+  choices: [
+    { text: 'Examine the key and note.', next: 'c1_key_note', sanity: 0, achieves: 'curious' },
+    { text: 'Try the heavy oak door to the north.', next: 'c1_north_door', sanity: 0 },
+    { text: 'Slip through the servants corridor.', next: 'c1_servant_corridor', sanity: 0 },
+    { text: 'Climb out the broken window.', next: 'c1_window_flee', sanity: 5 }
+  ]
+},
+c1_listen: {
+  chapter: 'Chapter I — The Awakening',
+  title: 'Silence Speaks',
+  text: `<p>You hold your breath. The house breathes around you — timbers settling, wind moaning through cracks, the distant drip of water.</p>
+<p>Then you hear it: footsteps. Slow, deliberate, walking back and forth in the room directly above you. They pause. Then something <em>heavy</em> is dragged across the floor.</p>
+<p>The footsteps begin descending stairs somewhere to the north.</p>`,
+  flags: { 'heard_footsteps': true },
+  choices: [
+    { text: 'Stand and prepare to face whoever is coming.', next: 'c1_examine_room', sanity: 0 },
+    { text: 'Hide behind the overturned furniture.', next: 'c1_hide', sanity: 0 },
+    { text: 'Crawl toward the faint light under a door.', next: 'c1_key_note', sanity: 0 }
+  ]
+},
+c1_call_out: {
+  chapter: 'Chapter I — The Awakening',
+  title: 'An Answer You Did Not Want',
+  text: `<p>"Hello?" Your voice sounds wrong here — absorbed by the stone, muffled by the dark.</p>
+<p>Silence. Then, from every direction at once, as though the <em>walls themselves speak</em>:</p>
+<p class="ominous">"WE HAVE BEEN WAITING."</p>
+<p>A wave of cold crashes through you. The candle gutters and nearly dies. When it steadies, the room looks subtly different — the tapestries seem to show new images, figures that weren't there before, all turned to face you.</p>`,
+  sanityDelta: -10,
+  flags: { 'called_out': true },
+  choices: [
+    { text: 'Steel yourself and examine the room.', next: 'c1_examine_room', sanity: 0 },
+    { text: 'Run. Any direction. Away.', next: 'c1_run_panic', sanity: -5 }
+  ]
+},
+c1_window_flee: {
+  chapter: 'Chapter I — The Awakening',
+  title: 'The Garden Wall',
+  text: `<p>You climb through the broken window into a garden of overgrown thorns. Cold moonlight. The fresh air is intoxicating after the damp stone smell. You run for the garden wall —</p>
+<p>And stop. The wall is endless. It extends in both directions as far as you can see, too high to scale, the iron spikes atop it gleaming. You run along it for ten minutes in each direction. The wall has no end and no gate.</p>
+<p>You cannot leave. Not yet. You climb back through the window.</p>`,
+  flags: { 'tried_leaving': true, flee_count: 1 },
+  choices: [
+    { text: 'Examine the room properly.', next: 'c1_examine_room', sanity: 0 }
+  ]
+},
+c1_hide: {
+  chapter: 'Chapter I — The Awakening',
+  title: 'Shadows and Patience',
+  text: `<p>You press yourself behind an overturned cabinet, barely breathing. The northern door swings open. Heavy footsteps enter the room.</p>
+<p>Through a gap in the furniture you see: <em>a man</em>. Or something shaped like one. Tall, dressed in the tattered uniform of a groundskeeper, face hidden beneath a wide-brimmed hat. He carries an oil lantern and a long iron hook.</p>
+<p>He stops in the middle of the room. Looks directly at where you're hiding. <em>Smiles</em>.</p>
+<p>"I can always smell the living," he says softly, and takes one slow step toward you.</p>`,
+  sanityDelta: -10,
+  flags: { 'met_groundskeeper': true },
+  choices: [
+    { text: 'Throw the overturned cabinet into him and run.', next: 'c1_fight_keeper', sanity: 0 },
+    { text: 'Beg him not to harm you.', next: 'c1_beg_keeper', sanity: 0 },
+    { text: 'Dart to the servants corridor.', next: 'c1_servant_corridor', sanity: 0, flags: { flee_count: 1 } }
+  ]
+},
+c1_run_panic: {
+  chapter: 'Chapter I — The Awakening',
+  title: 'Blind Panic',
+  text: `<p>You run. Blindly, stumbling over debris, through the first door you find. It leads to a narrow corridor that slopes downward, gas-lamp brackets on the walls long since gone dark.</p>
+<p>You run until your lungs burn and you can no longer hear anything behind you. You stop, panting, in a stone antechamber. A small oil lamp hangs from the ceiling, somehow still lit.</p>
+<p>You're shaking. But alive. And <em>thinking</em> now — panic has given way to something colder.</p>`,
+  sanityDelta: -5,
+  flags: { 'fled_initial': true, flee_count: 1 },
+  choices: [
+    { text: 'Search the antechamber carefully.', next: 'c1_antechamber', sanity: 0 },
+    { text: 'Keep moving deeper into the corridor.', next: 'c1_deep_corridor', sanity: 0 }
+  ]
+},
+c1_fight_keeper: {
+  chapter: 'Chapter I — The Awakening',
+  title: 'Fury in the Dark',
+  text: `<p>You shove the cabinet with everything you have. It crashes into the groundskeeper and he stumbles back with a sound like breaking kindling. You vault over the debris and sprint for the servants corridor.</p>
+<p>Behind you, impossibly, he laughs.</p>
+<p>"Run, little dreamer. You always do."</p>`,
+  flags: { 'fought_keeper': true, fled_initial: true, flee_count: 1 },
+  choices: [
+    { text: 'Continue through the servants corridor.', next: 'c1_servant_corridor', sanity: 0 }
+  ]
+},
+c1_beg_keeper: {
+  chapter: 'Chapter I — The Awakening',
+  title: 'Something Like Mercy',
+  text: `<p>"Please," you say. "I don't know what this place is. I don't know why I'm here."</p>
+<p>The figure tilts his head. After a long moment, he lowers the iron hook and reaches into his coat, pulling out a small iron key. Tosses it to you.</p>
+<p>"The library. Second floor, east wing. The answers are there. Go, before the house wakes properly."</p>`,
+  flags: { 'keeper_friendly': true, 'library_key': true },
+  choices: [
+    { text: 'Thank him and move to the servants corridor.', next: 'c1_servant_corridor', sanity: 5 },
+    { text: 'Ask him what he means by "Thorne\'s."', next: 'c1_ask_thorne', sanity: 0 }
+  ]
+},
+c1_ask_thorne: {
+  chapter: 'Chapter I — The Awakening',
+  title: 'The Name',
+  text: `<p>"Who is Thorne?" you ask.</p>
+<p>The groundskeeper is quiet for a long moment. "Was," he corrects. "Who <em>was</em> Thorne. He built this house. Over forty years. Brick by brick, room by room. And when it was finished, he decided it needed one final thing."</p>
+<p>He does not elaborate. "Go to the library. Some knowledge you must find yourself."</p>`,
+  flags: { 'knows_thorne': true },
+  choices: [
+    { text: 'Heed his advice. Go to the servants corridor.', next: 'c1_servant_corridor', sanity: 0 }
+  ]
+},
+c1_key_note: {
+  chapter: 'Chapter I — The Awakening',
+  title: 'Brass and Paper',
+  text: `<p>You pick up the key — heavy, old, engraved with the letter <em>T</em>. The note beside it is written in cramped, frantic handwriting:</p>
+<p class="whisper"><em>"If you're reading this you've survived the first night. Don't trust the light that moves on its own. Don't open the red door. The cellar knows your name. Find the library — the truth is in the third case from the left, bottom shelf. — E"</em></p>
+<p>Who is E? You pocket the key and note. Someone has been here before you. Recently — the ink is barely dry.</p>`,
+  flags: { 'has_key': true, 'read_note': true, 'clue_1': true },
+  choices: [
+    { text: 'Try the oak door to the north.', next: 'c1_north_door', sanity: 0 },
+    { text: 'Try the servants corridor.', next: 'c1_servant_corridor', sanity: 0 },
+    { text: 'Look for the red door the note warned about.', next: 'c1_red_door_seek', sanity: -5 }
+  ]
+},
+c1_red_door_seek: {
+  chapter: 'Chapter I — The Awakening', title: 'Against All Wisdom',
+  text: `<p>You find it behind a section of tapestry — a door, painted deep crimson, the paint cracked and peeling. There is no handle. Only a keyhole. And from the other side, you can hear something: a sound like many people breathing in perfect synchrony.</p>`,
+  flags: { 'found_red_door': true },
+  choices: [
+    { text: 'Press your key against the lock.', next: 'c1_red_door_key', sanity: 0 },
+    { text: 'Step back. The note warned you.', next: 'c1_north_door', sanity: 5 },
+    { text: 'Listen at the door more carefully.', next: 'c1_red_door_listen', sanity: -5 }
+  ]
+},
+c1_red_door_listen: {
+  chapter: 'Chapter I — The Awakening', title: 'What Breathes Behind',
+  text: `<p>You press your ear to the cold red wood. Then — a voice, right beside your ear: <p class="ominous">"We know your face. We know your blood. We've been growing your room for thirty years."</p><p>The door bulges slightly outward.</p>`,
+  sanityDelta: -15, flags: { 'listened_red_door': true },
+  choices: [
+    { text: 'Run. The servants corridor. Now.', next: 'c1_servant_corridor', sanity: 0, flags: { flee_count: 1 } },
+    { text: 'Use the brass key anyway.', next: 'c1_red_door_key', sanity: 0 }
+  ]
+},
+c1_red_door_key: {
+  chapter: 'Chapter I — The Awakening', title: 'The Wrong Key',
+  text: `<p>The key doesn't fit. But the moment it touches the lock, the breathing on the other side <em>stops</em>. Then the sound of something retreating fast across stone. The door shudders and goes utterly still.</p>`,
+  flags: { 'key_repelled_door': true },
+  choices: [{ text: 'Head to the north door.', next: 'c1_north_door', sanity: 0 }]
+},
+c1_north_door: {
+  chapter: 'Chapter I — The Awakening', title: 'The Foyer',
+  text: `<p>The oak door opens with effort, revealing a grand foyer — a sweeping staircase splits left and right at a landing above. A chandelier holds a hundred dead candles.</p>
+<p>Three things catch your attention: a mirror whose reflection shows the room <em>as it was</em>; a door to the right marked <strong>STUDY</strong>; and the stairs themselves.</p>`,
+  choices: [
+    { text: 'Examine the strange mirror.', next: 'c1_mirror', sanity: -5, achieves: 'curious' },
+    { text: 'Enter the Study.', next: 'c1_study', sanity: 0 },
+    { text: 'Climb the stairs.', next: 'c2_intro', sanity: 0 }
+  ]
+},
+c1_mirror: {
+  chapter: 'Chapter I — The Awakening', title: 'The Living Past',
+  text: `<p>Your reflection is wrong — it shows you wearing different clothing, standing in a room that glows with warmth. The mirror-you notices <em>you</em>. It steps forward and mouths something.</p>
+<p>You read its lips: <em>"Don't let them take the third thing."</em></p>
+<p>The mirror clouds with black smoke. When it clears it shows only you, pale and wide-eyed.</p>`,
+  sanityDelta: -10, flags: { 'saw_mirror': true, 'clue_mirror': true },
+  choices: [
+    { text: 'Enter the Study.', next: 'c1_study', sanity: 0 },
+    { text: 'Climb the stairs.', next: 'c2_intro', sanity: 0 }
+  ]
+},
+c1_study: {
+  chapter: 'Chapter I — The Awakening', title: 'The Study',
+  text: `<p>The study is lined floor to ceiling with books. A great desk dominates the center, covered in papers, bottles of dried ink, and a half-eaten meal — decades old. Someone left in a hurry.</p>
+<p>A title page catches your eye: <strong><em>A History of Thorne House</em></strong> by Edmund Voss. And below the desk, tied to the chair leg: a leather-bound journal.</p>`,
+  flags: { 'clue_2': true, 'found_study': true },
+  choices: [
+    { text: 'Read the History of Thorne House.', next: 'c1_study_history', sanity: 0 },
+    { text: 'Take the journal.', next: 'c1_study_journal', sanity: 0 },
+    { text: 'Search the desk drawers.', next: 'c1_study_drawers', sanity: 0 }
+  ]
+},
+c1_study_history: {
+  chapter: 'Chapter I — The Awakening', title: 'What Was Written',
+  text: `<p>You learn: <em>Thorne House</em> was built in 1887 by <strong>Aldous Thorne</strong>, a collector of occult objects and practitioner of "sympathetic architecture." The history ends abruptly mid-sentence: <em>"What Thorne ultimately built the house to contain has never been confirmed, but the seventeen disappearances between 1901 and 1923 suggest..."</em></p>
+<p>The rest of the page has been cut out. Deliberately.</p>`,
+  flags: { 'knows_history': true, 'clue_3': true },
+  choices: [
+    { text: 'Take the journal from under the desk.', next: 'c1_study_journal', sanity: 0 },
+    { text: 'Search the desk drawers.', next: 'c1_study_drawers', sanity: 0 },
+    { text: 'Head back to the foyer. Climb the stairs.', next: 'c2_intro', sanity: 0 }
+  ]
+},
+c1_study_journal: {
+  chapter: 'Chapter I — The Awakening', title: 'The Journal of E',
+  text: `<p class="whisper"><em>"Day 1 — Have entered the house successfully. Day 4 — Found the ritual chamber. Thorne didn't build this house to contain something. He built it to SUMMON it. Day 9 — It knows I'm here. Day 12 — I've found a way to end this. I need three keys. The Brass key (found). The Bone key (cellar). The Glass key (attic). If the lock is opened in reverse order, the house unmakes itself. Day 14—"</em></p>
+<p>The entry ends there. The remaining pages are wet with something dark.</p>`,
+  flags: { 'has_journal': true, 'knows_three_keys': true, 'clue_4': true },
+  choices: [
+    { text: 'Search the desk drawers.', next: 'c1_study_drawers', sanity: 0 },
+    { text: 'Head to the foyer. Climb the stairs.', next: 'c2_intro', sanity: 0 },
+    { text: 'Go find the cellar immediately.', next: 'c2_cellar_direct', sanity: 0 }
+  ]
+},
+c1_study_drawers: {
+  chapter: 'Chapter I — The Awakening', title: 'Secrets in Wood',
+  text: `<p>The bottom drawer reveals: a folded map of the house (three floors, plus cellar and attic), a small vial of clear liquid labeled <em>"For the eyes — dilute with tears"</em>, and a playing card — the King of Spades — with a phone number written in fresh ink.</p>
+<p>No phone exists here. No signal reaches here. But you keep the card. And the map. And the vial.</p>`,
+  flags: { 'has_map': true, 'has_vial': true, 'has_card': true, 'clue_5': true },
+  choices: [
+    { text: 'Head to the foyer and climb the stairs.', next: 'c2_intro', sanity: 0 },
+    { text: 'Use the vial — pour a drop into each eye.', next: 'c1_vial_use', sanity: -5 }
+  ]
+},
+c1_vial_use: {
+  chapter: 'Chapter I — The Awakening', title: 'Vision',
+  text: `<p>It burns. When you open your eyes the house looks different — overlaid on the ruin is a ghostly image as it <em>was</em>: warm, lit, populated by translucent figures. And in the center, standing utterly still, a tall figure in a black coat who is not translucent.</p>
+<p>He turns and looks directly at you. He smiles. He points at your chest. The vision fades.</p>`,
+  sanityDelta: -10, flags: { 'used_vial': true, 'saw_thorne': true, 'clue_6': true },
+  choices: [{ text: 'Climb the stairs to the second floor.', next: 'c2_intro', sanity: 0 }]
+},
+c1_servant_corridor: {
+  chapter: 'Chapter I — The Awakening', title: 'Servants and Shadows',
+  text: `<p>The corridor is low-ceilinged and smells of grease and old cooking. It runs parallel to the main hall, with narrow doorways leading to a larder, a linen room, and a staircase going both up and down.</p>
+<p>On the wall, someone has scratched a message: <p class="whisper"><em>"COUNT THE DOORS. SKIP THE SEVENTH."</em></p>`,
+  flags: { 'found_servant_corridor': true, 'clue_servant': true },
+  choices: [
+    { text: 'Go up — to the upper floors.', next: 'c2_intro', sanity: 0 },
+    { text: 'Go down — to the cellar.', next: 'c2_cellar_direct', sanity: -5 },
+    { text: 'Search the linen room.', next: 'c1_linen_room', sanity: 0 }
+  ]
+},
+c1_linen_room: {
+  chapter: 'Chapter I — The Awakening', title: 'The Linen Room',
+  text: `<p>Shelves of rotted cloth. And on the floor, curled in the corner, a small figure in a white dress: a porcelain doll, old and cracked, whose glass eyes track you as you enter.</p>
+<p>Its mouth is slightly open. You realize — with a chill — that it's <em>breathing</em>. A tiny, barely-audible wheeze. Stitched into the doll's chest is a key.</p>`,
+  sanityDelta: -10, flags: { 'found_doll': true },
+  choices: [
+    { text: 'Take the key from the doll.', next: 'c1_doll_key', sanity: 0 },
+    { text: 'Leave it alone. Back away carefully.', next: 'c1_servant_corridor', sanity: 5 },
+    { text: 'Speak to the doll.', next: 'c1_doll_speak', sanity: -5 }
+  ]
+},
+c1_doll_speak: {
+  chapter: 'Chapter I — The Awakening', title: 'What Dolls Know',
+  text: `<p>Its head turns. Slowly. When it speaks, its voice is a child's but the cadence is ancient:</p>
+<p class="ominous">"We are all here because of the bargain. You most of all. You are the third thing. You have always been the third thing. He has been waiting since before you were born."</p>
+<p>Its head turns back to face the wall. It stops breathing. A wax doll, nothing more.</p>`,
+  sanityDelta: -10, flags: { 'doll_spoke': true, 'clue_third_thing': true },
+  choices: [
+    { text: 'Take the key stitched into its chest.', next: 'c1_doll_key', sanity: 0 },
+    { text: 'Leave and head upstairs.', next: 'c2_intro', sanity: 0 }
+  ]
+},
+c1_doll_key: {
+  chapter: 'Chapter I — The Awakening', title: 'A Small Violence',
+  text: `<p>You work the key free from the stitching. The doll remains inert. The key is small, made of black iron, and warm to the touch — uncomfortably so, as though it were just in someone's hand. You pocket it and leave quickly.</p>`,
+  flags: { 'has_doll_key': true },
+  choices: [
+    { text: 'Head upstairs.', next: 'c2_intro', sanity: 0 },
+    { text: 'Head down to the cellar.', next: 'c2_cellar_direct', sanity: -5 }
+  ]
+},
+c1_antechamber: {
+  chapter: 'Chapter I — The Awakening', title: 'The Antechamber',
+  text: `<p>The antechamber is circular, with seven doors set into the walls at equal intervals. Each door is identical — except that the seventh has no handle, its surface covered in scratched text too small to read.</p>
+<p>Through one door you can hear music — a music box melody, thin and melancholy.</p>`,
+  flags: { 'found_antechamber': true },
+  choices: [
+    { text: 'Follow the music.', next: 'c1_music_box', sanity: 0 },
+    { text: 'Try to read the text on the seventh door.', next: 'c1_seventh_door', sanity: -5 },
+    { text: 'Choose a door at random (not the seventh).', next: 'c2_intro', sanity: 0 }
+  ]
+},
+c1_seventh_door: {
+  chapter: 'Chapter I — The Awakening', title: 'A Thousand Names',
+  text: `<p>The text is names — hundreds of names, carved into the wood. Some names are repeated. Your eyes scan… and then your blood stops.</p>
+<p>Your name is here. Carved in the center of the door, larger than the others, and freshly done — the wood pale and new at the cut.</p>`,
+  sanityDelta: -15, flags: { 'saw_name_door': true },
+  choices: [
+    { text: 'Back away from the door immediately.', next: 'c2_intro', sanity: 0 },
+    { text: 'Touch your name carved into the wood.', next: 'c1_touch_name', sanity: -5 }
+  ]
+},
+c1_touch_name: {
+  chapter: 'Chapter I — The Awakening', title: 'Recognition',
+  text: `<p>The moment your finger touches the carving, a shock goes through you — memories flash: a different life, a different you, standing in this house before it became ruins, shaking hands with a tall man whose face you cannot quite see.</p>
+<p>You've been here before. You just don't know when.</p>`,
+  sanityDelta: -5, flags: { 'touched_name': true, 'past_life_hint': true },
+  choices: [{ text: 'Collect yourself and head upstairs.', next: 'c2_intro', sanity: 0 }]
+},
+c1_music_box: {
+  chapter: 'Chapter I — The Awakening', title: 'The Music Box Room',
+  text: `<p>The music leads you to a small bedroom, perfectly preserved. On the vanity table sits a silver music box, lid open, playing the thin melody.</p>
+<p>Beside it: a photograph. Two people standing in front of <em>this house</em>. On the back: <em>"A & E — opening day — 1887."</em></p>
+<p>E. Again.</p>`,
+  flags: { 'found_music_room': true, 'saw_photo': true, 'clue_7': true },
+  choices: [
+    { text: 'Take the photograph.', next: 'c2_intro', sanity: 0 },
+    { text: 'Close the music box lid.', next: 'c1_close_music', sanity: 0 }
+  ]
+},
+c1_close_music: {
+  chapter: 'Chapter I — The Awakening', title: 'Silence Falls',
+  text: `<p>You close the lid. The music stops. Then the bed moves — the sheets, untouched by any wind, fold themselves neatly back. As though someone invisible is preparing a place for you.</p>`,
+  sanityDelta: -10, flags: { 'bed_folded': true },
+  choices: [
+    { text: 'Leave the room immediately.', next: 'c2_intro', sanity: 0 },
+    { text: 'Lie in the bed. You are exhausted.', next: 'c1_sleep', sanity: 5 }
+  ]
+},
+c1_sleep: {
+  chapter: 'Chapter I — The Awakening', title: 'The Dream',
+  text: `<p>Sleep takes you before you mean to let it. You dream of a man working backward — <em>unmaking</em> something. His face is finally visible here, and when he looks up he says:</p>
+<p class="ominous">"There you are. I've built everything around you, you know. Every room is yours. I just need you to <em>stay</em>."</p>
+<p>You wake. Hours have passed. The house is darker than before.</p>`,
+  sanityDelta: 10, flags: { 'had_dream': true, 'saw_thorne_face': true, 'clue_dream': true },
+  choices: [{ text: 'Rise and head upstairs.', next: 'c2_intro', sanity: 0 }]
+},
+c1_deep_corridor: {
+  chapter: 'Chapter I — The Awakening', title: 'The Throat of the House',
+  text: `<p>The corridor descends further, the walls narrowing. The stone changes character — older, rougher, pre-dating the house above. This wasn't built. It was <em>always here</em>.</p>
+<p>The air grows wet and cold. You hear voices murmuring in a language you don't recognize.</p>`,
+  sanityDelta: -10,
+  choices: [
+    { text: 'Press on toward the voices.', next: 'c2_cellar_direct', sanity: -5 },
+    { text: 'Retreat back up.', next: 'c1_antechamber', sanity: 0 }
+  ]
+},
+c2_intro: {
+  chapter: 'Chapter II — The Upper Floors',
+  title: 'The Second Floor Landing',
+  text: `<p>The upper landing stretches before you — a long corridor lined with doors, each numbered with a brass plate. The carpets here are intact but deeply stained. Gas-light sconces give off a faint, sickly glow.</p>
+<p>A chalk arrow on the floor points toward Room 7. A sign reads: <strong>LIBRARY — East Wing</strong>. At the far end, a spiral staircase leads further up.</p>`,
+  chapter_num: 2,
+  choices: [
+    { text: 'Follow the chalk arrow to Room 7.', next: 'c2_room7', sanity: 0 },
+    { text: 'Go to the Library in the East Wing.', next: 'c2_library', sanity: 0 },
+    { text: 'Climb the spiral staircase to the third floor.', next: 'c3_intro', sanity: 0 },
+    { text: 'Try the nearest door — Room 1.', next: 'c2_room1', sanity: 0 }
+  ]
+},
+c2_room1: {
+  chapter: 'Chapter II — The Upper Floors', title: 'Room 1: The Painter\'s Room',
+  text: `<p>Every painting depicts the same subject: this house, from the outside, at night. Hundreds of versions. In every single painting, there is a figure standing in one window.</p>
+<p>When you look at the window in the last, largest painting, the figure is looking <em>directly at you</em>. And you recognize the face. It's your face.</p>`,
+  sanityDelta: -10, flags: { 'clue_paintings': true },
+  choices: [
+    { text: 'Take one of the paintings.', next: 'c2_take_painting', sanity: 0 },
+    { text: 'Leave the room and continue.', next: 'c2_room7', sanity: 0 }
+  ]
+},
+c2_take_painting: {
+  chapter: 'Chapter II — The Upper Floors', title: 'Portrait',
+  text: `<p>You take the smallest painting — the one where the figure is most clearly you. As you lift it, you feel a strange pulling sensation in your chest, as though a string connects you to this house.</p>`,
+  flags: { 'has_painting': true },
+  choices: [
+    { text: 'Head to Room 7.', next: 'c2_room7', sanity: 0 },
+    { text: 'Head to the Library.', next: 'c2_library', sanity: 0 }
+  ]
+},
+c2_room7: {
+  chapter: 'Chapter II — The Upper Floors',
+  title: 'Room 7: The Locked Room',
+  text: `<p>Room 7's door is different from the others — reinforced with iron bands, triple-locked, and sealed with red wax. The chalk arrow points here insistently.</p>
+<p>Scrawled on the door in what you sincerely hope is red paint: <em>"DO NOT OPEN ALONE."</em></p>
+<p>You are, of course, alone.</p>`,
+  flags: { 'found_room7': true },
+  minigame: 'codelock',
+  choices: []
+},
+c2_room7_unlocked: {
+  chapter: 'Chapter II — The Upper Floors', title: 'What Was Locked Away',
+  text: `<p>In the center of the room: a wooden chair. Strapped to it — with leather restraints — is a skeleton in fine Victorian dress, one hand clutching a folded paper.</p>
+<p>The paper reads: <em>"I am Aldous Thorne. I am keeping myself here because I cannot be trusted elsewhere. The thing I have invited into this house occupies my body when I sleep. In my waking hours I remain restrained. I beg whoever finds this: do not free the house. It must be contained HERE, within these walls, or it will spread."</em></p>`,
+  flags: { 'found_thorne_body': true, 'knows_thorne_truth': true, 'clue_thorne_letter': true },
+  choices: [
+    { text: 'Take the letter. Head to the Library.', next: 'c2_library', sanity: 0, flags: { 'has_thorne_letter': true } },
+    { text: 'Look around the room more carefully.', next: 'c2_room7_search', sanity: 0 }
+  ]
+},
+c2_room7_search: {
+  chapter: 'Chapter II — The Upper Floors', title: 'Room 7: More Secrets',
+  text: `<p>Under the chair, a trapdoor. And carved into the underside of the chair's seat: a map. Hand-etched. It shows the house's true layout — including rooms that don't appear on your map. Rooms between rooms. Passages within walls. The house is larger inside than out.</p>`,
+  flags: { 'found_inner_map': true, 'clue_hidden_rooms': true },
+  choices: [
+    { text: 'Head to the Library.', next: 'c2_library', sanity: 0 },
+    { text: 'Go down through the trapdoor.', next: 'c2_trapdoor', sanity: -5 }
+  ]
+},
+c2_trapdoor: {
+  chapter: 'Chapter II — The Upper Floors', title: 'The Space Between',
+  text: `<p>The ladder takes you down into a narrow passage running between the walls. You can hear the house around you — pipes, vermin, and underneath it all, a low harmonic hum that resonates in your back teeth.</p>
+<p>The passage splits: left and right. Left, there's a faint light. Right, there's a faint warmth.</p>`,
+  choices: [
+    { text: 'Go toward the light.', next: 'c2_between_light', sanity: 0 },
+    { text: 'Go toward the warmth.', next: 'c2_between_warmth', sanity: 0 }
+  ]
+},
+c2_between_light: {
+  chapter: 'Chapter II — The Upper Floors', title: 'The Light Between Walls',
+  text: `<p>The light source is a crack in the wall — a one-way mirror looking into a room. Inside: a woman in Victorian dress, sitting at a table, writing. She is <em>translucent</em>. She looks up abruptly and holds up her paper: <strong>ATTIC FIRST. DON'T TRUST THE GROUNDSKEEPER.</strong></p>`,
+  sanityDelta: -5, flags: { 'saw_ghost_message': true, 'warned_groundskeeper': true },
+  choices: [
+    { text: 'Make your way out and head to the attic.', next: 'c3_intro', sanity: 0 },
+    { text: 'Find the Library first.', next: 'c2_library', sanity: 0 }
+  ]
+},
+c2_between_warmth: {
+  chapter: 'Chapter II — The Upper Floors', title: 'The Heart',
+  text: `<p>The warmth leads you to a small circular room built inside the walls. In the center, embedded in the floor: a beating mechanism — a clockwork thing of brass and crystal, pulsing with dim orange light. It hums. This is what powers the house.</p>`,
+  sanityDelta: -10, flags: { 'found_heart': true, 'clue_heart': true },
+  choices: [
+    { text: 'Smash it. Maybe it ends everything.', next: 'c2_smash_heart', sanity: 0 },
+    { text: 'Leave it alone. The balance might be delicate.', next: 'c2_library', sanity: 5 },
+    { text: 'Touch the crystal at its center.', next: 'c2_touch_heart', sanity: -5 }
+  ]
+},
+c2_smash_heart: {
+  chapter: 'Chapter II — The Upper Floors', title: 'The Shattering',
+  text: `<p>You bring your fist down. The crystal shatters. A shriek tears through the house — from everywhere, as though the building itself is screaming. Then silence. The lights go out. Then, slowly, red light begins to bloom from beneath the floorboards. The house is angry now.</p>`,
+  sanityDelta: -15, flags: { 'smashed_heart': true, 'house_angry': true },
+  choices: [
+    { text: 'Run. Get out.', next: 'c3_intro', sanity: 0, flags: { flee_count: 1 } },
+    { text: 'Stay in the darkness and think.', next: 'c2_library', sanity: -5 }
+  ]
+},
+c2_touch_heart: {
+  chapter: 'Chapter II — The Upper Floors', title: 'The Pulse',
+  text: `<p>The moment you touch the crystal, a rush of information floods you — the house's intent. It was built to hunger. To gather. Every person who entered fed it something. And you — you were supposed to be the last piece. You pull your hand away. But now you understand what you're fighting against.</p>`,
+  sanityDelta: -5, flags: { 'touched_heart': true, 'knows_house_intent': true, 'clue_intent': true },
+  choices: [
+    { text: 'Head to the Library.', next: 'c2_library', sanity: 0 },
+    { text: 'Head to the attic immediately.', next: 'c3_intro', sanity: 0 }
+  ]
+},
+c2_library: {
+  chapter: 'Chapter II — The Upper Floors',
+  title: 'The Library',
+  text: `<p>The library is two stories high and runs the entire east wing — dark walnut shelves packed with thousands of volumes. You find the third case from the left, bottom shelf, as the note instructed. One book stands out:</p>
+<p><em><strong>"The Thorne Ritual: A Complete Account"</strong></em></p>
+<p>And behind it, wedged into the shelf: a photograph. Around the woman's neck, glinting: a <strong>Glass Key</strong>.</p>`,
+  flags: { 'found_library': true },
+  minigame: 'memory',
+  choices: []
+},
+c2_library_after: {
+  chapter: 'Chapter II — The Upper Floors', title: 'What The Book Reveals',
+  text: `<p>Aldous Thorne sought to permanently bind a being he called <em>the Hollow</em> to the physical world using three anchors — Brass, Bone, and Glass souls — represented by three keys. If the ritual is completed, the Hollow gains permanent physical form.</p>
+<p>If the three keys are used <em>against the ritual</em> — placed in the altar in reverse order — the Hollow is expelled and the house collapses.</p>
+<p>E knew this. E came here to reverse the ritual. Where is E now?</p>`,
+  flags: { 'knows_ritual': true, 'clue_ritual': true, 'all_clues_check': true },
+  choices: [
+    { text: 'Go down to the cellar. Find the Bone Key.', next: 'c3_cellar', sanity: 0 },
+    { text: 'Go up to the attic. Find the Glass Key.', next: 'c3_intro', sanity: 0 },
+    { text: 'Search the library for more information about E.', next: 'c2_library_e', sanity: 0 }
+  ]
+},
+c2_library_e: {
+  chapter: 'Chapter II — The Upper Floors', title: 'Looking for E',
+  text: `<p>A hidden compartment behind the ritual book contains a woman's locket. Inside: a portrait and a small card reading <em>Eleanor Voss, Paranormal Investigator</em>.</p>
+<p>Eleanor came here looking for answers. The locket is cold and still, but as you hold it, you feel a faint heartbeat through the metal. She might still be alive. Somewhere in this house.</p>`,
+  flags: { 'knows_eleanor': true, 'eleanor_alive_hint': true, 'clue_e_found': true },
+  choices: [
+    { text: 'Find Eleanor. Search the attic.', next: 'c3_intro', sanity: 0 },
+    { text: 'Find Eleanor. Search the cellar.', next: 'c3_cellar', sanity: 0 }
+  ]
+},
+c2_cellar_direct: {
+  chapter: 'Chapter II — The Upper Floors', title: 'Pulling Toward the Deep',
+  text: `<p>Something in you pulls downward. You find the cellar stairs easily — they have a smell that reaches you before you see them. Earth. Old stone. Something organic and wrong.</p>`,
+  choices: [{ text: 'Continue down.', next: 'c3_cellar', sanity: -5 }]
+},
+c3_intro: {
+  chapter: 'Chapter III — The Attic',
+  title: 'Above the House',
+  text: `<p>The attic is vast, low-ceilinged, lit by moonlight through cracked skylights. Your footprints are not the first ones here. Two sets of tracks — one coming in, one going toward the far end — and both sets simply <em>stop</em>. In the middle of the floor.</p>
+<p>At the far end: a wardrobe. A locked chest. And a window, cracked open, through which cold wind carries the sound of something moving on the roof.</p>`,
+  chapter_num: 3,
+  choices: [
+    { text: 'Examine where the footprints stop.', next: 'c3_footprints', sanity: -5 },
+    { text: 'Examine the wardrobe.', next: 'c3_wardrobe', sanity: 0 },
+    { text: 'Try to open the locked chest.', next: 'c3_chest', sanity: 0 },
+    { text: 'Go to the window.', next: 'c3_window', sanity: 0 }
+  ]
+},
+c3_footprints: {
+  chapter: 'Chapter III — The Attic', title: 'Where They Ended',
+  text: `<p>The footprints simply cease. You press your hand to the floor where they end. It's warm. And you hear breathing — from <em>below the floorboards</em>, at this exact spot.</p>
+<p class="ominous">"Still here," a voice murmurs from beneath the floor. "Still waiting for someone brave enough."</p>`,
+  sanityDelta: -15, flags: { 'found_attic_void': true },
+  choices: [
+    { text: 'Pry up the floorboard.', next: 'c3_under_floor', sanity: -5 },
+    { text: 'Back away. Not today.', next: 'c3_wardrobe', sanity: 0 }
+  ]
+},
+c3_under_floor: {
+  chapter: 'Chapter III — The Attic', title: 'Between the Floors',
+  text: `<p>Inside the shallow space beneath the board, pressed flat and still, is a woman. Alive. Eyes wide, staring up at you.</p>
+<p><em>Eleanor Voss</em>. She grabs your hand. Hard. "Don't make noise," she whispers. "It's on the roof. <em>Don't let it hear you find me.</em>"</p>`,
+  flags: { 'found_eleanor': true, 'eleanor_alive': true },
+  choices: [
+    { text: 'Help her out as quietly as possible.', next: 'c3_eleanor_out', sanity: 5 },
+    { text: 'Ask her in a whisper about the Glass Key.', next: 'c3_ask_eleanor', sanity: 0 }
+  ]
+},
+c3_ask_eleanor: {
+  chapter: 'Chapter III — The Attic', title: 'What Eleanor Knows',
+  text: `<p>Eleanor touches the chain around her neck, then nods. She unhooks it and passes you the Glass Key — a delicate thing, faceted like crystal, heavy for its size.</p>
+<p>"The Bone Key is in the creature's den," she mouths. "In the cellar. The ritual altar is in the sub-basement. Three keyholes. Right, center, left. That order. <em>Whatever you hear when you do it, don't stop.</em>"</p>`,
+  flags: { 'has_glass_key': true, 'knows_altar': true, 'eleanor_briefed': true },
+  choices: [
+    { text: 'Help her out and take her with you.', next: 'c3_eleanor_out', sanity: 0 },
+    { text: 'Tell her to stay hidden. Go to the cellar.', next: 'c3_cellar', sanity: 0 }
+  ]
+},
+c3_eleanor_out: {
+  chapter: 'Chapter III — The Attic', title: 'Rescued',
+  text: `<p>You pull Eleanor free. She's thin and trembling, but her eyes are clear. She hands you the Glass Key without you asking.</p>
+<p>"I've been here nine days," she says quietly. "I thought you weren't coming."</p>
+<p>Above you, on the roof, something <em>heavy</em> moves. Then goes still.</p>`,
+  flags: { 'eleanor_rescued': true, 'has_glass_key': true },
+  choices: [
+    { text: 'Together, head to the cellar.', next: 'c3_cellar_together', sanity: 5 },
+    { text: 'Tell Eleanor to hide again. Too dangerous together.', next: 'c3_cellar', sanity: 0 }
+  ]
+},
+c3_wardrobe: {
+  chapter: 'Chapter III — The Attic', title: 'The Wardrobe',
+  text: `<p>Inside: Victorian clothing. And in the back — a mirror. This mirror, unlike the foyer's, shows the room correctly. But it shows it <em>empty</em>. You're not in the reflection. You wave. No response. You are not in this mirror.</p>`,
+  sanityDelta: -10, flags: { 'no_reflection': true },
+  choices: [
+    { text: 'Step inside the wardrobe, toward the mirror.', next: 'c3_mirror_step', sanity: -10 },
+    { text: 'Close the wardrobe and try the chest.', next: 'c3_chest', sanity: 0 }
+  ]
+},
+c3_mirror_step: {
+  chapter: 'Chapter III — The Attic', title: 'Through',
+  text: `<p>Your hand passes through the glass. You step fully through. You are in the same attic — but it is 1901. A door in this version of the attic stands open. Beyond it: a pedestal, and on it, a key of pure glass.</p>`,
+  flags: { 'entered_mirror': true },
+  choices: [
+    { text: 'Take the Glass Key from the pedestal.', next: 'c3_mirror_key', sanity: 0 },
+    { text: 'Look around this past-world attic.', next: 'c3_mirror_explore', sanity: 0 }
+  ]
+},
+c3_mirror_key: {
+  chapter: 'Chapter III — The Attic', title: 'Past Into Present',
+  text: `<p>You take the Glass Key. Immediately, Aldous Thorne appears in the doorway — young and vital, eyes burning. "You can't take that. It isn't yours yet."</p>
+<p>The mirror behind you glows. You run for it. You dive through and land gasping in the present attic, the Glass Key in your hand.</p>`,
+  sanityDelta: -10, flags: { 'has_glass_key': true, 'thorne_confronted': true },
+  choices: [{ text: 'Head down to the cellar.', next: 'c3_cellar', sanity: 0 }]
+},
+c3_mirror_explore: {
+  chapter: 'Chapter III — The Attic', title: 'The Past World',
+  text: `<p>In the attic of 1901 you find a guest list for the evening's party below, with every name crossed out and replaced by the single word: <em>MATERIAL</em>.</p>
+<p>The partygoers were not guests. They were components.</p>`,
+  sanityDelta: -5, flags: { 'knows_party_truth': true, 'clue_party': true },
+  choices: [{ text: 'Take the Glass Key and return through the mirror.', next: 'c3_mirror_key', sanity: 0 }]
+},
+c3_chest: {
+  chapter: 'Chapter III — The Attic',
+  title: 'The Locked Chest',
+  text: `<p>The chest is old and heavy, bound in iron, with a complex dial lock on the front. Scratched into the lid: <em>"Count the doors. Skip the seventh."</em></p>
+<p>The same message from the servant's corridor. There are six doors in the antechamber (skipping the seventh). Six. But counting what, exactly?</p>`,
+  minigame: 'cipher',
+  choices: []
+},
+c3_chest_open: {
+  chapter: 'Chapter III — The Attic', title: 'What Was Kept',
+  text: `<p>The chest opens. Inside, nestled in velvet: an old journal, three photographs of people who each look vaguely like you, a box of matches, a small revolver with three bullets, and a folded architectural drawing labeled <em>"THE ALTAR — FINAL CONFIGURATION."</em></p>`,
+  flags: { 'has_revolver': true, 'has_matches': true, 'has_altar_drawing': true, 'clue_chest': true },
+  choices: [
+    { text: 'Head down to the cellar. Find the Bone Key.', next: 'c3_cellar', sanity: 0 },
+    { text: 'Look at the altar drawing carefully.', next: 'c3_altar_drawing', sanity: 0 }
+  ]
+},
+c3_altar_drawing: {
+  chapter: 'Chapter III — The Attic', title: 'The Diagram',
+  text: `<p>The drawing shows the altar — a circular platform with three pedestals. The keyholes are labeled: <em>BRASS (right), BONE (center), GLASS (left)</em>. But someone has drawn a red X through the arrows and written: <em>"REVERSE IT. Right→Left→Center. That's the key."</em></p>`,
+  flags: { 'knows_reverse_order': true },
+  choices: [{ text: 'Go to the cellar. Find the Bone Key.', next: 'c3_cellar', sanity: 0 }]
+},
+c3_window: {
+  chapter: 'Chapter III — The Attic', title: 'The Roof',
+  text: `<p>Crouching on the roof, maybe twenty feet away: something. Large. Man-shaped but wrong — too many joints in the arms, too long. It doesn't move. It is watching something on the ground below.</p>`,
+  sanityDelta: -10, flags: { 'saw_roof_creature': true },
+  choices: [
+    { text: 'Shoot it (if you have the revolver).', next: 'c3_shoot_roof', sanity: 0, requireFlag: 'has_revolver' },
+    { text: 'Watch it silently.', next: 'c3_watch_creature', sanity: -5 },
+    { text: 'Close the window and back away.', next: 'c3_wardrobe', sanity: 0 }
+  ]
+},
+c3_shoot_roof: {
+  chapter: 'Chapter III — The Attic', title: 'The Shot',
+  text: `<p>You aim and fire. The creature snaps around with terrifying speed. The bullet struck it but it doesn't fall. It stares at you with a face that is mostly empty, only two pale eyes in a too-wide skull. Then it drops off the roof.</p>
+<p>The wound didn't kill it. But you have its attention now.</p>`,
+  flags: { 'shot_creature': true, 'creature_alerted': true },
+  choices: [{ text: 'Head to the cellar quickly, before it returns.', next: 'c3_cellar', sanity: 0 }]
+},
+c3_watch_creature: {
+  chapter: 'Chapter III — The Attic', title: 'What It Watches',
+  text: `<p>Then it turns its head, slowly, and looks up at your window. A long moment. Then it descends from the roof. Coming inside.</p>`,
+  sanityDelta: -10, flags: { 'creature_coming': true },
+  choices: [
+    { text: 'Run to the cellar immediately.', next: 'c3_cellar', sanity: 0, flags: { flee_count: 1 } },
+    { text: 'Stay and confront it.', next: 'c3_cellar_creature', sanity: -5 }
+  ]
+},
+c3_cellar_together: {
+  chapter: 'Chapter III — The Deep', title: 'Down Together',
+  text: `<p>Eleanor moves carefully but quickly. "There's a creature in the cellar," she says. "It guards the Bone Key. I think Thorne made it — some amalgam of things that came before. The people from the party. Or what's left of them."</p>
+<p>She pauses. "It's afraid of fire."</p>`,
+  flags: { 'eleanor_with_you': true, 'creature_fire_weakness': true },
+  choices: [{ text: 'Enter the cellar.', next: 'c3_cellar_main', sanity: 0 }]
+},
+c3_cellar: {
+  chapter: 'Chapter III — The Deep',
+  title: 'The Cellar',
+  text: `<p>The cellar stairs creak under you, each step releasing a breath of cold, stale air. The cellar is enormous — stone walls, barrel arches, stretching into darkness. Old wine racks, empty for a century. And somewhere ahead: movement.</p>
+<p>Something is down here. Large. Patient.</p>`,
+  chapter_num: 3,
+  choices: [
+    { text: 'Move carefully toward the movement.', next: 'c3_cellar_main', sanity: 0 },
+    { text: 'Announce yourself. Maybe it responds to reason.', next: 'c3_cellar_call', sanity: 0 },
+    { text: 'Light a match to see better.', next: 'c3_cellar_light', sanity: 0, requireFlag: 'has_matches' }
+  ]
+},
+c3_cellar_light: {
+  chapter: 'Chapter III — The Deep', title: 'Firelight',
+  text: `<p>You strike a match. The cellar springs into visibility — and the creature, eight feet away, rears back with a shriek. It's enormous and wrong. While it recoils you see the Bone Key — hung on a hook on the far wall, white and carved and unmistakable.</p>`,
+  flags: { 'creature_revealed': true, 'saw_bone_key': true },
+  choices: [
+    { text: 'Run for the key while it recoils.', next: 'c3_get_bone_key', sanity: 0 },
+    { text: 'Throw the match at the creature.', next: 'c3_fire_creature', sanity: 0 }
+  ]
+},
+c3_cellar_call: {
+  chapter: 'Chapter III — The Deep', title: 'Speaking to It',
+  text: `<p>"I'm not here to hurt anything," you say. "I just need the key."</p>
+<p>A layered voice — multiple vocal registers at once, like many people speaking in imperfect unison: <p class="ominous">"We remember being separate. We remember names. The key is ours. It is our last bone. Will you take our last bone?"</p>
+<p>The creature steps into the light. It is terrible and pitiful simultaneously.</p>`,
+  sanityDelta: -10, flags: { 'creature_spoke': true, 'knows_creature_truth': true },
+  choices: [
+    { text: 'Show mercy. Find another way.', next: 'c3_mercy_path', sanity: 5, achieves: 'mercy' },
+    { text: 'Take the key. The ritual must be completed.', next: 'c3_take_bone_key', sanity: 0, achieves: 'ruthless' },
+  ]
+},
+c3_cellar_main: {
+  chapter: 'Chapter III — The Deep',
+  title: 'Face to Face',
+  text: `<p>The creature finds you before you find it. One moment you're moving through the dark, and then it's <em>there</em>, enormous and pale, blocking the passage. It tilts its many-jointed body and regards you with pale eyes. On the wall behind it: the Bone Key.</p>`,
+  minigame: 'stealth',
+  choices: []
+},
+c3_cellar_creature: {
+  chapter: 'Chapter III — The Deep', title: 'The Confrontation',
+  text: `<p>The creature stops. Studies you. Then — surprisingly — it sits down. Cross-legged, like a child.</p>
+<p>"You're different," it says, in those layered voices. "The others ran. Or screamed. Or tried to bind us again."</p>`,
+  flags: { 'creature_sat': true },
+  choices: [
+    { text: 'Sit opposite it. Talk.', next: 'c3_cellar_call', sanity: 5 },
+    { text: 'Demand the Bone Key.', next: 'c3_take_bone_key', sanity: 0 }
+  ]
+},
+c3_mercy_path: {
+  chapter: 'Chapter III — The Deep', title: 'A Gentler Way',
+  text: `<p>"I'm sorry," you say. "I won't take it by force."</p>
+<p>A long silence. The creature lowers itself and produces the Bone Key. It holds it out.</p>
+<p>"Then we give it freely," the layered voices say. "So the house can end. We have wanted to rest for a very long time."</p>`,
+  flags: { 'has_bone_key': true, 'creature_gave_key': true },
+  choices: [{ text: 'Thank the creature and go to the sub-basement.', next: 'c4_intro', sanity: 5 }]
+},
+c3_take_bone_key: {
+  chapter: 'Chapter III — The Deep', title: 'Taking What You Need',
+  text: `<p>You move fast. Dart around the creature, grab the key from the hook, and run. The creature howls behind you — that layered, many-voiced sound — and you feel its hand clip your shoulder as you sprint for the stairs.</p>
+<p>You have the Bone Key. You're bleeding slightly. You are alive.</p>`,
+  sanityDelta: -5, flags: { 'has_bone_key': true, 'hurt_by_creature': true },
+  choices: [{ text: 'Head to the sub-basement.', next: 'c4_intro', sanity: 0 }]
+},
+c3_get_bone_key: {
+  chapter: 'Chapter III — The Deep', title: 'The Key Is Yours',
+  text: `<p>You run for the far wall while the creature writhes from the firelight. Your hand closes on the Bone Key — cool, smooth, heavy — and you pull it from the hook. The match goes out. Total darkness. The creature is recovering. You run.</p>`,
+  flags: { 'has_bone_key': true },
+  choices: [{ text: 'Head to the sub-basement.', next: 'c4_intro', sanity: 0 }]
+},
+c3_fire_creature: {
+  chapter: 'Chapter III — The Deep', title: 'Fire and Scream',
+  text: `<p>The match lands. Something on the creature catches. It shrieks and thrashes, and in the chaos you dart to the wall and grab the Bone Key. You don't linger. Up the stairs, heart hammering.</p>`,
+  flags: { 'has_bone_key': true, 'burned_creature': true },
+  choices: [{ text: 'Head to the sub-basement.', next: 'c4_intro', sanity: 0 }]
+},
+c4_intro: {
+  chapter: 'Chapter IV — The Sub-Basement',
+  title: 'Below Everything',
+  text: `<p>The sub-basement is not accessible by normal means. You find it by following the pulling sensation in your chest to a section of the cellar wall that rings hollow when struck. You find the seam. The door. Beyond: a staircase carved from living rock, descending into a chamber lit by no source you can identify.</p>
+<p>The altar is at the bottom. You can see it from here.</p>`,
+  chapter_num: 4,
+  choices: [
+    { text: 'Descend to the altar.', next: 'c4_altar', sanity: 0 },
+    { text: 'Call out — see if anything is already down there.', next: 'c4_call', sanity: -5 }
+  ]
+},
+c4_call: {
+  chapter: 'Chapter IV — The Sub-Basement', title: 'What Answers',
+  text: `<p>Your voice echoes a strange number of times. Then a voice answers — not from below, but somewhere just beside you, invisible:</p>
+<p class="ominous">"You have come so far. All three keys. Exactly as it was planned. You understand that this was never a rescue mission? You were the instrument. Every choice you made led here. I am grateful."</p>
+<p>The voice is warm, cultured, amused. It is Aldous Thorne's voice.</p>`,
+  sanityDelta: -10, flags: { 'thorne_spoke': true },
+  choices: [
+    { text: '"I know the reverse order. I\'m ending this."', next: 'c4_altar', sanity: 5 },
+    { text: '"What do you want from me?"', next: 'c4_thorne_talk', sanity: 0 }
+  ]
+},
+c4_thorne_talk: {
+  chapter: 'Chapter IV — The Sub-Basement', title: 'The Architect Speaks',
+  text: `<p>"What do I want?" Thorne sounds delighted. "Only to complete the work. The Hollow needs one last anchor — a living one, placed willingly in the final keyhole. The keys are symbolic. <em>You</em> are the key."</p>
+<p>"I will offer you a choice, because I am generous. Complete the ritual freely, and you will be part of something eternal. Or try your reversal trick and discover whether the investigator's notes were... entirely accurate."</p>`,
+  flags: { 'knows_truth_fully': true, 'thorne_offered_deal': true },
+  choices: [
+    { text: 'Descend to the altar. Complete the reversal.', next: 'c4_altar', sanity: 0 },
+    { text: 'Ask for time to consider his offer.', next: 'c4_consider_offer', sanity: 0 }
+  ]
+},
+c4_consider_offer: {
+  chapter: 'Chapter IV — The Sub-Basement', title: 'Weighing Eternity',
+  text: `<p>What does it mean to be eternal? To be the foundation of something that will outlast everything you know?</p>
+<p>You think of the creature in the cellar. The voices. The many people compressed into one terrible thing. That is what eternity looks like in this house.</p>`,
+  choices: [
+    { text: 'Reject the offer. Go to the altar to reverse the ritual.', next: 'c4_altar', sanity: 5 },
+    { text: 'Accept the offer. Become the final anchor.', next: 'ending_willing', sanity: 0 }
+  ]
+},
+c4_altar: {
+  chapter: 'Chapter IV — The Sub-Basement',
+  title: 'The Altar Chamber',
+  text: `<p>The altar chamber is circular and vast. The altar itself is exactly as depicted — three pedestals, three keyholes, inlaid in obsidian and lit by that sourceless light. The air here is heavier. You can feel the Hollow's attention like pressure against your skin.</p>
+<p>In your possession: the keys you have gathered. The question is what to do with them.</p>`,
+  minigame: 'sequence',
+  choices: []
+},
+c4_altar_complete: {
+  chapter: 'Chapter IV — The Sub-Basement', title: 'The Choice at the Altar',
+  text: `<p>You stand at the altar, keys in hand. The sequence is set. You know the reversal order.</p>
+<p>But Thorne's voice speaks one last time, close now, right beside your ear:</p>
+<p class="ominous">"Last chance. Do it the other way. I'll let the woman go. I'll let you both leave. You have my word."</p>
+<p>Silence. The house holds its breath.</p>`,
+  choices: [
+    { text: 'Insert: Right (Glass), then Left (Brass), then Center (Bone). Reversal.', next: 'c5_reversal', sanity: 0 },
+    { text: 'Complete the original ritual. Trust Thorne\'s word.', next: 'c4_trust_thorne', sanity: 0 },
+    { text: 'Smash the altar with everything you have.', next: 'c4_smash_altar', sanity: 0 },
+    { text: 'Place yourself — not the keys — in the altar.', next: 'ending_sacrifice', sanity: 0 }
+  ]
+},
+c4_trust_thorne: {
+  chapter: 'Chapter IV — The Sub-Basement', title: 'The Deal',
+  text: `<p>You insert the keys in the original order. The Hollow takes form — enormous, beautiful, terrible. It regards you for a moment. Then steps through you, through the floor, through the earth itself. Gone.</p>
+<p>The house shudders. Settles. And then the front door swings open. Moonlight pours in. Thorne kept his word. Mostly.</p>`,
+  choices: [{ text: 'Walk out the front door.', next: 'ending_let_it_out', sanity: 0 }]
+},
+c4_smash_altar: {
+  chapter: 'Chapter IV — The Sub-Basement', title: 'The Breaking',
+  text: `<p>You bring the keys down on the altar with both fists. The obsidian cracks. You keep smashing until the altar is rubble. The Hollow <em>screams</em>. It was bound to this altar. You have not freed it — you have wounded it. It pours itself into the walls, spreading thin and desperate. The house begins to collapse from the bottom up.</p>`,
+  choices: [{ text: 'Run. The only way out is up and out.', next: 'ending_collapse', sanity: 0 }]
+},
+c5_reversal: {
+  chapter: 'Chapter V — Resolution', title: 'The Reversal',
+  text: `<p>Right key. Left key. Center key. The moment the third key turns, the altar explodes with light — honest, clear, brilliant white. The Hollow shrieks. The harmonic hum in the walls rises and then simply <em>stops</em>.</p>
+<p>The house goes quiet. Then, section by section, it begins to fall. You have seconds.</p>`,
+  choices: [
+    { text: 'Run for the front door — through the house.', next: 'ending_escape', sanity: 0 },
+    { text: 'Go back for Eleanor — she might still be in the attic.', next: 'ending_escape_both', sanity: 0, requireFlag: 'eleanor_alive' },
+    { text: 'Stand still. Let it take you.', next: 'ending_buried', sanity: 0 }
+  ]
+},
+ending_escape: {
+  chapter: 'Ending I', title: 'The Survivor',
+  text: `<p>You run faster than you have ever run. The house collapses behind you like a wave. You hit the front door at full speed and tumble into the moonlit garden as behind you Thorne House folds inward with a deep, terminal groan.</p>
+<p>Then silence. A vast pile of rubble. No house. No Hollow. No Thorne.</p>
+<p>You sit on the grass, bleeding from a dozen small wounds, and breathe the outside air for a long time.</p>
+<p class="ominous">But you notice, walking down the road, that you cast no shadow.</p>`,
+  ending: true, endingId: 'survivor', achieves: 'survivor'
+},
+ending_escape_both: {
+  chapter: 'Ending II', title: 'Two Who Left',
+  text: `<p>You find Eleanor still in the attic. You reach her with seconds to spare — grab her hand — and run. The house collapses precisely as your feet leave the front step.</p>
+<p>"You know what's strange?" Eleanor says, as dawn breaks. "The investigator who sent me here — his name was Thorne. Said he was a descendant." She pauses. "He gave me your description. Said you'd come."</p>
+<p>You look at the rubble. You think about this for a long time.</p>`,
+  ending: true, endingId: 'both_escape', achieves: 'survivor'
+},
+ending_sacrifice: {
+  chapter: 'Ending III', title: 'The Willing',
+  text: `<p>You set the keys aside. You climb onto the altar and lie down. The Hollow flows into you — completely, like water into a vessel shaped for it. You feel it settle. After a moment of terrible fullness, it simply... quiets. Held.</p>
+<p>You stand up. You walk to the front door. You walk out into the world. You are its warden now.</p>
+<p>It is a quiet life. A necessary one.</p>`,
+  ending: true, endingId: 'sacrifice', achieves: 'sacrifice'
+},
+ending_buried: {
+  chapter: 'Ending IV', title: 'The House Keeps What It Loves',
+  text: `<p>You let the collapse take you. Not out of despair — out of conviction. The ceiling comes down. The weight is enormous and then it isn't. You are below the rubble, in a space that should not exist — a small room, perfectly preserved, exactly sized for one person.</p>
+<p>The Hollow is gone. But the house keeps you. Fed. Warm. In the dark. Forever.</p>`,
+  ending: true, endingId: 'buried'
+},
+ending_burn: {
+  chapter: 'Ending V', title: 'Scorched Earth',
+  text: `<p>You run from the burning cellar. The fire spreads faster than is natural. By dawn there is nothing left. Not even the foundation — the earth itself has cracked and closed over whatever was beneath.</p>
+<p>When someone eventually asks what happened to Thorne House, you say: "It burned." That's true enough.</p>`,
+  ending: true, endingId: 'burned', achieves: 'burned_it_down'
+},
+ending_collapse: {
+  chapter: 'Ending VI', title: 'Running Ahead of the Dark',
+  text: `<p>You run from the collapsing house, the walls crumbling at your heels. You exit through a cellar window as the east wing implodes.</p>
+<p>The house simply falls, methodically, from the inside out, until it is a tidy pile of Victorian rubble. Whatever was inside it is buried for the next thousand years.</p>
+<p>You walk away. You feel used. But you are alive.</p>`,
+  ending: true, endingId: 'collapse'
+},
+ending_willing: {
+  chapter: 'Ending VII', title: 'The Eternal Foundation',
+  text: `<p>"Yes," you say. The ritual completes itself. The Hollow takes physical form. It walks out of the house and into the world.</p>
+<p>You remain. Woven into the foundation. Conscious of every room, every wall, every crack. The house begins to rebuild itself around you.</p>
+<p>Visitors will come, eventually. And you will keep their rooms very warm.</p>`,
+  ending: true, endingId: 'willing', achieves: 'ghost_king'
+},
+ending_let_it_out: {
+  chapter: 'Ending VIII', title: 'What Walks Free',
+  text: `<p>You walk out the front door. In the morning news, three days later, you will read about unusual events in several cities. In six months, the incidents will be more frequent.</p>
+<p>You will know. You will carry that knowing for the rest of your life. You hope.</p>`,
+  ending: true, endingId: 'let_it_out'
+},
+ending_truth: {
+  chapter: 'Ending IX', title: 'The Full Truth',
+  text: `<p>Armed with every piece of the puzzle, you complete the reversal with surgical precision. The Hollow doesn't scream. It simply... diminishes. Pulled apart by the reversal, its threads unwound from the house.</p>
+<p>The house settles. Like an old man sitting down. When you walk out, the groundskeeper is standing by the front gate. He removes his hat. "It's over?" — "It's over."</p>`,
+  ending: true, endingId: 'truth', achieves: 'truth_seeker'
+},
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MINIGAME DEFINITIONS — harder with death conditions
+// ═══════════════════════════════════════════════════════════════
+const MINIGAMES = {
+  codelock: {
+    label: '── LOCK SYSTEM ──',
+    title: 'The Three-Digit Lock',
+    desc: 'The first lock has a three-digit combination. A clue card reads: "The year the first guest disappeared was 1-9-0-1. You need three digits: the first, the third, and the last."',
+    type: 'codelock',
+    solution: [1, 0, 1],
+    maxAttempts: 3,
+    timeLimit: 45,
+    onSuccess: 'c2_room7_unlocked',
+    deathMsg: 'The lock triggered an alarm. The house seals around you. Something in the walls begins to move — toward you. You don\'t make it out of Room 7.',
+  },
+  memory: {
+    label: '── MEMORY TEST ──',
+    title: 'The Library Puzzle',
+    desc: 'Match all pairs to unlock the bookcase. You have 5 errors before the mechanism resets and seals permanently. You have 90 seconds.',
+    type: 'memory',
+    maxErrors: 5,
+    timeLimit: 90,
+    onSuccess: 'c2_library_after',
+    deathMsg: 'You disturbed the wrong sequence too many times. The bookcase collapses, pinning you. The library\'s gas lamps flicker out. The house has claimed another researcher.',
+  },
+  stealth: {
+    label: '── STEALTH SEQUENCE ──',
+    title: 'Moving Through the Dark',
+    desc: 'Wait for the bar to enter the green zone, then click MOVE. 3 phases. 3 lives. 60 seconds total. If you run out of lives or time — the creature hears you.',
+    type: 'stealth',
+    maxLives: 3,
+    timeLimit: 60,
+    onSuccess: 'c3_get_bone_key',
+    deathMsg: 'The creature catches you in the dark. It presses you against the wall with one enormous hand. The last thing you hear is the layered voices saying: "Stay. Stay with us."',
+  },
+  cipher: {
+    label: '── CIPHER LOCK ──',
+    title: 'The Attic Chest Combination',
+    desc: 'Translate "BONE" to numbers (A=1...Z=26), then sum each letter\'s digits for a 4-digit code. 3 attempts. 60 seconds. Failure triggers the chest\'s trap.',
+    type: 'cipher',
+    maxAttempts: 3,
+    timeLimit: 60,
+    onSuccess: 'c3_chest_open',
+    deathMsg: 'The dial clicked the wrong way three times. A needle springs from the chest\'s lock — poisoned, as it turns out. You don\'t have long enough to get help.',
+  },
+  sequence: {
+    label: '── SEQUENCE RITUAL ──',
+    title: 'The Altar Sequence',
+    desc: 'Watch the altar light up a sequence of 4 tones, then repeat it. 3 rounds, getting faster. 2 lives. 90 seconds. Failing the ritual gives the Hollow what it wants.',
+    type: 'sequence',
+    maxLives: 2,
+    timeLimit: 90,
+    onSuccess: 'c4_altar_complete',
+    deathMsg: 'You broke the sequence at a critical moment. The Hollow surged through the altar and found you. It didn\'t need a ritual when you were already standing at the altar, hands open.',
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════
+// GAME ENGINE
+// ═══════════════════════════════════════════════════════════════
+let mgCallback = null;
+let investigateCount = 0;
+let fleeCount = 0;
+let neverFled = true;
+let mgTimerInterval = null;
+
+function unlockAchievement(id) {
+  if (!ACHIEVEMENTS[id] || ACHIEVEMENTS[id].unlocked) return;
+  ACHIEVEMENTS[id].unlocked = true;
+  STATE.achievements[id] = true;
+  SOUND.sfx.achievement();
+  showToast(ACHIEVEMENTS[id].label, ACHIEVEMENTS[id].desc);
+  renderAchievements();
+  document.getElementById('hud-ach').textContent = Object.keys(STATE.achievements).length;
+}
+
+function showToast(title, msg) {
+  const t = document.getElementById('toast');
+  document.querySelector('.toast-title').textContent = '🏆 ' + title;
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+function renderAchievements() {
+  const grid = document.getElementById('achievements-grid');
+  grid.innerHTML = Object.entries(ACHIEVEMENTS).map(([id, a]) => {
+    if (a.unlocked) {
+      return `<div class="ach-badge unlocked">
+        <span class="ach-icon">${a.icon}</span>
+        <span class="ach-label">${a.label}</span>
+        <span class="ach-tip">${a.desc}</span>
+      </div>`;
+    } else {
+      return `<div class="ach-badge locked" title="???">
+        <span class="ach-icon">${a.icon}</span>
+        <span class="ach-label" style="color:var(--border)">???</span>
+      </div>`;
+    }
+  }).join('');
+}
+
+function updateHUD() {
+  document.getElementById('hud-chapter').textContent = STATE.chapter;
+  document.getElementById('hud-sanity').textContent = STATE.sanity;
+  document.getElementById('hud-decisions').textContent = STATE.decisions;
+  const bar = document.getElementById('sanity-bar');
+  bar.style.width = STATE.sanity + '%';
+  bar.style.background = STATE.sanity > 60 ? 'var(--teal-bright)' :
+                          STATE.sanity > 30 ? '#a0820a' : 'var(--crimson)';
+  if (STATE.sanity <= 20) unlockAchievement('low_sanity');
+  if (STATE.sanity <= 20 && STATE.sanity > 0) SOUND.sfx.heartbeat();
+}
+
+function goToScene(sceneId, skipHistory) {
+  const scene = SCENES[sceneId];
+  if (!scene) return;
+
+  if (!skipHistory) {
+    STATE.history.push({ sceneId, title: scene.title });
+    STATE.decisions++;
+    if (STATE.decisions === 1) unlockAchievement('first_choice');
+    if (STATE.decisions === 10) unlockAchievement('ten_decisions');
+    if (STATE.decisions === 20) unlockAchievement('twenty_decisions');
+  }
+
+  STATE.current = sceneId;
+  if (scene.chapter_num) STATE.chapter = scene.chapter_num;
+
+  if (scene.sanityDelta) {
+    STATE.sanity = Math.max(0, Math.min(100, STATE.sanity + scene.sanityDelta));
+  }
+  if (scene.flags) Object.assign(STATE.flags, scene.flags);
+
+  // Check achievements
+  if (STATE.flags.all_clues_check) {
+    const clues = ['clue_1','clue_2','clue_3','clue_4','clue_5'];
+    if (clues.every(c => STATE.flags[c])) unlockAchievement('all_clues');
+  }
+  if (STATE.flags.knows_history && STATE.flags.knows_ritual && STATE.flags.knows_three_keys &&
+      STATE.flags.found_thorne_body && STATE.flags.knows_eleanor) {
+    unlockAchievement('truth_seeker');
+  }
+  if (scene.achieves) unlockAchievement(scene.achieves);
+
+  updateHUD();
+  SOUND.setScene(sceneId);
+  renderScene(scene, sceneId);
+  renderHistory();
+
+  if (scene.ending) {
+    setTimeout(() => showEnding(scene), 2000);
+  }
+}
+
+function renderScene(scene, sceneId) {
+  document.getElementById('scene-chapter').textContent = scene.chapter || '';
+  document.getElementById('scene-title').textContent = scene.title || '';
+  document.getElementById('scene-text').innerHTML = scene.text || '';
+  const choicesEl = document.getElementById('choices');
+  choicesEl.innerHTML = '';
+
+  document.getElementById('game-panel').classList.remove('fade-in');
+  void document.getElementById('game-panel').offsetWidth;
+  document.getElementById('game-panel').classList.add('fade-in');
+
+  // Play appropriate SFX
+  if (scene.text && scene.text.includes('whisper')) SOUND.sfx.whisper();
+  else if (scene.title && (scene.title.toLowerCase().includes('door') || scene.title.toLowerCase().includes('foyer'))) SOUND.sfx.door();
+
+  if (scene.minigame) {
+    const mg = MINIGAMES[scene.minigame];
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = '▶ Attempt the challenge...';
+    btn.onclick = () => { SOUND.sfx.click(); openMinigame(scene.minigame, mg); };
+    choicesEl.appendChild(btn);
+    return;
+  }
+
+  const validChoices = (scene.choices || []).filter(c => {
+    if (c.requireFlag && !STATE.flags[c.requireFlag]) return false;
+    return true;
+  });
+
+  validChoices.forEach((choice, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = choice.text;
+    btn.onclick = () => { SOUND.sfx.click(); makeChoice(choice, sceneId, i); };
+    choicesEl.appendChild(btn);
+  });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function makeChoice(choice, fromScene, idx) {
+  const investigateKeywords = ['examine', 'search', 'look', 'read', 'inspect'];
+  if (investigateKeywords.some(k => choice.text.toLowerCase().includes(k))) {
+    investigateCount++;
+    if (investigateCount >= 5) unlockAchievement('curious');
+  }
+  if (choice.text.toLowerCase().includes('run') || choice.text.toLowerCase().includes('flee') || choice.text.toLowerCase().includes('retreat')) {
+    fleeCount++;
+    neverFled = false;
+    if (fleeCount >= 3) unlockAchievement('coward');
+  }
+  if (choice.flags) Object.assign(STATE.flags, choice.flags);
+  if (choice.sanity) STATE.sanity = Math.max(0, Math.min(100, STATE.sanity + choice.sanity));
+  if (choice.achieves) unlockAchievement(choice.achieves);
+
+  if (STATE.history.length > 0) {
+    STATE.history[STATE.history.length - 1].choiceIdx = idx;
+    STATE.history[STATE.history.length - 1].choiceText = choice.text;
+  }
+
+  goToScene(choice.next);
+}
+
+function renderHistory() {
+  const btns = document.getElementById('history-btns');
+  btns.innerHTML = '';
+  STATE.history.forEach((h, i) => {
+    const b = document.createElement('button');
+    b.className = 'hist-btn' + (i === STATE.history.length - 1 ? ' current' : '');
+    b.textContent = `${i + 1}. ${h.title.slice(0, 20)}${h.title.length > 20 ? '…' : ''}`;
+    b.title = h.title;
+    b.onclick = () => revisitHistory(i);
+    btns.appendChild(b);
+  });
+}
+
+function revisitHistory(idx) {
+  const h = STATE.history[idx];
+  if (!h) return;
+  const scene = SCENES[h.sceneId];
+  if (!scene) return;
+
+  document.getElementById('scene-chapter').textContent = scene.chapter || '';
+  document.getElementById('scene-title').textContent = '[History] ' + scene.title;
+  document.getElementById('scene-text').innerHTML = scene.text || '';
+  const choicesEl = document.getElementById('choices');
+  choicesEl.innerHTML = '';
+
+  if (h.choiceText) {
+    const info = document.createElement('div');
+    info.style.cssText = 'font-family:var(--mono);font-size:0.78rem;color:var(--teal);margin-bottom:10px;padding:8px 12px;background:var(--deep);border-left:2px solid var(--teal);border-radius:3px;';
+    info.textContent = '✓ You chose: "' + h.choiceText + '"';
+    choicesEl.appendChild(info);
+  }
+
+  const returnBtn = document.createElement('button');
+  returnBtn.className = 'choice-btn';
+  returnBtn.textContent = '↩ Return to present';
+  returnBtn.onclick = () => {
+    const cur = SCENES[STATE.current];
+    if (cur) renderScene(cur, STATE.current);
+    renderHistory();
+  };
+  choicesEl.appendChild(returnBtn);
+
+  document.getElementById('game-panel').classList.remove('fade-in');
+  void document.getElementById('game-panel').offsetWidth;
+  document.getElementById('game-panel').classList.add('fade-in');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DEATH SYSTEM
+// ═══════════════════════════════════════════════════════════════
+function triggerDeath(deathMsg) {
+  clearMgTimer();
+  document.getElementById('minigame-overlay').classList.remove('active');
+  SOUND.sfx.death();
+  // Blood drips
+  for (let i = 0; i < 8; i++) {
+    setTimeout(() => {
+      const drip = document.createElement('div');
+      drip.className = 'blood-drip';
+      drip.style.left = (Math.random() * 100) + 'vw';
+      drip.style.height = (40 + Math.random() * 60) + 'px';
+      drip.style.animationDuration = (1.5 + Math.random()) + 's';
+      document.body.appendChild(drip);
+      setTimeout(() => drip.remove(), 3000);
+    }, i * 150);
+  }
+
+  document.getElementById('death-msg').textContent = deathMsg || 'The house has claimed you.';
+  document.getElementById('death-stats').innerHTML =
+    `Decisions made: ${STATE.decisions} &nbsp;|&nbsp; Sanity remaining: ${STATE.sanity}% &nbsp;|&nbsp; Chapter: ${STATE.chapter}`;
+
+  setTimeout(() => {
+    document.getElementById('death-screen').classList.add('active');
+  }, 800);
+}
+
+function triggerRestart() {
+  document.getElementById('death-screen').classList.remove('active');
+  restartGame();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MINIGAME ENGINE
+// ═══════════════════════════════════════════════════════════════
+function clearMgTimer() {
+  if (mgTimerInterval) { clearInterval(mgTimerInterval); mgTimerInterval = null; }
+}
+
+function startMgTimer(seconds, barEl, labelEl, onExpire) {
+  clearMgTimer();
+  let remaining = seconds;
+  const update = () => {
+    const pct = (remaining / seconds) * 100;
+    if (barEl) {
+      barEl.style.width = pct + '%';
+      barEl.style.background = pct > 50 ? 'var(--teal-bright)' : pct > 25 ? '#a0820a' : 'var(--crimson)';
+    }
+    if (labelEl) labelEl.textContent = remaining + 's';
+    if (remaining <= 10) SOUND.sfx.tick();
+    remaining--;
+    if (remaining < 0) {
+      clearMgTimer();
+      onExpire();
+    }
+  };
+  update();
+  mgTimerInterval = setInterval(update, 1000);
+}
+
+function renderLives(count, max) {
+  let html = '<div class="mg-attempts-left">';
+  for (let i = 0; i < max; i++) {
+    html += `<span class="life ${i >= count ? 'dead' : ''}">♥</span>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function openMinigame(key, mg) {
+  SOUND.playMinigame();
+  document.getElementById('mg-label').textContent = mg.label;
+  document.getElementById('mg-title').textContent = mg.title;
+  document.getElementById('mg-desc').textContent = mg.desc;
+  document.getElementById('mg-result-area').innerHTML = '';
+  const content = document.getElementById('minigame-content');
+  content.innerHTML = '';
+  document.getElementById('minigame-overlay').classList.add('active');
+  mgCallback = mg;
+
+  switch (mg.type) {
+    case 'codelock': initCodeLock(content, mg); break;
+    case 'memory': initMemory(content, mg); break;
+    case 'stealth': initStealth(content, mg); break;
+    case 'cipher': initCipher(content, mg); break;
+    case 'sequence': initSequence(content, mg); break;
+  }
+}
+
+function closeMgSuccess() {
+  clearMgTimer();
+  const next = mgCallback.onSuccess;
+  mgCallback = null;
+  document.getElementById('minigame-overlay').classList.remove('active');
+  SOUND.endMinigame(next);
+  goToScene(next);
+}
+
+function closeMgDeath() {
+  clearMgTimer();
+  const msg = mgCallback ? mgCallback.deathMsg : 'The house has claimed you.';
+  mgCallback = null;
+  triggerDeath(msg);
+}
+
+// ── CODE LOCK ──
+function initCodeLock(el, mg) {
+  let digits = [0, 0, 0];
+  let firstTry = true;
+  let attempts = 0;
+  const maxA = mg.maxAttempts || 3;
+
+  el.innerHTML = `
+    <div class="mg-timer-wrap">
+      <div class="mg-timer-label"><span>TIME REMAINING</span><span id="cl-time">${mg.timeLimit}s</span></div>
+      <div class="mg-timer-bg"><div class="mg-timer-bar" id="cl-tbar" style="width:100%"></div></div>
+    </div>
+    ${renderLives(maxA, maxA).replace('mg-attempts-left', 'mg-attempts-left')}
+    <div id="cl-lives-wrap">${renderLives(maxA, maxA)}</div>
+    <div class="code-hint" style="margin-top:10px">Click digits to increment. Submit when ready.</div>
+    <div class="code-lock" id="cl-digits">
+      ${digits.map((d,i) => `<div class="code-digit" id="cd-${i}" onclick="clClick(${i})">${d}</div>`).join('')}
+    </div>
+    <br>
+    <button class="mg-btn" onclick="clSubmit()">Submit Code</button>
+  `;
+
+  startMgTimer(mg.timeLimit,
+    document.getElementById('cl-tbar'),
+    document.getElementById('cl-time'),
+    () => { document.getElementById('mg-result-area').innerHTML = '<div class="mg-result fail">⏱ Time expired. The mechanism locks permanently.</div>'; setTimeout(closeMgDeath, 1500); }
+  );
+
+  window.clClick = (i) => {
+    digits[i] = (digits[i] + 1) % 10;
+    document.getElementById('cd-'+i).textContent = digits[i];
+    SOUND.sfx.tick();
+  };
+  window.clSubmit = () => {
+    attempts++;
+    const livesLeft = maxA - attempts;
+    const correct = mg.solution.every((s, i) => s === digits[i]);
+    if (correct) {
+      clearMgTimer();
+      if (firstTry) unlockAchievement('code_breaker');
+      SOUND.sfx.success();
+      document.getElementById('mg-result-area').innerHTML = '<div class="mg-result success">✓ The lock clicks open.</div>';
+      setTimeout(closeMgSuccess, 1500);
+    } else {
+      firstTry = false;
+      SOUND.sfx.fail();
+      digits.forEach((_,i) => {
+        const el2 = document.getElementById('cd-'+i);
+        el2.classList.add('wrong');
+        setTimeout(() => el2.classList.remove('wrong'), 400);
+      });
+      document.getElementById('cl-lives-wrap').innerHTML = renderLives(Math.max(0, livesLeft), maxA);
+      if (livesLeft <= 0) {
+        clearMgTimer();
+        document.getElementById('mg-result-area').innerHTML = '<div class="mg-result fail">✗ Too many wrong attempts. The alarm triggers.</div>';
+        setTimeout(closeMgDeath, 1800);
+      } else {
+        document.getElementById('mg-result-area').innerHTML = `<div class="mg-result fail">✗ Wrong. ${livesLeft} attempt${livesLeft !== 1 ? 's' : ''} remaining.</div>`;
+      }
+    }
+  };
+}
+
+// ── MEMORY GAME ──
+function initMemory(el, mg) {
+  const symbols = ['🕯️','💀','🔑','🪞','🗡️','🕰️','📜','🔮'];
+  const cards = [...symbols, ...symbols].sort(() => Math.random() - 0.5);
+  let flipped = [], matched = [], locked = false, errors = 0;
+  const maxE = mg.maxErrors || 5;
+  let firstFlip = true;
+
+  el.innerHTML = `
+    <div class="mg-timer-wrap">
+      <div class="mg-timer-label"><span>TIME REMAINING</span><span id="mem-time">${mg.timeLimit}s</span></div>
+      <div class="mg-timer-bg"><div class="mg-timer-bar" id="mem-tbar" style="width:100%"></div></div>
+    </div>
+    <div id="mem-lives-wrap">${renderLives(maxE, maxE)}</div>
+    <div class="memory-grid" id="mem-grid">${
+      cards.map((s,i) => `<div class="mem-card" id="mc-${i}" onclick="mcClick(${i})"><span class="card-face">${s}</span></div>`).join('')
+    }</div>
+    <div id="mem-msg" style="font-family:var(--mono);font-size:0.75rem;color:var(--ash);text-align:center;margin-top:8px;"></div>
+  `;
+
+  startMgTimer(mg.timeLimit,
+    document.getElementById('mem-tbar'),
+    document.getElementById('mem-time'),
+    () => { document.getElementById('mg-result-area').innerHTML = '<div class="mg-result fail">⏱ Time ran out. The bookcase sealed itself.</div>'; setTimeout(closeMgDeath, 1500); }
+  );
+
+  window.mcClick = (i) => {
+    if (locked || flipped.includes(i) || matched.includes(i)) return;
+    const card = document.getElementById('mc-'+i);
+    card.classList.add('flipped');
+    flipped.push(i);
+    SOUND.sfx.tick();
+    if (flipped.length === 2) {
+      locked = true;
+      const [a, b] = flipped;
+      if (cards[a] === cards[b]) {
+        matched.push(a, b);
+        document.getElementById('mc-'+a).classList.add('matched');
+        document.getElementById('mc-'+b).classList.add('matched');
+        flipped = []; locked = false;
+        if (matched.length === cards.length) {
+          clearMgTimer();
+          if (errors === 0) unlockAchievement('memory_master');
+          SOUND.sfx.success();
+          document.getElementById('mg-result-area').innerHTML = '<div class="mg-result success">✓ All pairs matched. The bookcase swings open.</div>';
+          setTimeout(closeMgSuccess, 1500);
+        }
+      } else {
+        errors++;
+        SOUND.sfx.fail();
+        const livesLeft = maxE - errors;
+        document.getElementById('mem-lives-wrap').innerHTML = renderLives(Math.max(0, livesLeft), maxE);
+        document.getElementById('mem-msg').textContent = `Errors: ${errors} / ${maxE}`;
+        setTimeout(() => {
+          if (errors >= maxE) {
+            clearMgTimer();
+            document.getElementById('mg-result-area').innerHTML = '<div class="mg-result fail">✗ Too many errors. The mechanism jams permanently.</div>';
+            setTimeout(closeMgDeath, 1800);
+            return;
+          }
+          document.getElementById('mc-'+a).classList.remove('flipped');
+          document.getElementById('mc-'+b).classList.remove('flipped');
+          flipped = []; locked = false;
+        }, 900);
+      }
+    }
+  };
+}
+
+// ── STEALTH GAME ──
+function initStealth(el, mg) {
+  let phase = 0, barVal = 0, dir = 1, lives, timerActive = false;
+  let stealthAnimId = null;
+  const safeRanges = [[65, 90], [10, 35], [45, 75]];
+  const maxL = mg.maxLives || 3;
+  lives = maxL;
+  let perfectRun = true;
+  let overallTimeout = null;
+
+  function renderPhase() {
+    barVal = 50; dir = 1;
+    el.innerHTML = `
+      <div class="mg-timer-wrap">
+        <div class="mg-timer-label"><span>OVERALL TIME</span><span id="st-time">${mg.timeLimit}s</span></div>
+        <div class="mg-timer-bg"><div class="mg-timer-bar" id="st-tbar" style="width:100%"></div></div>
+      </div>
+      <div id="st-lives-wrap">${renderLives(lives, maxL)}</div>
+      <div style="text-align:center;font-family:var(--mono);font-size:0.78rem;color:var(--ash);margin:10px 0;">Phase ${phase+1} of 3 — Hit MOVE when bar is <span style="color:var(--teal-bright)">green</span></div>
+      <div style="margin-bottom:14px;position:relative;">
+        <div class="stealth-bar-bg"><div class="stealth-bar" id="sbar" style="width:50%"></div></div>
+        <div style="position:absolute;top:-2px;left:${safeRanges[phase][0]}%;width:${safeRanges[phase][1]-safeRanges[phase][0]}%;height:14px;background:var(--teal);opacity:0.3;pointer-events:none;border-radius:6px;"></div>
+      </div>
+      <div class="stealth-zones"><button class="stealth-zone" id="st-btn" onclick="stAct()">MOVE</button></div>
+      <div id="st-msg" style="font-family:var(--mono);font-size:0.75rem;text-align:center;margin-top:8px;"></div>
+    `;
+
+    if (phase === 0) {
+      startMgTimer(mg.timeLimit, document.getElementById('st-tbar'), document.getElementById('st-time'), () => {
+        if (stealthAnimId) cancelAnimationFrame(stealthAnimId);
+        document.getElementById('mg-result-area').innerHTML = '<div class="mg-result fail">⏱ The creature heard your breathing. Time ran out.</div>';
+        setTimeout(closeMgDeath, 1500);
+      });
+    } else {
+      // Update label reference only
+      const tbar = document.getElementById('st-tbar');
+      const tlabel = document.getElementById('st-time');
+      // Timer already running; just update DOM references each phase
+    }
+
+    const speed = 1.5 + phase * 0.6;
+    function animate() {
+      barVal += dir * speed;
+      if (barVal >= 100) { barVal = 100; dir = -1; }
+      if (barVal <= 0) { barVal = 0; dir = 1; }
+      const sbar = document.getElementById('sbar');
+      if (sbar) {
+        sbar.style.width = barVal + '%';
+        const inZone = barVal >= safeRanges[phase][0] && barVal <= safeRanges[phase][1];
+        sbar.style.background = inZone ? 'var(--teal-bright)' : 'var(--crimson)';
+      }
+      stealthAnimId = requestAnimationFrame(animate);
+    }
+    stealthAnimId = requestAnimationFrame(animate);
+  }
+
+  window.stAct = () => {
+    const inZone = barVal >= safeRanges[phase][0] && barVal <= safeRanges[phase][1];
+    if (stealthAnimId) cancelAnimationFrame(stealthAnimId);
+    stealthAnimId = null;
+    if (inZone) {
+      SOUND.sfx.success();
+      document.getElementById('st-msg').innerHTML = `<span style="color:var(--teal-bright)">✓ Phase ${phase+1} passed. Stay silent...</span>`;
+      document.getElementById('st-btn').disabled = true;
+      phase++;
+      if (phase >= 3) {
+        clearMgTimer();
+        if (perfectRun) unlockAchievement('stealth_god');
+        document.getElementById('mg-result-area').innerHTML = '<div class="mg-result success">✓ You slip past the creature and reach the key.</div>';
+        setTimeout(closeMgSuccess, 1500);
+      } else {
+        setTimeout(renderPhase, 1200);
+      }
+    } else {
+      lives--;
+      perfectRun = false;
+      SOUND.sfx.fail();
+      document.getElementById('st-lives-wrap').innerHTML = renderLives(lives, maxL);
+      if (lives <= 0) {
+        clearMgTimer();
+        document.getElementById('mg-result-area').innerHTML = '<div class="mg-result fail">✗ The creature heard you. It has you now.</div>';
+        setTimeout(closeMgDeath, 1800);
+        return;
+      }
+      document.getElementById('st-msg').innerHTML = `<span style="color:var(--crimson)">✗ Too early! ${lives} ${lives===1?'chance':'chances'} left.</span>`;
+      setTimeout(() => {
+        if (stealthAnimId === null) renderPhase();
+      }, 1200);
+    }
+  };
+
+  renderPhase();
+}
+
+// ── CIPHER ──
+function initCipher(el, mg) {
+  let attempts = 0;
+  let firstTry = true;
+  const maxA = mg.maxAttempts || 3;
+
+  el.innerHTML = `
+    <div class="mg-timer-wrap">
+      <div class="mg-timer-label"><span>TIME REMAINING</span><span id="ci-time">${mg.timeLimit}s</span></div>
+      <div class="mg-timer-bg"><div class="mg-timer-bar" id="ci-tbar" style="width:100%"></div></div>
+    </div>
+    <div id="ci-lives-wrap">${renderLives(maxA, maxA)}</div>
+    <div class="cipher-table">
+      ${Array.from({length:26},(_,i)=>`<div class="cipher-pair">${String.fromCharCode(65+i)}=${i+1}</div>`).join('')}
+    </div>
+    <div style="font-family:var(--mono);font-size:0.78rem;color:var(--ash);margin-bottom:10px;">
+      "BONE" → sum the digits of each letter's value → 4-digit code
+    </div>
+    <input class="riddle-input" id="cipher-in" type="text" maxlength="4" placeholder="Enter 4-digit code" />
+    <br><br>
+    <button class="mg-btn" onclick="cipherSubmit()">Submit</button>
+  `;
+
+  startMgTimer(mg.timeLimit,
+    document.getElementById('ci-tbar'),
+    document.getElementById('ci-time'),
+    () => { document.getElementById('mg-result-area').innerHTML = '<div class="mg-result fail">⏱ Time expired. The trap triggers.</div>'; setTimeout(closeMgDeath, 1500); }
+  );
+
+  document.getElementById('cipher-in').addEventListener('keydown', e => { if (e.key === 'Enter') window.cipherSubmit(); });
+
+  window.cipherSubmit = () => {
+    attempts++;
+    const livesLeft = maxA - attempts;
+    const val = document.getElementById('cipher-in').value.trim();
+    // B=2(2), O=15(1+5=6), N=14(1+4=5), E=5(5) → 2655
+    if (val === '2655') {
+      clearMgTimer();
+      if (firstTry) unlockAchievement('riddler');
+      SOUND.sfx.success();
+      document.getElementById('mg-result-area').innerHTML = '<div class="mg-result success">✓ The dial spins and the chest unlocks.</div>';
+      setTimeout(closeMgSuccess, 1500);
+    } else {
+      firstTry = false;
+      SOUND.sfx.fail();
+      document.getElementById('ci-lives-wrap').innerHTML = renderLives(Math.max(0, livesLeft), maxA);
+      if (livesLeft <= 0) {
+        clearMgTimer();
+        document.getElementById('mg-result-area').innerHTML = '<div class="mg-result fail">✗ The needle springs. Wrong one too many times.</div>';
+        setTimeout(closeMgDeath, 1800);
+      } else {
+        document.getElementById('mg-result-area').innerHTML = `<div class="mg-result fail">✗ The dial doesn't respond. ${livesLeft} attempt${livesLeft !== 1 ? 's' : ''} left.</div>`;
+        document.getElementById('cipher-in').value = '';
+      }
+    }
+  };
+}
+
+// ── SEQUENCE GAME ──
+function initSequence(el, mg) {
+  const colors = ['#8b0000','#2d5a5a','#7a5a00','#3a3a7a'];
+  const labels = ['RED','TEAL','GOLD','INDIGO'];
+  let sequence = [], playerSeq = [], round = 0, maxRound = 3;
+  let playing = false, lives, perfect = true;
+  const maxL = mg.maxLives || 2;
+  lives = maxL;
+
+  el.innerHTML = `
+    <div class="mg-timer-wrap">
+      <div class="mg-timer-label"><span>TIME REMAINING</span><span id="sq-time">${mg.timeLimit}s</span></div>
+      <div class="mg-timer-bg"><div class="mg-timer-bar" id="sq-tbar" style="width:100%"></div></div>
+    </div>
+    <div id="sq-lives-wrap">${renderLives(lives, maxL)}</div>
+    <div class="simon-grid" id="simon">
+      ${colors.map((c,i)=>`<div class="simon-btn" id="sb-${i}" style="background:${c}" onclick="simonClick(${i})">${labels[i]}</div>`).join('')}
+    </div>
+    <div id="simon-msg" style="text-align:center;margin-top:12px;font-family:var(--mono);font-size:0.78rem;color:var(--ash);">Watch the sequence...</div>
+  `;
+
+  startMgTimer(mg.timeLimit,
+    document.getElementById('sq-tbar'),
+    document.getElementById('sq-time'),
+    () => { document.getElementById('mg-result-area').innerHTML = '<div class="mg-result fail">⏱ The altar grows cold. The Hollow reaches for you.</div>'; setTimeout(closeMgDeath, 1500); }
+  );
+
+  function flash(idx, cb) {
+    const btn = document.getElementById('sb-'+idx);
+    if (!btn) { cb && cb(); return; }
+    btn.classList.add('active');
+    SOUND.sfx.tick();
+    const delay = Math.max(200, 500 - round * 80);
+    setTimeout(() => { btn.classList.remove('active'); cb && setTimeout(cb, Math.max(100, 300 - round * 50)); }, delay);
+  }
+
+  function playSequence() {
+    playing = true; playerSeq = [];
+    let i = 0;
+    const go = () => {
+      if (i >= sequence.length) { playing = false; document.getElementById('simon-msg').textContent = `Your turn — repeat ${sequence.length} steps!`; return; }
+      flash(sequence[i], go); i++;
+    };
+    setTimeout(go, 600);
+  }
+
+  window.simonClick = (idx) => {
+    if (playing) return;
+    flash(idx, null);
+    playerSeq.push(idx);
+    const pos = playerSeq.length - 1;
+    if (playerSeq[pos] !== sequence[pos]) {
+      lives--;
+      perfect = false;
+      SOUND.sfx.fail();
+      document.getElementById('sq-lives-wrap').innerHTML = renderLives(Math.max(0, lives), maxL);
+      if (lives <= 0) {
+        clearMgTimer();
+        document.getElementById('mg-result-area').innerHTML = '<div class="mg-result fail">✗ Wrong sequence. The Hollow surges through.</div>';
+        setTimeout(closeMgDeath, 1800);
+        return;
+      }
+      document.getElementById('simon-msg').textContent = `✗ Wrong! Starting round again... (${lives} ${lives===1?'life':'lives'} left)`;
+      playerSeq = [];
+      setTimeout(playSequence, 1400);
+      return;
+    }
+    if (playerSeq.length === sequence.length) {
+      round++;
+      if (round >= maxRound) {
+        clearMgTimer();
+        if (perfect) unlockAchievement('sequence_keeper');
+        SOUND.sfx.success();
+        document.getElementById('mg-result-area').innerHTML = '<div class="mg-result success">✓ The altar resonates. The mechanism engages.</div>';
+        setTimeout(closeMgSuccess, 1500);
+      } else {
+        document.getElementById('simon-msg').textContent = `✓ Round ${round} complete! Faster now...`;
+        sequence.push(Math.floor(Math.random()*4));
+        setTimeout(playSequence, 1200);
+      }
+    }
+  };
+
+  // Starts with 4 random steps instead of 2. 
+  // Round 1 = 4 steps, Round 2 = 5 steps, Round 3 = 6 steps.
+  sequence = [
+    Math.floor(Math.random()*4), 
+    Math.floor(Math.random()*4),
+    Math.floor(Math.random()*4),
+    Math.floor(Math.random()*4)
+  ];
+  setTimeout(playSequence, 800);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENDING
+// ═══════════════════════════════════════════════════════════════
+function showEnding(scene) {
+  STATE.endingReached = scene.endingId;
+  document.getElementById('game-panel').style.display = 'none';
+  document.getElementById('history-nav').style.display = 'none';
+  document.getElementById('achievements-panel').style.display = 'none';
+
+  const endingScreen = document.getElementById('ending-screen');
+  endingScreen.classList.add('active');
+
+  const endings = ['survivor','both_escape','sacrifice','buried','burned','collapse','willing','let_it_out','truth'];
+  const num = endings.indexOf(scene.endingId) + 1;
+
+  document.getElementById('ending-tag').textContent = `ENDING ${num} OF ${endings.length}`;
+  document.getElementById('ending-title').textContent = scene.title;
+  document.getElementById('ending-text').innerHTML = scene.text;
+
+  const achCount = Object.keys(STATE.achievements).length;
+  document.getElementById('ending-stats').innerHTML = `
+    <div class="ending-stat">Decisions Made<span>${STATE.decisions}</span></div>
+    <div class="ending-stat">Final Sanity<span>${STATE.sanity}%</span></div>
+    <div class="ending-stat">Achievements<span>${achCount} / ${Object.keys(ACHIEVEMENTS).length}</span></div>
+    <div class="ending-stat">Ending<span>${num} / ${endings.length}</span></div>
+  `;
+
+  if (scene.achieves) unlockAchievement(scene.achieves);
+  if (neverFled && STATE.decisions > 5) unlockAchievement('brave');
+  renderAchievements();
+  document.getElementById('achievements-panel').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function restartGame() {
+  clearMgTimer();
+  const savedAch = { ...STATE.achievements };
+  Object.assign(STATE, {
+    current: 'start', sanity: 100, chapter: 1, decisions: 0,
+    flags: {}, history: [], endingReached: null, achievements: savedAch
+  });
+  investigateCount = 0; fleeCount = 0; neverFled = true;
+
+  document.getElementById('game-panel').style.display = '';
+  document.getElementById('history-nav').style.display = '';
+  document.getElementById('achievements-panel').style.display = '';
+  document.getElementById('ending-screen').classList.remove('active');
+  document.getElementById('death-screen').classList.remove('active');
+  document.getElementById('minigame-overlay').classList.remove('active');
+
+  Object.entries(savedAch).forEach(([id]) => { if (ACHIEVEMENTS[id]) ACHIEVEMENTS[id].unlocked = true; });
+  renderAchievements();
+  document.getElementById('hud-ach').textContent = Object.keys(savedAch).length;
+  goToScene('start', true);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT — start music immediately
+// ═══════════════════════════════════════════════════════════════
+renderAchievements();
+goToScene('start', true);
+
+// Start music on first user interaction
+document.addEventListener('click', () => { SOUND.init(); SOUND.setScene('start'); }, { once: true });
+document.addEventListener('keydown', () => { SOUND.init(); SOUND.setScene('start'); }, { once: true });
+
+// Mark music pill as on by default
+document.getElementById('music-pill').style.borderColor = 'var(--teal)';
+document.getElementById('music-pill').style.color = 'var(--teal-bright)';
+</script>
+</body>
+</html>

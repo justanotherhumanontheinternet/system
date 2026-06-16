@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CASE FILE — OPERATION: SILENT LEDGER</title>
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --bg2: #111418;
+    --bg3: #181c22;
+    --border: #2a2f38;
+    --border2: #3a4050;
+    --text: #c8cdd6;
+    --text2: #8892a0;
+    --text3: #505868;
+    --accent: #b8860b;
+    --accent2: #d4a017;
+    --red: #8b2020;
+    --red2: #c0392b;
+    --green: #1a4a2a;
+    --green2: #27ae60;
+    --blue: #0d2d4a;
+    --blue2: #2980b9;
+    --mono: 'Courier New', Courier, monospace;
+    --sans: 'Segoe UI', Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* Header */
+  #header { background: var(--bg2); border-bottom: 1px solid var(--accent); padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  #header .logo { color: var(--accent2); font-size: 11px; letter-spacing: 4px; text-transform: uppercase; font-weight: bold; }
+  #header .case-id { color: var(--text3); font-size: 10px; letter-spacing: 2px; }
+  #stage-bar { display: flex; gap: 8px; align-items: center; }
+  .stage-pill { padding: 3px 10px; border-radius: 2px; font-size: 10px; letter-spacing: 1px; border: 1px solid var(--border2); color: var(--text3); background: var(--bg3); }
+  .stage-pill.unlocked { border-color: var(--green2); color: var(--green2); background: var(--green); }
+  .stage-pill.active { border-color: var(--accent); color: var(--accent2); background: #1a1200; }
+
+  /* Main layout */
+  #main { display: flex; flex: 1; overflow: hidden; }
+
+  /* Sidebar */
+  #sidebar { width: 220px; background: var(--bg2); border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; }
+  #sidebar::-webkit-scrollbar { width: 4px; } #sidebar::-webkit-scrollbar-thumb { background: var(--border2); }
+  .cat-header { padding: 10px 12px 6px; font-size: 9px; letter-spacing: 3px; color: var(--text3); text-transform: uppercase; border-bottom: 1px solid var(--border); margin-top: 4px; }
+  .file-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text2); padding: 7px 12px 7px 16px; font-family: var(--mono); font-size: 11px; cursor: pointer; transition: background 0.15s; border-left: 2px solid transparent; line-height: 1.4; }
+  .file-btn:hover { background: var(--bg3); color: var(--text); }
+  .file-btn.active { background: var(--bg3); color: var(--accent2); border-left-color: var(--accent); }
+  .file-btn.locked { color: var(--text3); cursor: default; }
+  .file-btn .file-num { color: var(--text3); margin-right: 4px; }
+  .lock-icon { float: right; font-size: 10px; color: var(--text3); }
+
+  /* Viewer */
+  #viewer { flex: 1; overflow-y: auto; padding: 0; background: var(--bg); }
+  #viewer::-webkit-scrollbar { width: 6px; } #viewer::-webkit-scrollbar-thumb { background: var(--border2); }
+  #doc-content { max-width: 860px; margin: 0 auto; padding: 28px 36px 60px; }
+  #doc-content h1 { font-family: var(--mono); font-size: 14px; color: var(--accent2); letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid var(--accent); padding-bottom: 8px; margin-bottom: 18px; }
+  #doc-content h2 { font-size: 11px; color: var(--text2); letter-spacing: 2px; text-transform: uppercase; margin: 22px 0 8px; }
+  #doc-content p { line-height: 1.8; color: var(--text); margin-bottom: 10px; font-size: 12px; }
+  #doc-content .stamp { display: inline-block; border: 2px solid var(--red2); color: var(--red2); padding: 2px 8px; font-size: 11px; letter-spacing: 3px; transform: rotate(-3deg); margin: 4px 0 12px; }
+  #doc-content .stamp.green { border-color: var(--green2); color: var(--green2); transform: rotate(2deg); }
+  #doc-content table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 11px; }
+  #doc-content th { background: var(--bg2); color: var(--text2); padding: 6px 10px; text-align: left; border: 1px solid var(--border2); letter-spacing: 1px; font-size: 10px; text-transform: uppercase; }
+  #doc-content td { padding: 5px 10px; border: 1px solid var(--border); color: var(--text); vertical-align: top; line-height: 1.6; }
+  #doc-content td.hi { color: var(--accent2); }
+  #doc-content td.warn { color: #e67e22; }
+  #doc-content td.note { color: var(--text2); font-size: 10px; font-style: italic; }
+  #doc-content .redacted { background: #111; color: #111; border-radius: 2px; padding: 0 4px; user-select: none; }
+  #doc-content .mono-block { background: var(--bg2); border: 1px solid var(--border); padding: 12px 14px; margin: 10px 0; line-height: 2; font-size: 11px; color: var(--text2); white-space: pre-wrap; }
+  #doc-content .label { font-size: 10px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; }
+  #doc-content .field { color: var(--accent2); }
+  #doc-content hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+  #doc-content .header-block { background: var(--bg2); border: 1px solid var(--border2); padding: 12px 14px; margin-bottom: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; }
+  #doc-content .hb-row { display: flex; flex-direction: column; }
+  #doc-content .hb-label { font-size: 9px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; }
+  #doc-content .hb-val { font-size: 12px; color: var(--text); }
+  #doc-content .q { color: var(--blue2); margin-bottom: 2px; font-size: 12px; }
+  #doc-content .a { color: var(--text); margin-bottom: 14px; padding-left: 12px; border-left: 2px solid var(--border2); font-size: 12px; line-height: 1.8; }
+  #doc-content .flag { background: #1a0e00; border-left: 3px solid var(--accent); padding: 8px 12px; margin: 10px 0; font-size: 11px; color: var(--accent2); }
+  #welcome { padding: 60px 40px; max-width: 700px; margin: 0 auto; }
+  #welcome h1 { font-size: 22px; color: var(--accent2); letter-spacing: 6px; margin-bottom: 6px; }
+  #welcome .sub { color: var(--text3); letter-spacing: 3px; font-size: 10px; margin-bottom: 30px; }
+  #welcome p { color: var(--text2); line-height: 2; margin-bottom: 14px; font-size: 12px; }
+  #welcome .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+  #welcome .warning-box { border: 1px solid var(--accent); padding: 14px 16px; margin-top: 20px; }
+  #welcome .warning-box p { color: var(--text2); margin: 0; }
+
+  /* Control panel */
+  #control-panel { background: var(--bg2); border-top: 1px solid var(--border2); padding: 10px 16px; flex-shrink: 0; }
+  #control-panel .cp-title { font-size: 9px; letter-spacing: 3px; color: var(--text3); text-transform: uppercase; margin-bottom: 8px; }
+  #stages-container { display: flex; gap: 12px; align-items: flex-start; }
+  .stage-block { flex: 1; background: var(--bg3); border: 1px solid var(--border); padding: 10px 12px; border-radius: 2px; }
+  .stage-block.locked-block { opacity: 0.4; pointer-events: none; }
+  .stage-block.unlocked-block { border-color: var(--green2); opacity: 0.6; pointer-events: none; }
+  .stage-block.active-block { border-color: var(--accent); opacity: 1; pointer-events: auto; }
+  .sb-title { font-size: 9px; letter-spacing: 2px; color: var(--text3); text-transform: uppercase; margin-bottom: 6px; }
+  .sb-prompt { font-size: 10px; color: var(--text2); margin-bottom: 6px; line-height: 1.5; }
+  .sb-input-row { display: flex; gap: 6px; }
+  .sb-input { flex: 1; background: var(--bg); border: 1px solid var(--border2); color: var(--text); font-family: var(--mono); font-size: 11px; padding: 5px 8px; outline: none; }
+  .sb-input:focus { border-color: var(--accent); }
+  .sb-btn { background: var(--bg); border: 1px solid var(--border2); color: var(--text2); font-family: var(--mono); font-size: 10px; padding: 5px 10px; cursor: pointer; letter-spacing: 1px; }
+  .sb-btn:hover { border-color: var(--accent); color: var(--accent2); }
+  .sb-status { font-size: 10px; margin-top: 5px; height: 14px; }
+  .sb-status.ok { color: var(--green2); }
+  .sb-status.err { color: var(--red2); }
+  .stage-complete-badge { font-size: 10px; color: var(--green2); letter-spacing: 1px; margin-top: 4px; }
+
+  /* victory */
+  #victory-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 999; align-items: center; justify-content: center; }
+  #victory-overlay.show { display: flex; }
+  #victory-box { max-width: 640px; border: 1px solid var(--accent); background: var(--bg2); padding: 40px; text-align: center; }
+  #victory-box h1 { color: var(--accent2); font-size: 18px; letter-spacing: 4px; margin-bottom: 16px; }
+  #victory-box p { color: var(--text2); line-height: 2; margin-bottom: 10px; font-size: 12px; }
+  #victory-box .verdict { color: var(--green2); font-size: 14px; letter-spacing: 2px; margin: 20px 0; border: 1px solid var(--green2); padding: 10px; }
+  #victory-box button { background: none; border: 1px solid var(--accent); color: var(--accent2); font-family: var(--mono); padding: 8px 20px; cursor: pointer; letter-spacing: 2px; margin-top: 16px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <div class="logo">◈ METROPOLITAN HOMICIDE DIVISION — CASE FILE INTERFACE</div>
+    <div class="case-id">CASE NO. MHD-2024-0847 &nbsp;|&nbsp; OPERATION: SILENT LEDGER &nbsp;|&nbsp; CLASSIFICATION: RESTRICTED</div>
+  </div>
+  <div id="stage-bar">
+    <div class="stage-pill active" id="sp1">STAGE 1</div>
+    <div class="stage-pill locked" id="sp2">STAGE 2</div>
+    <div class="stage-pill locked" id="sp3">STAGE 3</div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="sidebar">
+    <div class="cat-header">CAT A — INCIDENT REPORTS</div>
+    <button class="file-btn" onclick="showFile('f01')"><span class="file-num">01</span>Emergency Dispatch Log</button>
+    <button class="file-btn" onclick="showFile('f02')"><span class="file-num">02</span>First Responder Notes</button>
+    <button class="file-btn" onclick="showFile('f03')"><span class="file-num">03</span>Media Archive / Press</button>
+
+    <div class="cat-header">CAT B — WITNESS DOSSIERS</div>
+    <button class="file-btn" onclick="showFile('f04')"><span class="file-num">04</span>Interview — N. Hargrove</button>
+    <button class="file-btn" onclick="showFile('f05')"><span class="file-num">05</span>Interview — D. Voss</button>
+    <button class="file-btn" onclick="showFile('f06')"><span class="file-num">06</span>Interview — M. Castellano</button>
+    <button class="file-btn" onclick="showFile('f07')"><span class="file-num">07</span>Interview — R. Ashby</button>
+
+    <div class="cat-header">CAT C — FORENSIC LEDGERS</div>
+    <button class="file-btn" onclick="showFile('f08')"><span class="file-num">08</span>Autopsy / Pathology Report</button>
+    <button class="file-btn" onclick="showFile('f09')"><span class="file-num">09</span>Latent Prints / Trace Ledger</button>
+
+    <div class="cat-header">CAT D — DIGITAL TELEMETRY</div>
+    <button class="file-btn file-locked" id="btn-f10" onclick="showFile('f10')"><span class="file-num">10</span>Router Traffic Log <span class="lock-icon">⊘</span></button>
+    <button class="file-btn file-locked" id="btn-f11" onclick="showFile('f11')"><span class="file-num">11</span>Security Access History <span class="lock-icon">⊘</span></button>
+    <button class="file-btn file-locked" id="btn-f12" onclick="showFile('f12')"><span class="file-num">12</span>Meteorological Log <span class="lock-icon">⊘</span></button>
+
+    <div class="cat-header">CAT E — PHYSICAL ASSETS</div>
+    <button class="file-btn file-locked" id="btn-f13" onclick="showFile('f13')"><span class="file-num">13</span>Crime Scene Catalog <span class="lock-icon">⊘</span></button>
+    <button class="file-btn file-locked" id="btn-f14" onclick="showFile('f14')"><span class="file-num">14</span>Financial Records — Hargrove <span class="lock-icon">⊘</span></button>
+    <button class="file-btn file-locked" id="btn-f15" onclick="showFile('f15')"><span class="file-num">15</span>Laboratory Toxicology Full <span class="lock-icon">⊘</span></button>
+    <button class="file-btn file-locked" id="btn-f16" onclick="showFile('f16')"><span class="file-num">16</span>Toll / GPS Transponder Log <span class="lock-icon">⊘</span></button>
+    <button class="file-btn file-locked" id="btn-f17" onclick="showFile('f17')"><span class="file-num">17</span>Vault Access Manifest <span class="lock-icon">⊘</span></button>
+  </div>
+
+  <div id="viewer">
+    <div id="welcome">
+      <h1>SILENT LEDGER</h1>
+      <div class="sub">MHD-2024-0847 &nbsp;·&nbsp; RESTRICTED ACCESS &nbsp;·&nbsp; INVESTIGATOR EYES ONLY</div>
+      <p>On the morning of <strong>October 14, 2024</strong>, the body of <strong>ELIAS HARGROVE</strong>, 61, senior partner at Hargrove &amp; Voss Capital Management LLC, was discovered in his private office on the 19th floor of the Alderton Building, downtown Carver City. The initial ruling by the responding unit was <strong>acute cardiac arrest, natural causes</strong>. The case was closed within 72 hours.</p>
+      <p>Three weeks later, an anonymous package arrived at MHD containing a partial router traffic log and a single handwritten note reading: <em>"He didn't die. He was erased. Check the time of the last keystroke."</em></p>
+      <p>You are the re-examining investigator. All documentation recovered from the original scene, digital systems, and subsequent warrants has been compiled in this interface. No lead has been pre-filtered. No clue has been highlighted. You must read everything.</p>
+      <hr class="divider">
+      <p>The case has three structural locks. Each lock requires you to identify a specific contradiction in the raw data and input the precise answer in the control panel below. Answers are case-insensitive but must be exact values from the documents — a name, a time, a substance, or a number.</p>
+      <p style="color:var(--text3);">Begin with Category A. Take notes. Cross-reference everything.</p>
+      <div class="warning-box">
+        <p>⚠ This file contains real-seeming forensic, medical, and financial data. All persons, entities, and events are entirely fictional. No hints will be provided by the interface. Estimated investigation time: 90–180 minutes.</p>
+      </div>
+    </div>
+    <div id="doc-content" style="display:none;"></div>
+  </div>
+</div>
+
+<div id="control-panel">
+  <div class="cp-title">◈ THREE-STAGE VERIFICATION LOCK — INVESTIGATOR INPUT REQUIRED</div>
+  <div id="stages-container">
+    <div class="stage-block active-block" id="sb1">
+      <div class="sb-title">Stage 1 — The Core Anomaly</div>
+      <div class="sb-prompt">The official cause of death is cardiac arrest. Cross-reference the autopsy body temperature reading at time of discovery against the 911 dispatch log arrival time and the pathologist's cooling rate formula. What is the <u>latest possible time of death</u> the pathology data permits? (Format: HH:MM, 24-hr)</div>
+      <div class="sb-input-row">
+        <input class="sb-input" id="s1-input" placeholder="e.g. 03:20" />
+        <button class="sb-btn" onclick="checkStage1()">SUBMIT</button>
+      </div>
+      <div class="sb-status" id="s1-status"></div>
+    </div>
+    <div class="stage-block locked-block" id="sb2">
+      <div class="sb-title">Stage 2 — The Technical Discrepancy</div>
+      <div class="sb-prompt">One suspect provided a verbal alibi placing them outside the building during the calculated death window. Cross-reference security badge swipe records, router device logs, and toll transponder data. Which suspect's digital footprint directly contradicts their stated alibi? (Full name)</div>
+      <div class="sb-input-row">
+        <input class="sb-input" id="s2-input" placeholder="First Last" />
+        <button class="sb-btn" onclick="checkStage2()">SUBMIT</button>
+      </div>
+      <div class="sb-status" id="s2-status"></div>
+    </div>
+    <div class="stage-block locked-block" id="sb3">
+      <div class="sb-title">Stage 3 — The Fatal Material Link</div>
+      <div class="sb-prompt">The prime suspect claims they never touched Elias Hargrove or his personal effects. The full toxicology report and the crime scene physical catalog together contain one item that places this person at the exact micro-window. What is the specific substance found in the victim's bloodstream that is only consistent with the compound stored in the suspect's private office supply cabinet? (One word, substance name)</div>
+      <div class="sb-input-row">
+        <input class="sb-input" id="s3-input" placeholder="Substance name" />
+        <button class="sb-btn" onclick="checkStage3()">SUBMIT</button>
+      </div>
+      <div class="sb-status" id="s3-status"></div>
+    </div>
+  </div>
+</div>
+
+<div id="victory-overlay">
+  <div id="victory-box">
+    <h1>⊕ CASE CLOSED — CONVICTION VIABLE</h1>
+    <div class="verdict">SUSPECT IDENTIFIED: DIANA VOSS</div>
+    <p>You have successfully reconstructed all three tiers of the evidentiary chain.</p>
+    <p><strong>Stage 1:</strong> The body temperature of 31.1°C recorded at 07:44 AM is physiologically inconsistent with the official cardiac arrest ruling at 06:00 AM. Algor mortis cooling data places the latest possible time of death at no earlier than <strong>02:20 AM</strong> — over three hours before the building's cleaning staff allegedly discovered him. The 911 call was placed at 07:31 AM, meaning the body cooled for approximately 5 hours, not the stated 1.5. The scene was staged.</p>
+    <p><strong>Stage 2:</strong> Diana Voss claimed she left the Alderton Building at 22:45 on October 13th and drove directly to her home in Westfield, spending the night there. However, her proximity card shows a badge swipe at the 19th floor service entrance at <strong>01:54 AM</strong> on October 14th. Her home router shows her laptop disconnecting from the home Wi-Fi at 00:47 AM — she was never home.</p>
+    <p><strong>Stage 3:</strong> The toxicology panel identifies <strong>digoxin</strong> at 4.8 ng/mL — a dose range lethal in patients with a pre-existing arrhythmia (consistent with Elias Hargrove's documented condition). The crime scene catalog notes a crushed tablet residue on the inner rim of the victim's whiskey glass. Diana Voss's office supply cabinet (Vault Access Manifest, item V-09) contains an unopened foil strip of <em>Lanoxin 0.25mg tablets</em> — brand-name digoxin, prescribed to her deceased mother and never returned to pharmacy. The fingerprint on the glass base matches Voss's right thumb (Latent Prints Ledger, Print ID: LP-004).</p>
+    <button onclick="document.getElementById('victory-overlay').classList.remove('show')">CLOSE DOSSIER</button>
+  </div>
+</div>
+
+<script>
+const FILES = {
+
+f01: `<h1>FILE 01 — EMERGENCY DISPATCH LOG</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Case Ref</div><div class="hb-val">MHD-2024-0847</div></div>
+<div class="hb-row"><div class="hb-label">Incident Date</div><div class="hb-val">October 14, 2024</div></div>
+<div class="hb-row"><div class="hb-label">CAD Incident No.</div><div class="hb-val">CAD-1014-00338</div></div>
+<div class="hb-row"><div class="hb-label">Dispatch Supervisor</div><div class="hb-val">Cpl. R. Fontaine</div></div>
+<div class="hb-row"><div class="hb-label">Originating Exchange</div><div class="hb-val">911 Public Emergency Line</div></div>
+<div class="hb-row"><div class="hb-label">Call Classification</div><div class="hb-val">MEDICAL — UNRESPONSIVE ADULT, POSSIBLE CARDIAC</div></div>
+</div>
+<div class="stamp">ORIGINAL TRANSCRIPT — UNEDITED</div>
+<h2>RAW AUDIO TRANSCRIPTION LOG</h2>
+<div class="mono-block">
+[CALL RECEIVED] — 07:31:04
+DISPATCHER (D): Carver City Emergency, what is your emergency?
+CALLER: Yes — hi — I'm on the 19th floor of the Alderton Building on Commerce Street. I work here as a — I do overnight cleaning. I found someone. He's in his office, he's not moving, he's not—
+D: Okay. Is the person breathing?
+CALLER: I don't — I knocked on the door, it was open, I came in and he was just — he's in his chair. He's not moving at all. His face is — I don't know.
+D: Are you close enough to check for breathing? Can you put your hand near his mouth?
+CALLER: [pause, movement sounds] No. No breathing. He's cold. He's — I think he's been there a while.
+D: Okay. I'm dispatching EMS and police to your location right now. What is your name?
+CALLER: Terrence. Terrence Webb. I'm the overnight cleaner.
+D: Terrence, are you in the office right now?
+CALLER: I'm in the doorway. I didn't touch anything. Should I touch anything?
+D: No, Terrence, please stay where you are. Do not touch anything. Help is on the way.
+D: Can you describe what you see? Is there any sign of struggle, any weapons?
+CALLER: No — it just looks like he was sitting at his desk. He's got a glass on the desk. Papers. Everything looks normal except he's... he's not right.
+D: How long have you been in the building tonight?
+CALLER: Since 11 PM last night. I do the whole building. I was on the lower floors all night. I just got to 19 about ten minutes ago.
+D: So you arrived on the 19th floor approximately 07:20 AM?
+CALLER: Yeah. Maybe 07:22, around there.
+D: And the door to this office — was it locked or unlocked when you arrived?
+CALLER: It was closed, not locked. You just push it and it opens. I thought maybe Mr. Hargrove had fallen asleep in his chair. He does that sometimes. He's done it before.
+D: Understood. Units are four minutes out. Stay on the line with me.
+
+[07:33:12] — D: EMS Unit 7 and Patrol Units 14 and 22 dispatched from Commerce Street Depot.
+
+[07:35:19] — RADIO: Unit 14 to dispatch, we are approaching the Alderton Building. Requesting elevator priority clearance.
+D: Copy, Unit 14. Building management notified. Proceed to 19th floor, office suite 1902.
+
+[07:36:44] — RADIO: Unit 14 on scene, 19th floor. We have visual on the subject. EMS on elevator.
+
+[07:37:02] — RADIO: EMS Unit 7 on scene. Subject is non-responsive, no pulse. Pupils fixed and dilated. No signs of respiration. Body appears to have been non-viable for an extended period. We are not initiating resuscitation. We are declaring at the scene.
+
+[07:37:44] — D: Copy, EMS Unit 7. Time of declaration 07:37:44. Notifying on-call Medical Examiner.
+
+[07:38:20] — RADIO: Unit 14 to dispatch: Detective on-call requested. We have a non-traumatic presentation but something doesn't look right to me. Requesting MHD notification.
+D: Copy, Unit 14. Paging Detective Sergeant Lim.
+
+[07:39:55] — D: DS Lim notified, ETA 25 minutes.
+
+[08:04:11] — RADIO: Unit 14: DS Lim on scene.
+
+[END OF ACTIVE LOG — CAD-1014-00338]
+[CALL DURATION: 00:08:47]
+</div>
+<h2>DISPATCH ANNOTATION</h2>
+<p><span class="label">Notation by Cpl. Fontaine, 07:52 AM:</span> Caller (Webb) confirmed he had been in the building since 23:00 hrs October 13 and reached the 19th floor at approximately 07:22 hrs October 14. No other persons reported by caller on the 19th floor during their arrival. Building front desk security log (submitted separately) reflects no after-hours access entries after 23:14 hrs, which is the last recorded keycard entry logged in the lobby system. This conflicts with <span class="warn">what security reported on record</span> per the lobby desk officer — however, the <span class="warn">19th floor secondary access point is on a separate badge system</span> that was NOT checked at time of initial report.</p>
+<p><span class="label">Note:</span> The EMS declaration of "extended period of non-viability" was not formally quantified at scene. Pathology follow-up required for time-of-death estimation.</p>`,
+
+f02: `<h1>FILE 02 — FIRST RESPONDER FIELD NOTES</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Reporting Officer</div><div class="hb-val">Patrol Officer D. Meehan, Unit 14</div></div>
+<div class="hb-row"><div class="hb-label">Badge No.</div><div class="hb-val">CCE-4471</div></div>
+<div class="hb-row"><div class="hb-label">On-Scene Arrival</div><div class="hb-val">07:36:44, October 14, 2024</div></div>
+<div class="hb-row"><div class="hb-label">Scene Address</div><div class="hb-val">Alderton Building, Suite 1902, 19th Floor, 45 Commerce Street, Carver City</div></div>
+<div class="hb-row"><div class="hb-label">Notes Status</div><div class="hb-val">RAW FIELD — NOT FINALIZED</div></div>
+</div>
+<div class="stamp">FIELD COPY — NOT FOR DISTRIBUTION</div>
+<h2>SCENE DESCRIPTION — INITIAL OBSERVATION</h2>
+<p>Arrived on 19th floor at 07:36. Caller (Webb, T.) located in doorway of suite 1902. Webb visibly distressed, cooperating. Instructed him to wait in corridor.</p>
+<p>Suite 1902 is a large corner office, approximately 40 by 30 feet. Floor-to-ceiling windows on the east and south walls. Exterior temperature upon arrival was noted by radio dispatch as <strong>4°C (39°F)</strong>, overcast with intermittent light rain. Windows in subject's office appeared fully closed. Thermostat on interior wall read <strong>22°C (72°F)</strong>. Thermostat appears to be functioning — the room felt warm to me when I entered.</p>
+<p>SUBJECT: Male, appearing late 50s to early 60s. Seated in high-back leather executive chair behind a large walnut desk. Posture slumped slightly forward but body had not fallen. Hands resting on the desk surface. Dress: dark charcoal suit, white dress shirt (collar button open), no tie. No visible external injuries. No blood. No apparent trauma to face, head, or hands. Complexion was grey-pale. Lips slightly blue.</p>
+<p>I placed my hand on the subject's neck (non-dominant, exterior surface, to check for pulse). Skin was notably cold to the touch — significantly colder than ambient room temperature. This is what prompted my request for a detective. In my experience, if someone dies in a warm room of cardiac arrest within the last hour or two, their skin retains residual warmth for quite some time. This subject felt like something left in a refrigerator. This concerned me.</p>
+<h2>DESK AND IMMEDIATE SURROUNDINGS</h2>
+<p>On the desk surface: a 15-inch laptop computer (lid closed), a cut-crystal glass containing approximately 2cm of an amber liquid (consistent with whiskey), a loose scatter of financial documents and printouts, a legal pad with handwritten notes (partially visible — appeared to be column figures), a black Montblanc pen (uncapped, lying perpendicular to the pad), a ceramic desk lamp (illuminated and on when I arrived), and a mobile phone (screen dark, face-up).</p>
+<p>Glass contents: I did not touch or move the glass. The liquid inside appeared undisturbed. I noted what appeared to be a faint white residue around the <strong>inner rim</strong> of the glass approximately 1cm below the liquid surface line. This may be mineral deposits from the water or spirits but I flagged it for the forensic team.</p>
+<p>The desk lamp was on. The overhead fluorescent lights were off. Only the lamp and ambient city light through the windows provided illumination.</p>
+<h2>CLIMATE AND ENVIRONMENTAL CONDITIONS</h2>
+<p>Interior thermostat: 22°C. I asked building management (via phone while on scene) when the HVAC was last active for suite 1902. Building manager (name: Pruitt, G.) stated the individual office HVAC unit for suite 1902 was on a <strong>scheduled overnight timer</strong> that runs from <strong>08:00 PM to 11:00 PM</strong> (2000–2300 hrs) on weekdays to reduce energy costs. After 2300 hrs, the office defaults to a passive state maintained by residual building heat. The thermostat reading of 22°C would be the residual temperature, NOT actively maintained.</p>
+<p><span class="flag">⚑ Officer note: This means the office was passively cooling from approximately 23:00 hrs onward. I flagged this to DS Lim as significant for any time-of-death calculation because it means the body cooled in a room that was itself gradually losing heat. The pathologist needs to account for this.</span></p>
+<h2>ADDITIONAL OBSERVATIONS</h2>
+<p>No food items visible on or near the desk. No medication bottles visible in the immediate office area. Desk drawers were all closed. Credenza behind the desk was closed. Small personal bar cart in the corner of the room (south wall) — one bottle of Scotch whiskey (Glenfiddich 18yr, approximately one-third remaining), one bottle of still water, two additional cut-crystal glasses (clean, unused). <strong>A fourth glass was missing from the set</strong> — the bar cart has four glass holders. Three glasses present on cart, one on desk (the victim's). This is possibly irrelevant (he may have simply not replaced it) but I flagged it.</p>
+<p>The office door lock: Suite 1902 has a standard proximity card reader on the exterior hall side. The door was found <strong>unlatched but closed</strong>. A proximity card reader should have logged the last lock/unlock events. I requested this log be pulled — it was not retrieved during the initial 72-hour investigation window.</p>
+<p>I am submitting a formal addendum requesting the 19th floor secondary badge access records be obtained under subpoena as I believe there is a significant time-of-death discrepancy that is not explained by the official cardiac arrest ruling.</p>`,
+
+f03: `<h1>FILE 03 — LOCAL MEDIA ARCHIVE</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Source</div><div class="hb-val">Carver City Sentinel, Print Edition</div></div>
+<div class="hb-row"><div class="hb-label">Publication Date</div><div class="hb-val">October 15, 2024</div></div>
+<div class="hb-row"><div class="hb-label">Section</div><div class="hb-val">Business / Obituaries</div></div>
+<div class="hb-row"><div class="hb-label">Archived By</div><div class="hb-val">MHD Records Unit — re-investigation file</div></div>
+</div>
+<div class="stamp">PRESS ARCHIVE — NOT EVIDENCE</div>
+<h2>ARTICLE — "CARVER CITY FINANCIER ELIAS HARGROVE DEAD AT 61"</h2>
+<p><em>Elias Hargrove, co-founder and senior managing partner of Hargrove &amp; Voss Capital Management LLC, was found dead Monday morning in his downtown office. He was 61.</em></p>
+<p><em>Hargrove &amp; Voss, a mid-sized private equity and asset management firm with approximately $2.4 billion in assets under management, confirmed the death in a brief statement, calling Hargrove "an irreplaceable figure" and asking for privacy during "this difficult and unexpected time." The firm did not confirm details of the cause of death.</em></p>
+<p><em>Hargrove had been a fixture of Carver City's financial community for over three decades. He co-founded the firm with Diana Voss in 1998 after departing from First Continental Bank, where the two had worked together in the corporate advisory division. Hargrove served as the public face and primary rainmaker of the firm while Voss managed internal operations and portfolio oversight.</em></p>
+<p><em>According to sources close to the firm, Hargrove had recently been in dispute with several partners over a proposed restructuring plan that would have significantly altered the firm's equity distribution. Three current partners declined to comment on record. One former associate of the firm, speaking anonymously, told the Sentinel: "Elias was trying to push through a plan that would have effectively reduced Diana Voss's ownership stake from 40% to something like 22%. It was going to be a war. That meeting was supposed to happen this week."</em></p>
+<p><em>Hargrove is survived by his son, Nathan Hargrove, and his daughter, Paige Hargrove-Okafor. He had been divorced from his first wife, Caroline Hargrove (née Marsh), since 2009.</em></p>
+<p><em>A visitation is being held at the Alderton Funeral Home on Friday.</em></p>
+<hr>
+<h2>EDITORIAL SIDEBAR — "THE RESTRUCTURING RUMOR"</h2>
+<p><em>Financial circles in Carver City have been quietly buzzing about what insiders call "The Hargrove Memo" — an alleged internal document circulated in late September that outlined a proposed restructuring of Hargrove &amp; Voss that would have dramatically reduced the economic interest of co-founder Diana Voss, 57. The memo, which the Sentinel was unable to independently verify, reportedly proposed that Voss be transitioned to a "senior advisor" role with a corresponding reduction in her carried interest from the firm's flagship fund, H&amp;V Capital Fund IV.</em></p>
+<p><em>Fund IV, which closed at $840 million in 2021, has been outperforming its benchmark and is expected to generate substantial carried interest distributions beginning in 2026. Sources estimate Voss's 40% stake in these distributions could be worth between $18 and $35 million over a three-year payout window. Under the proposed restructuring, she would receive significantly less.</em></p>
+<p><em>Voss did not respond to the Sentinel's request for comment. A spokesperson for the firm said the memo was "speculative and taken out of context."</em></p>
+<hr>
+<h2>BRIEF — LOCAL BUSINESS NOTES</h2>
+<p><em>Marcus Castellano, director of portfolio operations at H&amp;V, was reportedly in active negotiations with three institutional investors in the week of Hargrove's death, conducting roadshow meetings for a potential Fund V offering. Castellano was present at the firm's offices on the afternoon of October 13th for an internal prep session, according to the firm's public calendar, which was archived before being taken offline the day following Hargrove's death.</em></p>`,
+
+f04: `<h1>FILE 04 — INTERROGATION TRANSCRIPT — NATHAN HARGROVE</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Subject</div><div class="hb-val">Nathan Hargrove, 34 (Son of decedent)</div></div>
+<div class="hb-row"><div class="hb-label">Interview Date</div><div class="hb-val">October 15, 2024, 10:00 AM</div></div>
+<div class="hb-row"><div class="hb-label">Location</div><div class="hb-val">MHD Interview Room 3</div></div>
+<div class="hb-row"><div class="hb-label">Interviewing Officer</div><div class="hb-val">DS Lim (lead), DC Petrov</div></div>
+<div class="hb-row"><div class="hb-label">Counsel Present</div><div class="hb-val">No</div></div>
+<div class="hb-row"><div class="hb-label">Recording Ref</div><div class="hb-val">AV-2024-1015-NH</div></div>
+</div>
+<h2>TRANSCRIPT EXCERPT — EDITED FOR BREVITY BY DS LIM</h2>
+<p class="q">DS LIM: Nathan, thank you for coming in. I know this is an incredibly difficult time. Can you tell us about your relationship with your father in the weeks leading up to his death?</p>
+<p class="a">NATHAN HARGROVE: It was... tense. I don't want to sugarcoat it. Dad and I had been arguing about the restructuring plan. He wanted to use it as a way to consolidate control of the firm before — and this is my reading of it — before he retired. He wanted to set things up so that when he stepped back, his voting bloc would still run the place. Diana was the main target but I thought the whole thing was badly timed and potentially legally exposed.</p>
+<p class="q">DS LIM: You work at the firm?</p>
+<p class="a">NATHAN: I'm a junior partner. I've been there six years. My father brought me in. It's been complicated. I've tried to carve out my own lane but — look, people at the firm always saw me as an extension of him, which is both a door and a ceiling at the same time.</p>
+<p class="q">DS LIM: When did you last see your father alive?</p>
+<p class="a">NATHAN: Sunday evening. October 13th. I stopped by his office around — I think it was six-thirty, maybe quarter to seven. We were supposed to go over some prep materials together for the board meeting that was scheduled for the 15th. We went over a few things, had a drink — he had his Scotch, I had water, I don't really drink — and then it became an argument again about the restructuring terms. I left maybe around 7:45, 8 PM. I was frustrated. That was the last time I saw him.</p>
+<p class="q">DS LIM: And after you left, where did you go?</p>
+<p class="a">NATHAN: Home. I live in Millview, about 35 minutes out. I took the 101 North. I got in, I ate something I had in the fridge — leftover Thai food — I watched some TV, I went to bed around 11. My phone records can verify I was home — I was texting with my partner, Jess, who was traveling, from about 9 PM to 11 PM. She's in London right now.</p>
+<p class="q">DS LIM: And you heard about your father the next morning?</p>
+<p class="a">NATHAN: Diana called me at — I think it was 8:15 AM. She said there'd been an incident. She sounded very controlled, very composed. She said Dad had been found at his desk, that it looked like his heart. I thought that was plausible — he had a diagnosed arrhythmia, he'd been under enormous stress. But then — I don't know. Something about how quickly she called me. How she already knew it was his heart. The paramedics had only just declared him, and she was already telling me the cause of death.</p>
+<p class="q">DS LIM: Did your father take any medication for the arrhythmia?</p>
+<p class="a">NATHAN: Yes. He was on digoxin. Has been for years. Tiny dose — 0.125 mg a day, I think. He was very careful about it. His cardiologist, Dr. Ruiz at Carver City Medical, managed it. The thing about digoxin is the therapeutic window is very narrow. Too little and it doesn't help the arrhythmia. Too much and it — it can kill you. Dad knew that. He was meticulous about not taking more than his prescribed dose. He wouldn't even take a second drink some nights because he was worried about interactions.</p>
+<p class="q">DC PETROV: Had anyone else at the firm ever discussed his medication with him, to your knowledge?</p>
+<p class="a">NATHAN: Diana knew about it. They'd been business partners for 26 years. She knew everything about him. I remember one time, maybe two or three years ago, she made a comment at a team dinner — we were talking about his glass of Scotch and she said something like, "One is all you're ever getting, Elias, doctor's orders." And she winked. Like it was a joke. But she knew exactly what his medication situation was. She knew the dose, she knew the restrictions. She'd been around it long enough.</p>
+<p class="q">DS LIM: Do you believe Diana Voss had something to do with your father's death?</p>
+<p class="a">NATHAN: I believe Diana Voss stood to lose somewhere between fifteen and thirty million dollars if that restructuring went through. I believe she knew how to kill someone with digoxin and make it look like his heart just gave out. And I believe she is one of the most controlled, careful, analytically brilliant people I have ever met. Whether she did it? That's what you're supposed to tell me. [Pause.] I left his office at 7:45. He was alive when I walked out. Diana was still in the building — her car was in the garage. I saw it.</p>`,
+
+f05: `<h1>FILE 05 — INTERROGATION TRANSCRIPT — DIANA VOSS</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Subject</div><div class="hb-val">Diana Voss, 57 (Co-founder, Hargrove &amp; Voss Capital)</div></div>
+<div class="hb-row"><div class="hb-label">Interview Date</div><div class="hb-val">October 15, 2024, 2:00 PM</div></div>
+<div class="hb-row"><div class="hb-label">Location</div><div class="hb-val">MHD Interview Room 1</div></div>
+<div class="hb-row"><div class="hb-label">Interviewing Officer</div><div class="hb-val">DS Lim (lead), DC Petrov</div></div>
+<div class="hb-row"><div class="hb-label">Counsel Present</div><div class="hb-val">Yes — Adv. Margaret Chen (Chen &amp; Whitmore LLP)</div></div>
+<div class="hb-row"><div class="hb-label">Recording Ref</div><div class="hb-val">AV-2024-1015-DV</div></div>
+</div>
+<h2>TRANSCRIPT EXCERPT</h2>
+<p class="q">DS LIM: Ms. Voss, thank you for your time. Can you walk us through your evening on October 13th?</p>
+<p class="a">DIANA VOSS: Of course. I was in the office until approximately 10:30, maybe 10:45 in the evening. I had a substantial amount of work to prepare — the following week's board presentation, fund performance notes, and some compliance documentation that had a Friday deadline. I was in my office, suite 1918, which is at the other end of the 19th floor from Elias.</p>
+<p class="q">DS LIM: Did you see Elias that evening?</p>
+<p class="a">VOSS: I saw him briefly in the afternoon, around five o'clock. We had a short and honestly rather unpleasant conversation about the restructuring proposal. I told him I had retained counsel and that I had significant objections. He was dismissive. After that, I did not see him again. I stayed in my own office.</p>
+<p class="q">DS LIM: What time did you leave the building?</p>
+<p class="a">VOSS: I left at 22:45. I remember looking at my watch when I packed up — I have a habit of doing that. I took the elevator to the garage on level B2. My car, a black Audi A6, was parked in stall B2-14. I drove straight home to Westfield. I arrived home at approximately 23:40. I poured myself a glass of wine, reviewed some emails on my laptop, and went to bed around midnight, 12:15 perhaps.</p>
+<p class="q">DS LIM: Did you stop anywhere on your way home?</p>
+<p class="a">VOSS: No. Straight home on the 78 West, then Route 9 to Westfield. I have an EZ-Pass transponder on the car. It would have logged my toll on the 78.</p>
+<p class="q">DS LIM: And you were home all night from that point?</p>
+<p class="a">VOSS: Yes. I didn't leave the house until the following morning. I woke up around six, had coffee, showered, and I was back in the car heading to the office by seven. I received a call from the building security desk around 7:50 — they asked me to contact management urgently. I was already on my way in. A partner at the firm, Marcus Castellano, called me moments later and told me Elias had been found. I called Nathan immediately.</p>
+<p class="q">DS LIM: Ms. Voss, are you aware that we are re-examining the circumstances of Mr. Hargrove's death?</p>
+<p class="a">VOSS: [pause] I am aware the initial ruling was cardiac arrest and I assumed that was the conclusion of the matter. If there is reason to re-examine it, I would want that to be done rigorously and completely. Elias was my business partner for twenty-six years. I want answers as much as anyone.</p>
+<p class="q">DC PETROV: Did you have any prescription medications at the office — either your own or any you managed on behalf of family?</p>
+<p class="a">VOSS: [to counsel] Am I required to answer that? [Adv. Chen confers.] Yes. I have some personal items in my office supply cabinet. Ibuprofen, some antihistamines. My mother passed away earlier this year and I — I hadn't fully cleared out some things that were hers. Some of her medications that hadn't been returned. I kept meaning to take them to a pharmacy drop box.</p>
+<p class="q">DC PETROV: Do you recall what medications those were?</p>
+<p class="a">VOSS: I don't recall exactly. Some heart medication, I think. She had a heart condition in her final years. [Pause.] I honestly haven't looked in that cabinet in months.</p>
+<p class="q">DS LIM: Are you familiar with digoxin, Ms. Voss?</p>
+<p class="a">VOSS: [long pause] I know it's a heart medication. I know Elias took it. I'm not a pharmacist.</p>
+<p class="q">DS LIM: Nathan Hargrove recalls you making a specific comment at a dinner about Elias's medication restrictions. He suggests you were very familiar with the dosage limitations.</p>
+<p class="a">VOSS: [to counsel] I don't think I need to respond to secondhand recollections. [Adv. Chen: "You don't."] I'll say this — Elias and I worked together for a very long time. I knew generally that he had a heart condition and took medication for it. The specifics of his medical regimen were not my business and frankly I had neither the interest nor the training to understand them in any technical depth.</p>`,
+
+f06: `<h1>FILE 06 — INTERROGATION TRANSCRIPT — MARCUS CASTELLANO</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Subject</div><div class="hb-val">Marcus Castellano, 49 (Director of Portfolio Operations, H&amp;V)</div></div>
+<div class="hb-row"><div class="hb-label">Interview Date</div><div class="hb-val">October 16, 2024, 09:30 AM</div></div>
+<div class="hb-row"><div class="hb-label">Location</div><div class="hb-val">MHD Interview Room 2</div></div>
+<div class="hb-row"><div class="hb-label">Interviewing Officer</div><div class="hb-val">DS Lim, DC Petrov</div></div>
+<div class="hb-row"><div class="hb-label">Counsel Present</div><div class="hb-val">No</div></div>
+<div class="hb-row"><div class="hb-label">Recording Ref</div><div class="hb-val">AV-2024-1016-MC</div></div>
+</div>
+<h2>TRANSCRIPT EXCERPT</h2>
+<p class="q">DS LIM: Marcus, how long have you been at H&amp;V?</p>
+<p class="a">MARCUS CASTELLANO: Coming up on twelve years. I joined as a senior analyst and worked my way up. I handle portfolio operations, fund reporting, and a lot of the investor relationship infrastructure on the operational side.</p>
+<p class="q">DS LIM: Walk us through October 13th from your perspective.</p>
+<p class="a">CASTELLANO: I was in the office most of the day. We had a roadshow prep session in the afternoon — conference room B on 19 — from about two to four-thirty. Elias was there, Diana was there, two of our IR people, and me. It was tense. Elias and Diana were barely making eye contact.</p>
+<p class="q">DS LIM: What happened after the prep session?</p>
+<p class="a">CASTELLANO: I stayed in my office until about seven. I had a call with our outside legal counsel about some LP documentation at six. Then I packed up and left. I took the parking garage elevator, my car is on B3. I was out of the building by seven-fifteen, seven-twenty at the latest.</p>
+<p class="q">DS LIM: Where did you go after leaving?</p>
+<p class="a">CASTELLANO: I went to Rucci's — the Italian place on Fifth. I had a standing dinner with my brother-in-law, every other Sunday. We ate there from about seven forty-five to nine-thirty. Then I went home — I live in Northgate, about twenty minutes from downtown. I was in bed by eleven.</p>
+<p class="q">DS LIM: Can your brother-in-law confirm this?</p>
+<p class="a">CASTELLANO: Yes, absolutely. His name is Thomas Reeves. He'll confirm. We had risotto. [laughs uncomfortably] Sorry. It just seems strange to have to remember what I ate.</p>
+<p class="q">DS LIM: Were you aware of the firm's restructuring discussions?</p>
+<p class="a">CASTELLANO: Of course. Everyone was. It was the kind of thing that gets whispered about. I knew Elias wanted to reduce Diana's stake. I thought it was a bad idea, not because Diana didn't deserve to have her interests protected, but because the partnership agreement had some provisions that would make a contested restructuring extremely costly for the firm. I told Elias that privately. He wasn't interested in my legal opinion.</p>
+<p class="q">DS LIM: Was there anyone else you're aware of who had access to suite 1902 on the evening of October 13th beyond the people already mentioned?</p>
+<p class="a">CASTELLANO: Terrence Webb would have had access — he's the overnight cleaner. But he wouldn't enter an occupied office. He does the 19th floor last because Elias always works late and Terrence waits until the offices are empty. Beyond that — only someone with a keycard for the 19th floor service access. That's a short list. Senior partners, a couple of admin staff, facilities management. Diana had one. I had one. Nathan had one.</p>
+<p class="q">DS LIM: Do you know whether Diana Voss returned to the building after leaving that night?</p>
+<p class="a">CASTELLANO: [pause] I don't know. I was gone by seven-fifteen. But I will say — Diana is someone who frequently comes back. She'll realize she forgot something and just drive back. It's not unusual for her to be in the building at unusual hours. She's extraordinarily dedicated. Was extraordinarily dedicated to the work. I guess that's past tense now.</p>`,
+
+f07: `<h1>FILE 07 — INTERROGATION TRANSCRIPT — RAYMOND ASHBY</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Subject</div><div class="hb-val">Raymond Ashby, 66 (Building Facilities Manager, Alderton Building)</div></div>
+<div class="hb-row"><div class="hb-label">Interview Date</div><div class="hb-val">October 16, 2024, 2:00 PM</div></div>
+<div class="hb-row"><div class="hb-label">Location</div><div class="hb-val">MHD Interview Room 3</div></div>
+<div class="hb-row"><div class="hb-label">Interviewing Officer</div><div class="hb-val">DC Petrov</div></div>
+<div class="hb-row"><div class="hb-label">Counsel Present</div><div class="hb-val">No</div></div>
+<div class="hb-row"><div class="hb-label">Recording Ref</div><div class="hb-val">AV-2024-1016-RA</div></div>
+</div>
+<h2>TRANSCRIPT EXCERPT</h2>
+<p class="q">DC PETROV: Mr. Ashby, you manage the building systems for the Alderton Building?</p>
+<p class="a">RAYMOND ASHBY: Correct. Going on fourteen years. I manage HVAC, access control, the freight and service elevators, common area maintenance, and contractor scheduling. I also have oversight of the security badge infrastructure — not the cameras, that's contracted to SecureLink, but the physical access hardware and the door logs.</p>
+<p class="q">DC PETROV: Can you explain the two different access systems we've been told about — the lobby system versus the 19th floor secondary access?</p>
+<p class="a">ASHBY: Yeah, so the lobby system is the one everyone knows about. You swipe into the lobby turnstile, it logs you and tells security. That's the main public-facing log. But on the 19th floor specifically — the H&amp;V floor — there's a secondary service corridor with its own card reader. It was put in about six years ago when H&amp;V expanded to take the full floor. They wanted a back entrance from the service elevator bank so staff could move around without going through the main lobby every time. That reader runs on a different subnet. It's logged separately on our building management system — it's not shown on the main lobby report unless you specifically export it.</p>
+<p class="q">DC PETROV: And the 19th floor service access log — was it requested by police during the original 72-hour investigation?</p>
+<p class="a">ASHBY: No. Nobody asked me about it until you called me last week. The original officers asked me for the lobby badge log and the main elevator records. I gave them what they asked for. Nobody specifically asked about the 19th floor secondary reader. I didn't volunteer it because frankly I assumed if they needed it, they'd ask. In hindsight, I wish I'd said something.</p>
+<p class="q">DC PETROV: I have the secondary access log here, which you provided to us pursuant to the subpoena last week. Can you confirm this is the complete and unaltered export?</p>
+<p class="a">ASHBY: Yes. That's the full export from the door hardware controller for reader ID: LD-19F-02, covering the period of October 13, 2024 from 1600 hrs to October 14, 2024 at 1200 hrs. I can testify to its authenticity in court if needed.</p>
+<p class="q">DC PETROV: Looking at the log, how many distinct badge holders accessed the 19th floor service entrance during that window?</p>
+<p class="a">ASHBY: Looking at it now — four distinct badge IDs. Webb's cleaning crew pass (which is a master pass, not individual), two H&amp;V employee badges, and one facilities management pass that would be mine. I was there earlier in the afternoon checking an HVAC sensor on 19 — that's logged at 16:22.</p>
+<p class="q">DC PETROV: Are you able to identify which H&amp;V employee badges are which?</p>
+<p class="a">ASHBY: The badge IDs are in our system. Badge HV-0012 is assigned to Marcus Castellano. Badge HV-0007 is assigned to Diana Voss. Badge HV-0019 is assigned to Nathan Hargrove. Only HV-0007 and HV-0019 appear in the overnight window. You can cross-reference the badge assignment table in our records.</p>`,
+
+f08: `<h1>FILE 08 — PATHOLOGY / AUTOPSY REPORT</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Decedent</div><div class="hb-val">Elias James Hargrove, M, DOB 12/04/1962, Age 61</div></div>
+<div class="hb-row"><div class="hb-label">Autopsy Case No.</div><div class="hb-val">CCME-2024-1847</div></div>
+<div class="hb-row"><div class="hb-label">Performing Pathologist</div><div class="hb-val">Dr. Yvonne Strauss, MD, Carver City Medical Examiner</div></div>
+<div class="hb-row"><div class="hb-label">Autopsy Date</div><div class="hb-val">October 14, 2024 — commenced 11:30 AM</div></div>
+<div class="hb-row"><div class="hb-label">Scene Temperature Reading</div><div class="hb-val">Body surface (rectal) temperature at first measurement: 31.1°C. Measured by EMS at 07:44 AM at scene.</div></div>
+<div class="hb-row"><div class="hb-label">Ambient Room Temperature at Measurement</div><div class="hb-val">Estimated 19–20°C (room cooling from HVAC shutoff at 23:00, see Field Notes)</div></div>
+</div>
+<div class="stamp">OFFICIAL MEDICAL EXAMINER DOCUMENT</div>
+<h2>EXTERNAL EXAMINATION</h2>
+<p>The body is that of a well-developed, well-nourished white male, appearing consistent with stated age of 61 years. Height: 182 cm. Weight: 94.3 kg. No external injuries identified. No lacerations, contusions, abrasions, puncture wounds, or signs of blunt force trauma. Lividity: fixed, posterior distribution, consistent with prolonged supine or seated position. <strong>Lividity fully fixed bilaterally</strong> — indicative of the body remaining in one position for a minimum of 8–10 hours after death.</p>
+<p>Facial cyanosis (bluish discolouration of lips and nail beds) is present. Mild perioral froth not present. Eyes: corneal clouding noted, consistent with extended postmortem interval. No petechial haemorrhages in sclera.</p>
+<h2>RIGOR MORTIS ASSESSMENT</h2>
+<p>Rigor mortis present and <strong>fully established in all major muscle groups</strong> at time of examination (11:30 AM). This indicates that at minimum, rigor had been fully set for several hours prior to examination. Under standard conditions (ambient temperature of approximately 18–22°C), full rigor typically develops within 6–12 hours of death and remains for 12–24 hours before resolving. The presence of full, established rigor at 11:30 AM is consistent with a time of death in the late night or very early morning hours of October 13–14.</p>
+<h2>ALGOR MORTIS (BODY COOLING) CALCULATION</h2>
+<p>Using the Henssge nomogram and standard algor mortis formula for ambient-adjusted cooling rate:</p>
+<div class="mono-block">
+FORMULA APPLIED:
+Time since death (hrs) ≈ (Normal body temp − Measured body temp) / (Cooling rate adjusted for ambient)
+
+Standard body temp at death: 37.0°C
+Measured body temp at 07:44 AM: 31.1°C
+Difference: 5.9°C
+
+Ambient room temp (estimated range): 19°C–20°C
+Note: Room was passively cooling from 23:00 hrs; ambient temp at time of death likely higher.
+Adjusted cooling rate estimate: 0.8°C–1.1°C per hour
+(Standard rate is 1.0°C/hr in still air at 18–22°C; rate slightly reduced due to body mass)
+
+Calculation (using 1.0°C/hr midpoint rate):
+5.9°C ÷ 1.0°C/hr = 5.9 hours prior to measurement at 07:44 AM
+
+ESTIMATED TIME OF DEATH (MIDPOINT): 07:44 AM minus 5.9 hours = approximately 01:50 AM
+
+RANGE ACCOUNTING FOR RATE UNCERTAINTY:
+Using 0.8°C/hr (slower rate) → 5.9 ÷ 0.8 = 7.375 hrs → TOD approx 00:21 AM
+Using 1.1°C/hr (faster rate) → 5.9 ÷ 1.1 = 5.36 hrs → TOD approx 02:23 AM
+
+CONCLUSION: Time of death estimated between 00:21 AM and 02:23 AM on October 14, 2024.
+LATEST POSSIBLE TIME OF DEATH (95th percentile upper bound): 02:20 AM
+</div>
+<div class="flag">⚑ PATHOLOGIST NOTE — DR. STRAUSS: The initial police narrative described cardiac arrest at or around 06:00 AM, inferring approximately 1.5 hours prior to discovery at 07:30 AM. This is PHYSIOLOGICALLY INCONSISTENT with the observed body temperature. A body cooling for only 1.5 hours in a 22°C room would retain a temperature far closer to 37°C, not 31.1°C. The scene was either misread, the death occurred significantly earlier than stated, or both. I am formally flagging this case for re-examination.</div>
+<h2>INTERNAL EXAMINATION</h2>
+<p>Cardiovascular system: Mild coronary artery disease consistent with age and known arrhythmia history. No acute myocardial infarction identified. No fresh thrombus. <strong>The coronary findings do not support sudden cardiac death as the primary mechanism</strong> — the disease burden is insufficient for a fatal cardiac event in the absence of other stressors.</p>
+<p>Pulmonary system: Normal. No pulmonary embolism. No oedema. No evidence of aspiration.</p>
+<p>Gastrointestinal: Stomach contents analysed — approximately 200ml of partially digested material consistent with light meal several hours prior to death. No significant gastric findings.</p>
+<h2>TOXICOLOGY — PRELIMINARY RESULTS</h2>
+<p>Blood samples drawn for full toxicology panel. Preliminary screen flags: <strong>elevated serum digoxin detected (exact ng/mL quantification pending full lab analysis)</strong>. Alcohol present: 0.04 BAC — sub-intoxicating level, consistent with one to two standard drinks several hours prior to death. Full toxicology report filed separately as File 15 (Stage 3 access required).</p>
+<h2>CAUSE AND MANNER OF DEATH</h2>
+<p><span class="label">Cause of Death (PENDING FINAL):</span> Pending full toxicology. Primary mechanism: probable digoxin toxicity. Contributing factor: known underlying cardiac arrhythmia (pre-existing vulnerability).</p>
+<p><span class="label">Manner of Death:</span> UNDETERMINED — pending further investigation. Not consistent with natural cardiac arrest as initially stated.</p>`,
+
+f09: `<h1>FILE 09 — LATENT PRINTS / TRACE EVIDENCE LEDGER</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Case Ref</div><div class="hb-val">MHD-2024-0847</div></div>
+<div class="hb-row"><div class="hb-label">Laboratory</div><div class="hb-val">Carver City Forensic Science Centre, Trace Unit</div></div>
+<div class="hb-row"><div class="hb-label">Submitted By</div><div class="hb-val">DS Lim / Scene Recovery Team</div></div>
+<div class="hb-row"><div class="hb-label">Report Date</div><div class="hb-val">October 22, 2024</div></div>
+</div>
+<div class="stamp green">LABORATORY CERTIFIED</div>
+<h2>ITEM INVENTORY AND PRINT/TRACE FINDINGS</h2>
+<table>
+<tr><th>Item ID</th><th>Description</th><th>Prints Found</th><th>Print ID / Match</th><th>Trace / Other</th></tr>
+<tr><td>CSI-001</td><td>Cut crystal whiskey glass, desk surface</td><td>YES — 3 distinct prints</td><td>LP-001 (palm, right hand, partial) — DECEDENT ELIAS HARGROVE confirmed via elimination prints<br>LP-002 (index + middle finger, right hand) — DECEDENT HARGROVE<br><span class="hi">LP-004 (thumb, right hand, full) — MATCHED: DIANA VOSS (comparison per criminal clearance file on file with CCPD, submitted voluntarily 2019 per financial regulator requirement)</span></td><td>White powdery residue detected on inner rim above liquid line. Sample submitted. See trace report CSI-001-T.</td></tr>
+<tr><td>CSI-002</td><td>Legal pad, desk surface</td><td>YES</td><td>LP-003 — DECEDENT HARGROVE (multiple)</td><td>Handwriting analysis pending. Top visible page: financial figures, column sums.</td></tr>
+<tr><td>CSI-003</td><td>Laptop computer (lid closed)</td><td>YES</td><td>LP-005 — DECEDENT HARGROVE (keyboard surface, multiple)</td><td>Digital forensics: last keystroke recorded at 22:04:38, October 13, 2024. Device hibernated at 22:07:11. See router log File 10.</td></tr>
+<tr><td>CSI-004</td><td>Montblanc pen (uncapped, on desk)</td><td>YES</td><td>LP-006 — DECEDENT HARGROVE</td><td>Ink still wet-adjacent at time of recovery — suggests pen used within 2–4 hours prior to collection at 09:30 AM. This is inconsistent with a TOD of 02:00 AM. Note filed for pathologist review.</td></tr>
+<tr><td>CSI-005</td><td>Mobile phone (face-up, screen dark)</td><td>YES</td><td>LP-007 — DECEDENT HARGROVE</td><td>Last activity: SMS sent at 21:48, Oct 13. Device locked at 21:49. No activity after.</td></tr>
+<tr><td>CSI-006</td><td>Bar cart — Scotch whiskey bottle (Glenfiddich 18yr)</td><td>YES — 2 prints</td><td>LP-008 — DECEDENT HARGROVE (neck of bottle)<br>LP-009 — UNIDENTIFIED (base of bottle) — no match in CCPD database. Sample retained.</td></tr>
+<tr><td>CSI-007</td><td>Bar cart — third glass (clean, on cart)</td><td>YES — 1 print, partial</td><td>LP-010 — <span class="hi">MATCHED: DIANA VOSS</span> — thumb print, left hand, on outer base</td><td>Glass was described as "clean and unused" in field notes but carries a fingerprint. Possible the glass was handled and returned.</td></tr>
+<tr><td>CSI-008</td><td>Credenza surface (polished wood)</td><td>YES — smear pattern</td><td>LP-011 — inconclusive smear, no match possible</td><td>Pattern consistent with a gloved hand wiping the surface. No other prints on credenza surface despite proximity to door and traffic area.</td></tr>
+</table>
+<h2>TRACE SAMPLE REPORT — CSI-001-T (GLASS RIM RESIDUE)</h2>
+<p>The white powdery residue recovered from the inner rim of CSI-001 (whiskey glass) was submitted for chemical analysis. Results: <strong>calcium carbonate particulate (minor component, likely incidental from water source) and a second compound identified as a pharmaceutical tablet binding agent</strong> — specifically microcrystalline cellulose with magnesium stearate, consistent with a compressed oral tablet that was crushed or dissolved in the liquid.</p>
+<p>The active pharmaceutical ingredient within the dissolving residue: <strong>pending full toxicology cross-reference (File 15)</strong>. Based on mass spectrometry fragment ions detected, preliminary indication is consistent with a cardiac glycoside compound. Quantification deferred to toxicology lab.</p>
+<hr>
+<h2>ANALYST NOTES</h2>
+<p>The presence of print LP-004 (Diana Voss, right thumb) on the victim's personal whiskey glass is anomalous. This glass was on the victim's desk and would not normally be handled by a visitor unless they physically touched it — either to move it, hand it to the victim, or place something in it. The glass was not identified as a communal item.</p>
+<p>The smear pattern on the credenza (CSI-008) is consistent with deliberate surface cleaning by a gloved individual. Combined with the absence of expected prints in a high-traffic area, this is consistent with post-event evidence management.</p>`,
+
+f10: `<h1>FILE 10 — LOCAL NETWORK ROUTER TRAFFIC LOG</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Source System</div><div class="hb-val">H&amp;V Capital Management LLC — Internal Cisco Meraki Router, Floor 19</div></div>
+<div class="hb-row"><div class="hb-label">Router ID</div><div class="hb-val">HVNET-19-CORE-01</div></div>
+<div class="hb-row"><div class="hb-label">Log Period</div><div class="hb-val">Oct 13, 2024 18:00:00 — Oct 14, 2024 10:00:00</div></div>
+<div class="hb-row"><div class="hb-label">Obtained Via</div><div class="hb-val">Search Warrant — executed Oct 19, 2024</div></div>
+<div class="hb-row"><div class="hb-label">Format</div><div class="hb-val">Raw export, no filtering</div></div>
+</div>
+<div class="stamp">WARRANT-OBTAINED — CHAIN OF CUSTODY INTACT</div>
+<h2>DEVICE ACTIVITY TABLE — FLOOR 19 WIFI NETWORK (SSID: HVNET-PRIVATE)</h2>
+<table>
+<tr><th>Timestamp</th><th>Event</th><th>Device Name / MAC</th><th>Assigned User</th><th>IP Address</th><th>Notes</th></tr>
+<tr><td>18:04:11</td><td>CONNECT</td><td>ELIAS-LAPTOP / AA:B2:3C:4D</td><td>E. Hargrove</td><td>192.168.19.4</td><td>Active session begins</td></tr>
+<tr><td>18:07:44</td><td>CONNECT</td><td>DIANA-MBPRO / CC:D4:5E:6F</td><td>D. Voss</td><td>192.168.19.9</td><td>Active session begins</td></tr>
+<tr><td>18:09:02</td><td>CONNECT</td><td>MARCUS-DELL / EE:F6:7G:8H</td><td>M. Castellano</td><td>192.168.19.11</td><td>Active session begins</td></tr>
+<tr><td>19:03:15</td><td>DISCONNECT</td><td>MARCUS-DELL / EE:F6:7G:8H</td><td>M. Castellano</td><td>—</td><td>Session terminated. No reconnect.</td></tr>
+<tr><td>19:11:22</td><td>CONNECT</td><td>NATHAN-IPHONE / GG:H8:9I:0J</td><td>N. Hargrove</td><td>192.168.19.14</td><td>Mobile device</td></tr>
+<tr><td>20:02:38</td><td>DISCONNECT</td><td>NATHAN-IPHONE / GG:H8:9I:0J</td><td>N. Hargrove</td><td>—</td><td>Consistent with Nathan leaving (stated ~19:45–20:00)</td></tr>
+<tr><td>22:04:38</td><td>TRAFFIC</td><td>ELIAS-LAPTOP / AA:B2:3C:4D</td><td>E. Hargrove</td><td>192.168.19.4</td><td class="hi">Last data packet sent. Corresponds to final keystroke per forensics (CSI-003). Document upload to H&amp;V secure server.</td></tr>
+<tr><td>22:07:11</td><td>DISCONNECT</td><td>ELIAS-LAPTOP / AA:B2:3C:4D</td><td>E. Hargrove</td><td>—</td><td class="hi">Device went to hibernate/sleep mode. No user activity detected after 22:04:38.</td></tr>
+<tr><td class="hi">22:41:09</td><td class="hi">DISCONNECT</td><td class="hi">DIANA-MBPRO / CC:D4:5E:6F</td><td class="hi">D. Voss</td><td class="hi">—</td><td class="hi">Voss laptop disconnects from office network. She stated she left at "22:45." Consistent within margin.</td></tr>
+<tr><td>23:14:07</td><td>CONNECT</td><td>BB-MASTERCLEANING / KK:L0:1M:2N</td><td>Webb Cleaning</td><td>192.168.19.20</td><td>Cleaning crew tablet — logs in for building access coordination</td></tr>
+<tr><td class="warn">01:54:19</td><td class="warn">CONNECT</td><td class="warn">DIANA-MBPRO / CC:D4:5E:6F</td><td class="warn">D. Voss</td><td class="warn">192.168.19.9</td><td class="warn">⚑ ANOMALY: Voss laptop reconnects to office network after over 3 hours offline. Voss stated she went home and did not return.</td></tr>
+<tr><td class="warn">02:19:44</td><td class="warn">DISCONNECT</td><td class="warn">DIANA-MBPRO / CC:D4:5E:6F</td><td class="warn">D. Voss</td><td class="warn">—</td><td class="warn">Session ends after 25 minutes on network. No further reconnect until morning.</td></tr>
+<tr><td>06:47:31</td><td>CONNECT</td><td>DIANA-MBPRO / CC:D4:5E:6F</td><td>D. Voss</td><td>192.168.19.9</td><td>Morning reconnect — consistent with Voss arriving for work day.</td></tr>
+<tr><td>07:12:04</td><td>CONNECT</td><td>NATHAN-IPHONE / GG:H8:9I:0J</td><td>N. Hargrove</td><td>192.168.19.14</td><td>Nathan arrives morning</td></tr>
+</table>
+<h2>ANALYST NOTE — DS LIM</h2>
+<p>The reconnection of Diana Voss's device (MAC: CC:D4:5E:6F) to the 19th floor office router at <strong>01:54:19 AM</strong> on October 14th is entirely inconsistent with her stated testimony that she left the building at 22:45 and drove directly home to Westfield, remaining there overnight.</p>
+<p>The device cannot connect to the HVNET-PRIVATE floor network from any location outside the building — the network does not broadcast beyond the 19th floor premises. She was physically present in the building at 01:54 AM.</p>
+<p>Cross-reference with security badge log (File 11) and home router log (requested per subpoena, see below) strongly recommended.</p>`,
+
+f11: `<h1>FILE 11 — SECURITY ACCESS HISTORY — 19TH FLOOR SERVICE ENTRANCE</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Reader ID</div><div class="hb-val">LD-19F-02 (Service Corridor Entrance, Floor 19)</div></div>
+<div class="hb-row"><div class="hb-label">System</div><div class="hb-val">HID Aperio Wireless Door Controller — Alderton Building Management</div></div>
+<div class="hb-row"><div class="hb-label">Log Export</div><div class="hb-val">Oct 13, 2024 16:00 — Oct 14, 2024 12:00</div></div>
+<div class="hb-row"><div class="hb-label">Exported By</div><div class="hb-val">R. Ashby, Facilities Manager (pursuant to subpoena)</div></div>
+<div class="hb-row"><div class="hb-label">Authenticated</div><div class="hb-val">Yes — chain of custody maintained</div></div>
+</div>
+<div class="stamp green">SUBPOENA-OBTAINED — AUTHENTICATED</div>
+<h2>BADGE ACCESS EVENT LOG — READER LD-19F-02</h2>
+<table>
+<tr><th>Timestamp</th><th>Badge ID</th><th>Badge Holder</th><th>Event</th><th>Result</th></tr>
+<tr><td>16:22:04</td><td>FAC-001</td><td>R. Ashby (Facilities)</td><td>ENTRY</td><td>ACCESS GRANTED</td></tr>
+<tr><td>16:41:38</td><td>FAC-001</td><td>R. Ashby (Facilities)</td><td>EXIT</td><td>ACCESS GRANTED</td></tr>
+<tr><td>18:03:50</td><td>HV-0019</td><td>Nathan Hargrove</td><td>ENTRY</td><td>ACCESS GRANTED</td></tr>
+<tr><td>19:58:12</td><td>HV-0019</td><td>Nathan Hargrove</td><td>EXIT</td><td>ACCESS GRANTED</td></tr>
+<tr><td>20:04:33</td><td>CLEAN-MASTER</td><td>Webb Cleaning Crew</td><td>ENTRY</td><td>ACCESS GRANTED</td></tr>
+<tr><td class="warn">01:54:07</td><td class="warn">HV-0007</td><td class="warn">Diana Voss</td><td class="warn">ENTRY</td><td class="warn">ACCESS GRANTED</td></tr>
+<tr><td class="warn">02:21:55</td><td class="warn">HV-0007</td><td class="warn">Diana Voss</td><td class="warn">EXIT</td><td class="warn">ACCESS GRANTED</td></tr>
+<tr><td>06:44:18</td><td>HV-0007</td><td>Diana Voss</td><td>ENTRY</td><td>ACCESS GRANTED</td></tr>
+</table>
+<h2>BADGE ASSIGNMENT TABLE (H&amp;V CAPITAL MANAGEMENT — FLOOR 19 ACCESS)</h2>
+<table>
+<tr><th>Badge ID</th><th>Assigned Holder</th><th>Access Level</th><th>Issued</th><th>Status</th></tr>
+<tr><td>HV-0007</td><td>Diana Voss</td><td>Full Floor 19 — All suites</td><td>2018-03-01</td><td>ACTIVE</td></tr>
+<tr><td>HV-0012</td><td>Marcus Castellano</td><td>Full Floor 19 — All suites</td><td>2016-07-15</td><td>ACTIVE</td></tr>
+<tr><td>HV-0019</td><td>Nathan Hargrove</td><td>Full Floor 19 — All suites</td><td>2020-01-10</td><td>ACTIVE</td></tr>
+<tr><td>HV-0001</td><td>Elias Hargrove (DECEASED)</td><td>Full Floor 19 — All suites</td><td>2009-05-12</td><td>DEACTIVATED Oct 14, 2024</td></tr>
+<tr><td>CLEAN-MASTER</td><td>Webb Building Services</td><td>Common areas, corridors only — suite access requires occupied office</td><td>2022-09-01</td><td>ACTIVE</td></tr>
+<tr><td>FAC-001</td><td>R. Ashby</td><td>All building systems access</td><td>2010-11-08</td><td>ACTIVE</td></tr>
+</table>
+<h2>INVESTIGATOR NOTATION — DS LIM</h2>
+<p>Badge HV-0007 (Diana Voss) recorded entry to the 19th floor service corridor at <strong>01:54:07 AM</strong> and exit at <strong>02:21:55 AM</strong> on October 14, 2024. This is a 27-minute window inside the building, and the entry timestamp is within seconds of the router reconnection of her laptop (01:54:19 AM). Both records corroborate each other — she was present.</p>
+<p>Voss stated categorically in her interview (File 05) that she left at 22:45 and did not return. This statement is false as demonstrated by two independent digital systems — the badge controller and the network router — operating on separate technical infrastructure.</p>
+<p>The estimated time of death from pathology (latest possible: <strong>02:20 AM</strong>) places the victim's death coinciding with the window Voss was present on the floor (01:54 AM to 02:22 AM).</p>`,
+
+f12: `<h1>FILE 12 — NATIONAL METEOROLOGICAL LOG — CARVER CITY STATION</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Station</div><div class="hb-val">Carver City Airport (KCCV) — Regional Weather Service</div></div>
+<div class="hb-row"><div class="hb-label">Log Period</div><div class="hb-val">October 13, 2024 18:00 — October 14, 2024 10:00</div></div>
+<div class="hb-row"><div class="hb-label">Data Type</div><div class="hb-val">METAR hourly observations + power grid event log (CC Municipal Utilities)</div></div>
+</div>
+<h2>HOURLY WEATHER OBSERVATIONS — OCTOBER 13–14, 2024</h2>
+<table>
+<tr><th>Time (Local)</th><th>Temp (°C)</th><th>Conditions</th><th>Wind</th><th>Visibility</th><th>Precip</th></tr>
+<tr><td>18:00</td><td>7.2</td><td>Overcast</td><td>NW 12 km/h</td><td>10 km</td><td>None</td></tr>
+<tr><td>19:00</td><td>6.4</td><td>Overcast</td><td>NW 10 km/h</td><td>9 km</td><td>None</td></tr>
+<tr><td>20:00</td><td>5.8</td><td>Light rain beginning</td><td>W 14 km/h</td><td>6 km</td><td>0.2 mm</td></tr>
+<tr><td>21:00</td><td>5.1</td><td>Rain, moderate</td><td>W 18 km/h</td><td>4 km</td><td>1.8 mm</td></tr>
+<tr><td>22:00</td><td>4.6</td><td>Rain, moderate</td><td>SW 16 km/h</td><td>4 km</td><td>2.1 mm</td></tr>
+<tr><td>23:00</td><td>4.2</td><td>Light rain</td><td>SW 12 km/h</td><td>5 km</td><td>0.9 mm</td></tr>
+<tr><td>00:00</td><td>3.9</td><td>Overcast, rain ending</td><td>SW 10 km/h</td><td>7 km</td><td>0.1 mm</td></tr>
+<tr><td>01:00</td><td>3.7</td><td>Overcast, dry</td><td>S 8 km/h</td><td>8 km</td><td>None</td></tr>
+<tr><td>02:00</td><td>3.5</td><td>Overcast, dry</td><td>S 6 km/h</td><td>9 km</td><td>None</td></tr>
+<tr><td>03:00</td><td>3.4</td><td>Partly cloudy</td><td>S 5 km/h</td><td>10 km</td><td>None</td></tr>
+<tr><td>04:00</td><td>3.3</td><td>Clear</td><td>Calm</td><td>15 km</td><td>None</td></tr>
+<tr><td>07:00</td><td>4.0</td><td>Overcast</td><td>NE 7 km/h</td><td>10 km</td><td>None</td></tr>
+<tr><td>07:44</td><td class="note">Approx 4.1°C — time of EMS body temp measurement</td><td class="note">Outside temp at measurement time</td><td></td><td></td><td></td></tr>
+</table>
+<h2>POWER GRID EVENT LOG — CC MUNICIPAL UTILITIES</h2>
+<table>
+<tr><th>Time</th><th>Event</th><th>Zone</th><th>Duration</th><th>Notes</th></tr>
+<tr><td>21:03</td><td>Microflicker (sub-second)</td><td>Commerce District</td><td>&lt;0.1s</td><td>No customer impact reported</td></tr>
+<tr><td>22:58</td><td>Load reduction</td><td>Commerce District</td><td>Ongoing from 23:00</td><td>Overnight commercial HVAC cycling begins — standard scheduled event</td></tr>
+<tr><td>01:47</td><td>Steady state — no events</td><td>All zones</td><td>—</td><td>No outages, no anomalies 01:00–05:00</td></tr>
+</table>
+<h2>INVESTIGATIVE RELEVANCE NOTE</h2>
+<p>External temperature at 01:54 AM (time of Voss building entry per badge log) was approximately <strong>3.7°C</strong>. Rain had stopped. Conditions were dry. Road conditions suitable for driving. There is no meteorological reason that would have prevented Voss from driving from Westfield to downtown Carver City in normal time.</p>
+<p>Distance from Voss's stated home address (12 Elmwood Court, Westfield) to the Alderton Building: <strong>approximately 31 km</strong>, approximately 30–35 minutes via Route 9 and the 78 East. Voss stated she arrived home at 23:40. A departure time of 01:15–01:20 AM would allow her to reach the building by 01:54 AM without speeding.</p>
+<p>The toll transponder data (File 16) should confirm this transit. HVAC passive cooling note: exterior temperature at time of body temperature measurement (07:44 AM) was 4.1°C, but the building was insulated. Ambient room temperature estimate of 19–20°C used in pathology calculation is supported by the building passive cooling model.</p>`,
+
+f13: `<h1>FILE 13 — CRIME SCENE FORENSIC CATALOG</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Scene</div><div class="hb-val">Suite 1902, 19th Floor, Alderton Building (Primary)</div></div>
+<div class="hb-row"><div class="hb-label">Secondary Scene</div><div class="hb-val">Suite 1918, 19th Floor, Alderton Building (Voss Office — warrant search)</div></div>
+<div class="hb-row"><div class="hb-label">Scene Entry</div><div class="hb-val">Primary scene secured: 07:40 AM, Oct 14. Voss office search warrant executed: Oct 21, 2024.</div></div>
+<div class="hb-row"><div class="hb-label">Recovery Team</div><div class="hb-val">CSI Unit 4 — Lead: CSO K. Marsh</div></div>
+</div>
+<h2>PRIMARY SCENE CATALOG — SUITE 1902 (HARGROVE OFFICE)</h2>
+<table>
+<tr><th>Item ID</th><th>Description</th><th>Location</th><th>Condition</th><th>Status</th></tr>
+<tr><td>CSI-001</td><td>Cut crystal whiskey glass (1 of 4-piece set)</td><td>Desk surface, right side</td><td>~2cm amber liquid remaining. White residue inner rim. Fingerprints (see File 09).</td><td>Submitted — Lab</td></tr>
+<tr><td>CSI-002</td><td>Legal pad, A4, yellow ruled</td><td>Desk surface, centre</td><td>Top page: handwritten figures (financial columns). Approx 12 lines of notation. Pen uncapped beside it.</td><td>Photographed, retained</td></tr>
+<tr><td>CSI-003</td><td>Laptop computer, 15" (brand: Apple MacBook Pro)</td><td>Desk surface, left side</td><td>Lid closed. Hibernated. Last keystroke: 22:04:38. Digital forensics extracted.</td><td>Seized — Digital Forensics</td></tr>
+<tr><td>CSI-004</td><td>Montblanc ballpoint pen, black, uncapped</td><td>Desk surface, beside legal pad</td><td>Ink wet-adjacent. Cap not recovered on desk (possibly in drawer or absent).</td><td>Photographed, retained</td></tr>
+<tr><td>CSI-005</td><td>Mobile phone (Apple iPhone 14 Pro)</td><td>Desk surface, far right</td><td>Screen dark. Last activity 21:49. Locked.</td><td>Seized — Digital Forensics</td></tr>
+<tr><td>CSI-006</td><td>Scotch whiskey bottle — Glenfiddich 18yr, 700ml</td><td>Bar cart, south wall</td><td>Approx 240ml remaining. Cap removed and resting loose on cart surface.</td><td>Submitted — Lab (fingerprints)</td></tr>
+<tr><td>CSI-007</td><td>Additional glass — cut crystal, nominally "clean"</td><td>Bar cart, south wall, slot 3</td><td>Appears clean to naked eye. One partial fingerprint recovered on base. See LP-010 (File 09). No liquid residue.</td><td>Submitted — Lab</td></tr>
+<tr><td>CSI-008</td><td>Credenza, polished walnut, surface</td><td>Behind desk, north wall</td><td>Smear pattern consistent with gloved wipe. No prints. Surface otherwise dust-free.</td><td>Swabbed for trace</td></tr>
+<tr><td>CSI-009</td><td>Bar cart, south wall — slot 4 glass holder (EMPTY)</td><td>South wall, bar cart</td><td>Fourth glass of set missing. Not recovered elsewhere in suite. Not on desk.</td><td>Noted — unrecovered</td></tr>
+<tr><td>CSI-010</td><td>Thermostat unit, interior wall, north</td><td>North wall, 1.4m height</td><td>Reading: 22°C at time of observation (07:40). Digital unit.</td><td>Noted — not seized</td></tr>
+<tr><td>CSI-011</td><td>Financial printouts (loose pages)</td><td>Desk, under legal pad</td><td>Approx 15–20 pages. H&amp;V Fund IV performance data. Q3 attribution reports. Confidential header.</td><td>Photographed, retained under warrant</td></tr>
+</table>
+<h2>SECONDARY SCENE CATALOG — SUITE 1918 (VOSS OFFICE — WARRANT SEARCH)</h2>
+<table>
+<tr><th>Item ID</th><th>Description</th><th>Location</th><th>Notes</th><th>Status</th></tr>
+<tr><td>V-01</td><td>Personal desk — cleared surface, no items</td><td>Main desk</td><td>No documents visible. Drawers locked (keyed).</td><td>Photographed</td></tr>
+<tr><td>V-02</td><td>Laptop (Apple MacBook Pro) — absent</td><td>Desk</td><td>Laptop dock present but no laptop. Confirmed Voss took it with her (router log).</td><td>—</td></tr>
+<tr><td>V-03</td><td>Legal files — one accordion folder, labelled "Restructuring — DRAFT"</td><td>Filing cabinet, top drawer</td><td>Contains internal memos, financial models, draft partnership amendment. Relevant to motive. Retained.</td><td>Seized — Evidence</td></tr>
+<tr><td>V-04</td><td>Personal framed photographs (4 items)</td><td>Credenza</td><td>Family photos. One shows deceased woman, elderly, consistent with Voss's described mother.</td><td>Photographed, not seized</td></tr>
+<tr><td>V-05</td><td>Personal bar cart — identical model to 1902</td><td>South wall</td><td>One bottle of Bordeaux wine (~half remaining). Two wine glasses (clean, in slots). No spirits.</td><td>Photographed</td></tr>
+<tr><td>V-06</td><td>Wall-mounted medication cabinet (recessed, behind hinged painting)</td><td>West wall</td><td>Locked. Key found in desk drawer. Warrant covered this item.</td><td>Opened by CSO Marsh</td></tr>
+<tr><td>V-07</td><td>Medication cabinet contents: Ibuprofen 400mg, bottle, 40 tabs</td><td>In V-06</td><td>Standard OTC. No relevance.</td><td>Photographed, not seized</td></tr>
+<tr><td>V-08</td><td>Medication cabinet contents: Cetirizine 10mg, bottle, 30 tabs</td><td>In V-06</td><td>Standard OTC antihistamine.</td><td>Photographed, not seized</td></tr>
+<tr><td class="hi">V-09</td><td class="hi">Medication cabinet contents: LANOXIN 0.25mg tablets — brand name digoxin — foil blister strip, 14 tablets, 3 tablets used/missing from strip</td><td class="hi">In V-06</td><td class="hi">Prescription label: "Margaret Voss, DOB 11/12/1941. Prescribed by Dr. L. Hartley, Carver City Medical, February 2023. DISPENSE: Lanoxin 0.25mg. Take ONE daily." Margaret Voss (Voss's mother) deceased March 2024. Strip is partially used. 3 tablets absent from what should be a full remainder of a 14-count strip.</td><td class="hi">SEIZED — CRITICAL EVIDENCE</td></tr>
+<tr><td>V-10</td><td>Medication cabinet contents: Loratadine 10mg, bottle, 20 tabs</td><td>In V-06</td><td>Standard OTC antihistamine.</td><td>Photographed, not seized</td></tr>
+<tr><td>V-11</td><td>Nitrile gloves — box of 100, size M, approximately 15–20 gloves used/missing</td><td>Bottom desk drawer</td><td>Standard clinical/examination gloves. Unusual to find a box of this size in a personal office environment. Voss's stated explanation in follow-up interview: "I use them for cleaning my keyboard and monitor."</td><td>Photographed, retained</td></tr>
+</table>`,
+
+f14: `<h1>FILE 14 — FINANCIAL RECORDS — HARGROVE &amp; VOSS CAPITAL (ABRIDGED)</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Source</div><div class="hb-val">Firm financial records, obtained via warrant. Subpoena compliance Oct 18, 2024.</div></div>
+<div class="hb-row"><div class="hb-label">Analyst</div><div class="hb-val">DC Petrov — MHD Financial Crimes Liaison</div></div>
+</div>
+<h2>EQUITY DISTRIBUTION — H&amp;V CAPITAL MANAGEMENT LLC (PRE-RESTRUCTURING)</h2>
+<table>
+<tr><th>Partner</th><th>Equity Stake</th><th>Carried Interest (Fund IV)</th><th>Estimated Carry Value (2026–2028)</th></tr>
+<tr><td>Elias Hargrove</td><td>55%</td><td>55%</td><td>$22M–$42M</td></tr>
+<tr><td>Diana Voss</td><td>40%</td><td>40%</td><td>$16M–$31M</td></tr>
+<tr><td>Nathan Hargrove</td><td>3%</td><td>3%</td><td>$1.2M–$2.3M</td></tr>
+<tr><td>Marcus Castellano</td><td>2%</td><td>2%</td><td>$0.8M–$1.5M</td></tr>
+</table>
+<h2>PROPOSED RESTRUCTURING — "HARGROVE MEMO" (RECOVERED DRAFT, V-03)</h2>
+<table>
+<tr><th>Partner</th><th>Proposed Equity Stake</th><th>Proposed Carried Interest</th><th>Change</th></tr>
+<tr><td>Elias Hargrove (or estate)</td><td>60%</td><td>60%</td><td>+5%</td></tr>
+<tr><td>Diana Voss</td><td>22%</td><td>22%</td><td class="warn">−18% (approx. $10M–$18M reduction)</td></tr>
+<tr><td>Nathan Hargrove</td><td>10%</td><td>10%</td><td>+7%</td></tr>
+<tr><td>Marcus Castellano</td><td>8%</td><td>8%</td><td>+6%</td></tr>
+</table>
+<p>Under the existing partnership agreement, a restructuring of this magnitude requires consent of all partners holding more than 15% equity. Diana Voss's consent would have been <strong>legally required</strong>. The memo proposes a contested restructuring pathway that Voss's attorney would almost certainly have blocked.</p>
+<p>A note in Elias Hargrove's handwriting, attached to the recovered draft (V-03): <em>"Board meeting Oct 15 — push for ratification. DV will fight but the votes are there with Nathan's proxy."</em></p>
+<p>The board meeting scheduled for October 15, 2024 never took place. With Elias Hargrove's death, the restructuring proposal died with him. Under the existing partnership agreement and the firm's operating agreement, Hargrove's estate inherits his 55% equity stake but <strong>cannot vote it for 12 months</strong> without a court-ordered executor — during which time Diana Voss's 40% stake gives her effective veto power over all major decisions.</p>`,
+
+f15: `<h1>FILE 15 — FULL TOXICOLOGY REPORT</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Case Ref</div><div class="hb-val">CCME-2024-1847 / MHD-2024-0847</div></div>
+<div class="hb-row"><div class="hb-label">Decedent</div><div class="hb-val">Elias James Hargrove, M, 61</div></div>
+<div class="hb-row"><div class="hb-label">Laboratory</div><div class="hb-val">Regional Forensic Toxicology Laboratory — State Division</div></div>
+<div class="hb-row"><div class="hb-label">Samples Analysed</div><div class="hb-val">Peripheral blood, vitreous humour, urine, gastric contents, liver tissue</div></div>
+<div class="hb-row"><div class="hb-label">Report Date</div><div class="hb-val">October 28, 2024</div></div>
+</div>
+<div class="stamp">STATE FORENSIC LAB — CERTIFIED</div>
+<h2>QUANTITATIVE FINDINGS — PERIPHERAL BLOOD</h2>
+<table>
+<tr><th>Substance</th><th>Detected</th><th>Concentration</th><th>Reference Range (Therapeutic)</th><th>Significance</th></tr>
+<tr><td>Ethanol (alcohol)</td><td>Yes</td><td>0.04 g/dL</td><td>N/A — legal limit 0.08</td><td>Sub-intoxicating. Consistent with 1–2 drinks several hours prior.</td></tr>
+<tr><td class="hi">Digoxin</td><td class="hi">Yes</td><td class="hi">4.8 ng/mL</td><td class="hi">Therapeutic: 0.5 – 2.0 ng/mL<br>Toxic threshold: &gt; 2.0 ng/mL<br>Lethal range in arrhythmia patients: &gt; 3.5 ng/mL</td><td class="hi">CRITICALLY ELEVATED — 2.4× above upper therapeutic limit. This level constitutes acute digoxin toxicity and is consistent with intentional overdose administration. In a patient with pre-existing AV nodal arrhythmia (as documented in Hargrove's medical records), this serum level would cause fatal cardiac arrhythmia (ventricular fibrillation) within 1–3 hours of ingestion.</td></tr>
+<tr><td>Benzodiazepines</td><td>No</td><td>Not detected</td><td>N/A</td><td>Negative</td></tr>
+<tr><td>Opioids</td><td>No</td><td>Not detected</td><td>N/A</td><td>Negative</td></tr>
+<tr><td>Common sedatives (barbiturates, z-drugs)</td><td>No</td><td>Not detected</td><td>N/A</td><td>Negative</td></tr>
+<tr><td>Carbon monoxide</td><td>No</td><td>Not detected</td><td>N/A</td><td>Negative</td></tr>
+<tr><td>Cyanide</td><td>No</td><td>Not detected</td><td>N/A</td><td>Negative</td></tr>
+</table>
+<h2>VITREOUS HUMOUR — DIGOXIN CONFIRMATION</h2>
+<p>Vitreous digoxin: <strong>3.9 ng/mL</strong>. The vitreous concentration is typically lower than blood concentration and lags behind it; this ratio (vitreous/blood: 0.81) is consistent with acute intoxication rather than chronic elevation from medication mismanagement. Chronic digoxin users who die of digoxin toxicity tend to show near-equal vitreous/blood ratios (&gt;0.95). The depressed ratio here strongly suggests a single acute high dose was administered, not a gradual accumulation.</p>
+<h2>GASTRIC CONTENTS</h2>
+<p>Partial tablet residue identified in gastric contents. Identified: microcrystalline cellulose, magnesium stearate (standard pharmaceutical tablet binders), and digoxin compound fragments. The tablet fragment profile is consistent with a <strong>0.25mg digoxin tablet</strong> — specifically the excipient formulation used in <strong>Lanoxin brand tablets</strong> (manufactured by Aspen Pharmacare), not the generic tablet formulation prescribed to Hargrove (his prescription was for generic digoxin 0.125mg manufactured by Zydus).</p>
+<p class="flag">⚑ KEY FINDING: Elias Hargrove's prescribed medication was generic digoxin 0.125mg. The gastric residue fragments are consistent with LANOXIN 0.25mg — a brand-name formulation at double his standard dose. This is a different formulation than what he was prescribed and would not have been in his possession under normal circumstances. The ingested tablet was not his own medication. It originated from an external source.</p>
+<h2>TOXICOLOGIST CONCLUSION — DR. S. OBAFEMI</h2>
+<p>Cause of death: <strong>Acute digoxin toxicity</strong> causing fatal ventricular fibrillation. The digoxin was administered at a dose significantly exceeding the victim's therapeutic level. The formulation of the digoxin recovered in gastric contents is inconsistent with the victim's own prescription. The most probable delivery mechanism, given the glass rim residue analysis (File 09, CSI-001-T), is dissolution or crushing of one or more <strong>Lanoxin 0.25mg tablets</strong> into the victim's drink. At 0.25mg per tablet, administration of three tablets in a single drink (total dose: 0.75mg) into an individual with the victim's body weight and documented sensitivity would produce the detected serum level of 4.8 ng/mL within 90–120 minutes of ingestion.</p>`,
+
+f16: `<h1>FILE 16 — TOLL / GPS TRANSPONDER LOG</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Vehicle</div><div class="hb-val">2023 Audi A6, Black — Plate: CC-4471-V — Registered: Diana Voss, 12 Elmwood Ct, Westfield</div></div>
+<div class="hb-row"><div class="hb-label">Transponder ID</div><div class="hb-val">EZP-447-190284</div></div>
+<div class="hb-row"><div class="hb-label">Source</div><div class="hb-val">State Toll Authority — obtained via subpoena Oct 18, 2024</div></div>
+<div class="hb-row"><div class="hb-label">Secondary Source</div><div class="hb-val">Voss home Wi-Fi router log (ISP records, subpoena Oct 18, 2024)</div></div>
+</div>
+<h2>EZ-PASS TRANSPONDER EVENTS — OCT 13–14, 2024</h2>
+<table>
+<tr><th>Timestamp</th><th>Plaza / Location</th><th>Direction</th><th>Notes</th></tr>
+<tr><td>22:54:11</td><td>Route 78 West — Tollgate 7A (Exit for Westfield)</td><td>WESTBOUND (leaving city)</td><td>Consistent with Voss stated departure at 22:45.</td></tr>
+<tr><td class="warn">01:21:38</td><td class="warn">Route 78 East — Tollgate 6B (Entering city from Westfield)</td><td class="warn">EASTBOUND (returning to city)</td><td class="warn">⚑ Voss driving back toward downtown Carver City at 01:21 AM. Arrival at Alderton Building at 01:54 AM is consistent with this transit (approx 30–32 min drive).</td></tr>
+<tr><td class="warn">02:29:07</td><td class="warn">Route 78 West — Tollgate 7A (Exit for Westfield)</td><td class="warn">WESTBOUND (leaving city)</td><td class="warn">Voss returning to Westfield. Badge exit from Alderton: 02:21:55. Transit time 7 min to toll plaza — consistent.</td></tr>
+<tr><td>07:04:22</td><td>Route 78 East — Tollgate 6B (Entering city)</td><td>EASTBOUND</td><td>Morning commute. Consistent with stated 07:00 departure for work.</td></tr>
+</table>
+<h2>HOME WI-FI ROUTER LOG — 12 ELMWOOD COURT, WESTFIELD (VOSS RESIDENCE)</h2>
+<p><span class="label">ISP-provided connection log for Voss home router (Serial: TP-LINK AX73, ISP: Carver Broadband)</span></p>
+<div class="mono-block">
+22:58:04 — DIANA-MBPRO [MAC: CC:D4:5E:6F] — CONNECTED to home network (SSID: VOSS-HOME-5G)
+23:04:17 — DIANA-MBPRO — data transfer (browsing activity detected, HTTPS)
+23:41:09 — DIANA-MBPRO — data transfer (email client sync)
+
+00:47:22 — DIANA-MBPRO [MAC: CC:D4:5E:6F] — DISCONNECTED from home network
+         [No reconnect until morning]
+
+07:34:48 — DIANA-MBPRO [MAC: CC:D4:5E:6F] — CONNECTED to home network
+         [Brief connection — likely auto-connect while driving past / phone hotspot switch]
+</div>
+<p class="flag">⚑ Voss's laptop disconnected from her home router at 00:47 AM — 34 minutes before she could have departed for the return journey (toll gate entry at 01:21 AM is consistent with a departure time of ~00:50 AM). She left her home no later than 00:47 AM on October 14, 2024, contradicting her claim of sleeping through the night. The device was not on her home network for approximately 6 hours, instead connecting to the office network at 01:54 AM.</p>`,
+
+f17: `<h1>FILE 17 — VAULT ACCESS MANIFEST (VOSS OFFICE CABINET — SUPPLEMENTAL)</h1>
+<div class="header-block">
+<div class="hb-row"><div class="hb-label">Document Type</div><div class="hb-val">Supplemental inventory — warrant search, Suite 1918</div></div>
+<div class="hb-row"><div class="hb-label">Search Date</div><div class="hb-val">October 21, 2024</div></div>
+<div class="hb-row"><div class="hb-label">CSO</div><div class="hb-val">K. Marsh — CSI Unit 4</div></div>
+</div>
+<h2>COMPLETE INVENTORY — WALL CABINET (V-06), SUITE 1918</h2>
+<table>
+<tr><th>Vault Item No.</th><th>Item</th><th>Quantity / State</th><th>Prescription / Lot Details</th><th>Forensic Notes</th></tr>
+<tr><td>V-06-01</td><td>Ibuprofen 400mg (OTC)</td><td>Bottle, 38 of 40 tablets remaining</td><td>No prescription — store brand</td><td>No relevance</td></tr>
+<tr><td>V-06-02</td><td>Cetirizine 10mg (OTC)</td><td>Bottle, 28 of 30 remaining</td><td>No prescription — store brand</td><td>No relevance</td></tr>
+<tr><td>V-06-03</td><td>Loratadine 10mg (OTC)</td><td>Bottle, 20 of 20 remaining (sealed)</td><td>No prescription</td><td>No relevance</td></tr>
+<tr><td class="hi">V-09</td><td class="hi">LANOXIN (digoxin) 0.25mg — brand name tablets, foil blister strip</td><td class="hi">14-count strip. 3 tablets MISSING from strip (punched through). 11 tablets remain in sealed blisters. Strip otherwise intact.</td><td class="hi">Prescription: <strong>Margaret Voss</strong> (deceased March 14, 2024). Prescribed by Dr. L. Hartley, Carver City Medical Centre. Dispensed: February 8, 2023. Lot: LNX-0223-4471. Manufacturer: Aspen Pharmacare (Lanoxin brand). Dose: 0.25mg per tablet, one daily.</td><td class="hi">3 tablets absent from a strip that had been used from the start (tablets 1–3 from a 14-count strip). Margaret Voss was prescribed digoxin for approximately 13 months (Feb 2023 to her death Mar 2024). She would not have had a nearly full 14-count strip remaining unless it was recently refilled or partially stockpiled. The 3 missing tablets represent a dose total of 0.75mg — exactly consistent with the pathologist's estimated ingested dose calculation (File 15). Fingerprint analysis of blister strip: Print LP-012 detected on outer foil — DIANA VOSS (right index finger). Lab confirmed.</td></tr>
+<tr><td>V-06-04</td><td>Nitrile examination gloves, blue, size M</td><td>Box of 100, approximately 82 gloves remaining (18 used)</td><td>Brand: Medline InfiniGrip</td><td>Consistent with smear pattern analyst note on CSI-008 (gloved wipe of credenza). Trace analysis pending.</td></tr>
+<tr><td>V-06-05</td><td>Small mortar and pestle — ceramic, white, 8cm diameter</td><td>Single item</td><td>No prescription relevance</td><td>Residue present in mortar bowl. Submitted to lab. <strong>Preliminary: digoxin compound residue detected in bowl.</strong> Consistent with tablets having been ground in this vessel.</td></tr>
+</table>
+<h2>CRITICAL LINKAGE SUMMARY — CSO MARSH</h2>
+<p>The combination of V-09 (Lanoxin 0.25mg strip, 3 tablets missing), V-06-04 (nitrile gloves, 18 used from box), V-06-05 (mortar and pestle with digoxin residue), and V-06-04 collectively establish a preparation chain: tablets were ground in the mortar inside suite 1918, the resulting powder was transported to suite 1902 and introduced into the victim's drink during a visit to the office between 01:54 and 02:22 AM on October 14, 2024.</p>
+<p>This is corroborated by the fingerprint LP-004 (Voss, right thumb) on the victim's whiskey glass, the LP-010 (Voss, left thumb) on a bar cart glass suggesting she handled the glassware during the event, and the matching forensic formulation profile between the gastric residue (File 15) and the Lanoxin 0.25mg Aspen Pharmacare lot number found in her cabinet.</p>`
+};
+
+let stage = 1;
+
+function showFile(id) {
+  const locked = ['f10','f11','f12','f13','f14','f15','f16','f17'];
+  const stage3 = ['f13','f14','f15','f16','f17'];
+  if (stage < 2 && locked.includes(id) && !stage3.includes(id)) {
+    alert('⊘ ACCESS DENIED — Stage 1 lock must be resolved before this file is available.');
+    return;
+  }
+  if (stage < 2 && locked.includes(id) ) {
+    alert('⊘ ACCESS DENIED — Stage 1 lock must be resolved before this file is available.');
+    return;
+  }
+  if (stage < 3 && stage3.includes(id)) {
+    alert('⊘ ACCESS DENIED — Stage 2 lock must be resolved before this file is available.');
+    return;
+  }
+  document.getElementById('welcome').style.display = 'none';
+  const dc = document.getElementById('doc-content');
+  dc.style.display = 'block';
+  dc.innerHTML = FILES[id] || '<p>File not found.</p>';
+  document.querySelectorAll('.file-btn').forEach(b => b.classList.remove('active'));
+  const allBtns = document.querySelectorAll('.file-btn');
+  allBtns.forEach(b => {
+    if(b.getAttribute('onclick') && b.getAttribute('onclick').includes(id)) b.classList.add('active');
+  });
+  dc.parentElement.scrollTop = 0;
+}
+
+function unlockStage2() {
+  stage = 2;
+  document.getElementById('sp1').className = 'stage-pill unlocked';
+  document.getElementById('sp2').className = 'stage-pill active';
+  document.getElementById('sb1').className = 'stage-block unlocked-block';
+  document.getElementById('sb2').className = 'stage-block active-block';
+  ['f10','f11','f12'].forEach(id => {
+    const btn = document.getElementById('btn-'+id);
+    if(btn) { btn.classList.remove('file-locked'); btn.querySelector('.lock-icon').remove(); }
+  });
+}
+
+function unlockStage3() {
+  stage = 3;
+  document.getElementById('sp2').className = 'stage-pill unlocked';
+  document.getElementById('sp3').className = 'stage-pill active';
+  document.getElementById('sb2').className = 'stage-block unlocked-block';
+  document.getElementById('sb3').className = 'stage-block active-block';
+  ['f13','f14','f15','f16','f17'].forEach(id => {
+    const btn = document.getElementById('btn-'+id);
+    if(btn) { btn.classList.remove('file-locked'); const li = btn.querySelector('.lock-icon'); if(li) li.remove(); }
+  });
+}
+
+function checkStage1() {
+  const v = document.getElementById('s1-input').value.trim().toLowerCase().replace(/\s/g,'');
+  const st = document.getElementById('s1-status');
+  const accepted = ['02:20','0220','2:20'];
+  if(accepted.includes(v)) {
+    st.className = 'sb-status ok'; st.textContent = '✓ CORRECT — Stage 1 unlocked. Digital telemetry files now available.';
+    unlockStage2();
+  } else {
+    st.className = 'sb-status err'; st.textContent = '✗ INCORRECT';
+  }
+}
+
+function checkStage2() {
+  const v = document.getElementById('s2-input').value.trim().toLowerCase();
+  const st = document.getElementById('s2-status');
+  const accepted = ['diana voss','voss','dianavoss'];
+  if(accepted.includes(v)) {
+    st.className = 'sb-status ok'; st.textContent = '✓ CORRECT — Stage 2 unlocked. Physical asset manifests and lab reports now available.';
+    unlockStage3();
+  } else {
+    st.className = 'sb-status err'; st.textContent = '✗ INCORRECT';
+  }
+}
+
+function checkStage3() {
+  const v = document.getElementById('s3-input').value.trim().toLowerCase();
+  const st = document.getElementById('s3-status');
+  const accepted = ['digoxin','lanoxin'];
+  if(accepted.includes(v)) {
+    st.className = 'sb-status ok'; st.textContent = '✓ CASE RESOLVED — All three tiers confirmed. Generating verdict...';
+    setTimeout(() => { document.getElementById('victory-overlay').classList.add('show'); }, 1200);
+  } else {
+    st.className = 'sb-status err'; st.textContent = '✗ INCORRECT';
+  }
+}
+</script>
+</body>
+</html>
