@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ABYSSAL-9 // SURVIVAL PROTOCOL</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root{
+  --bg-color:#030303;
+  --surface:#0a0a0a;
+  --surface-2:#0d0d0d;
+  --border:#222;
+  --text-main:#d0d0d0;
+  --text-muted:#555;
+  --alert:#ff2a55;
+  --font-ui:'Space Grotesk', sans-serif;
+  --font-mono:'JetBrains Mono', monospace;
+  --accent:#00ffcc;
+  --accent-dim:rgba(0,255,204,0.15);
+  --sector-glow:rgba(0,255,204,0.08);
+}
+
+/* ---- Sector themes ---- */
+body[data-sector="hab"]{ --accent:#00ffcc; --accent-dim:rgba(0,255,204,.15); --sector-glow:rgba(0,255,204,.10); }
+body[data-sector="maint"]{ --accent:#ff9d2e; --accent-dim:rgba(255,157,46,.16); --sector-glow:rgba(255,157,46,.10); }
+body[data-sector="dock"]{ --accent:#ffe14a; --accent-dim:rgba(255,225,74,.16); --sector-glow:rgba(255,225,74,.10); }
+body[data-sector="research"]{ --accent:#c14aff; --accent-dim:rgba(193,74,255,.16); --sector-glow:rgba(193,74,255,.10); }
+body[data-sector="eng"]{ --accent:#ff3b3b; --accent-dim:rgba(255,59,59,.18); --sector-glow:rgba(255,59,59,.12); }
+body[data-sector="trench"]{ --accent:#36e0c4; --accent-dim:rgba(54,224,196,.18); --sector-glow:rgba(54,224,196,.13); }
+
+*{ box-sizing:border-box; margin:0; padding:0; user-select:none; }
+
+body{
+  background-color:var(--bg-color);
+  color:var(--text-main);
+  font-family:var(--font-ui);
+  height:100vh;
+  display:flex; justify-content:center; align-items:center;
+  overflow:hidden;
+  background-image:radial-gradient(circle at 50% 40%, #0e0e0e 0%, #000 75%);
+}
+
+body::after{
+  content:""; position:fixed; inset:0;
+  background:repeating-linear-gradient(0deg, rgba(0,0,0,.15), rgba(0,0,0,.15) 1px, transparent 1px, transparent 2px);
+  pointer-events:none; z-index:999;
+}
+
+#vignette{
+  position:fixed; inset:0; pointer-events:none; z-index:998;
+  box-shadow: inset 0 0 160px 40px var(--sector-glow);
+  transition:box-shadow 1.1s ease;
+}
+
+#game-container{
+  width:100%; max-width:1180px; height:95vh; max-height:860px;
+  background:var(--surface); border:1px solid var(--border);
+  box-shadow:0 0 60px rgba(0,0,0,.9);
+  display:flex; flex-direction:column; position:relative; overflow:hidden;
+  opacity:0; transition:opacity 1.2s ease-in;
+}
+
+/* ---- Start screen ---- */
+#start-screen{
+  position:absolute; inset:0; background:var(--bg-color);
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  z-index:100; cursor:pointer; text-align:center; padding:20px;
+}
+#start-screen h1{
+  font-family:var(--font-mono); font-size:clamp(2.4rem,7vw,4.2rem); color:#888;
+  letter-spacing:10px; margin-bottom:6px; text-shadow:0 0 24px rgba(0,255,204,.15);
+}
+#start-screen .sub{ font-family:var(--font-mono); color:var(--text-muted); font-size:.85rem; letter-spacing:3px; margin-bottom:40px;}
+#start-screen p.prompt{ color:#777; font-size:.95rem; letter-spacing:2px; animation:pulse 2.2s infinite alternate; }
+#boot-log{ font-family:var(--font-mono); color:#3a3; font-size:.85rem; min-height:140px; line-height:1.7; text-align:left; }
+#boot-log div{ opacity:0; animation:fade-in .4s forwards; }
+
+/* ---- Header ---- */
+header{
+  display:flex; justify-content:space-between; align-items:center; padding:12px 22px;
+  border-bottom:1px solid var(--border); font-family:var(--font-mono); font-size:.85rem;
+  background:rgba(0,0,0,.85); z-index:20; gap:10px; flex-wrap:wrap;
+}
+.hud-loc{ display:flex; flex-direction:column; gap:2px; }
+.hud-loc .sector-tag{ color:var(--text-muted); font-size:.7rem; letter-spacing:2px; }
+.hud-loc .room-name{ color:var(--text-main); letter-spacing:1px; transition:color .8s ease; }
+.hud-status{ color:var(--accent); text-shadow:0 0 8px var(--accent-dim); transition:color .8s ease, text-shadow .8s ease; letter-spacing:1px; }
+.hud-right{ display:flex; align-items:center; gap:14px; color:var(--text-muted); }
+
+#subheader{
+  display:flex; justify-content:space-between; align-items:center; padding:8px 22px;
+  border-bottom:1px solid var(--border); background:rgba(0,0,0,.55);
+  font-family:var(--font-mono); font-size:.75rem; color:var(--text-muted); z-index:19; gap:10px; flex-wrap:wrap;
+}
+.stat-group{ display:flex; gap:18px; flex-wrap:wrap; }
+.stat-group span b{ color:var(--text-main); font-weight:500; }
+.icon-btn{
+  background:transparent; border:1px solid var(--border); color:var(--text-muted);
+  font-family:var(--font-mono); font-size:.72rem; padding:6px 12px; cursor:pointer; letter-spacing:1px;
+  transition:all .15s;
+}
+.icon-btn:hover{ border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+.btn-row{ display:flex; gap:8px; }
+
+/* ---- Viewport ---- */
+#viewport{
+  flex:1; position:relative; display:flex; justify-content:center; align-items:center;
+  background:#050505; border-bottom:1px solid var(--border); overflow:hidden;
+  background-image:radial-gradient(circle at 50% 30%, rgba(255,255,255,.03), transparent 60%);
+}
+
+#minimap-panel{
+  position:absolute; top:16px; left:16px; z-index:15;
+  background:rgba(0,0,0,.7); border:1px solid var(--border); padding:10px 12px;
+  backdrop-filter:blur(3px); min-width:170px; transition:border-color .8s ease;
+}
+#minimap-panel .mm-title{ font-family:var(--font-mono); font-size:.62rem; color:var(--text-muted); letter-spacing:2px; margin-bottom:6px; }
+#minimap{ display:flex; justify-content:center; align-items:center; }
+#minimap svg{ display:block; max-width:180px; max-height:180px; }
+.mm-node{ fill:var(--surface-2); stroke:var(--text-muted); stroke-width:1.5; transition:stroke .6s ease; }
+.mm-node-current{ fill:var(--accent-dim); stroke:var(--accent); stroke-width:2; filter:drop-shadow(0 0 4px var(--accent)); }
+.mm-line{ stroke:var(--text-muted); stroke-width:2; }
+.mm-stub{ stroke:var(--accent); stroke-width:2; opacity:.55; }
+.mm-stub-locked{ stroke:var(--alert); opacity:.6; stroke-dasharray:2 2; }
+.mm-arrow{ fill:var(--accent); }
+#minimap-panel .mm-facing{ font-family:var(--font-mono); font-size:.62rem; color:var(--text-muted); text-align:center; margin-top:6px; letter-spacing:1px; }
+#minimap-panel .mm-facing b{ color:var(--accent); }
+
+/* Nav controls clustered at the bottom so the minimap never overlaps them */
+#nav-controls{
+  position:absolute; bottom:22px; left:50%; transform:translateX(-50%);
+  display:flex; gap:10px; z-index:10; flex-wrap:wrap; justify-content:center;
+}
+.nav-btn{
+  background:rgba(0,0,0,.6); border:1px solid var(--border);
+  color:var(--text-muted); padding:11px 18px; cursor:pointer; font-family:var(--font-mono);
+  transition:all .2s; font-size:.8rem; letter-spacing:1px; backdrop-filter:blur(2px); white-space:nowrap;
+}
+.nav-btn:hover{ border-color:var(--accent); color:var(--accent); background:var(--accent-dim); box-shadow:0 0 15px var(--accent-dim); }
+
+#entity-container{
+  position:relative; width:58%; max-width:520px; height:58%; z-index:5;
+  display:flex; flex-direction:column; justify-content:center; align-items:center; gap:16px;
+  margin-top:-26px;
+}
+.entity{
+  padding:14px 26px; border:1px solid var(--border); color:var(--text-main); cursor:pointer;
+  font-family:var(--font-mono); text-transform:uppercase; letter-spacing:2px;
+  background:rgba(10,10,10,.9); transition:all .2s; font-size:.92rem; width:100%; text-align:center;
+}
+.entity:hover{ border-color:var(--accent); color:var(--accent); transform:scale(1.02); box-shadow:inset 0 0 10px var(--accent-dim); }
+.entity-move{ border-color:#777; color:#fff; background:rgba(255,255,255,.05); }
+.entity-move:hover{ border-color:#fff; background:rgba(255,255,255,.1); transform:translateY(-2px); }
+.entity-locked{ border-color:var(--text-muted); color:var(--text-muted); }
+.entity-locked:hover{ border-color:var(--alert); color:var(--alert); box-shadow:none; transform:none; }
+
+/* ---- Overlays (puzzle / codex / ending) ---- */
+.overlay {
+  position: absolute; 
+  inset: 0; 
+  background: rgba(0, 0, 0, 0.95); 
+  z-index: 150; /* Cranked up to ensure it covers everything */
+  display: none;
+  flex-direction: column; 
+  justify-content: center; 
+  align-items: center; 
+  backdrop-filter: blur(5px); 
+  padding: 30px;
+}
+#puzzle-input{
+  background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--accent);
+  font-family:var(--font-mono); font-size:2.2rem; text-align:center; outline:none; margin-bottom:26px;
+  width:min(420px,80vw); text-transform:uppercase; transition:border-color .8s ease, color .8s ease;
+}
+#puzzle-prompt{ font-family:var(--font-mono); color:var(--text-muted); letter-spacing:2px; margin-bottom:18px; font-size:.85rem; text-align:center; max-width:520px; }
+.close-btn{ background:transparent; color:var(--text-muted); border:1px solid var(--text-muted); padding:9px 18px; cursor:pointer; font-family:var(--font-mono); font-size:.8rem; letter-spacing:1px; }
+.close-btn:hover{ color:var(--alert); border-color:var(--alert); }
+
+#codex-overlay { 
+  position: fixed; /* Changes positioning context to the window/container */
+  z-index: 999;    /* Forces it above the bottom panel and scanlines */
+  align-items: center; 
+}
+
+.codex-box { 
+  width: min(640px, 90vw); 
+  height: 80vh; /* Takes up a reliable chunk of the screen */
+  max-height: 600px; /* Keeps it safe on smaller displays */
+  display: flex; 
+  flex-direction: column; 
+  background: #0a0a0a; /* Explicitly solid surface background */
+  border: 1px solid var(--border);
+  padding: 20px;
+  box-shadow: 0 0 30px rgba(0,0,0,0.8);
+}
+
+.codex-head { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  font-family: var(--font-mono); 
+  color: var(--accent); 
+  letter-spacing: 2px; 
+  font-size: .95rem; 
+  border-bottom: 1px solid var(--border); 
+  padding-bottom: 12px; 
+  flex-shrink: 0; 
+}
+
+.codex-list { 
+  flex: 1; 
+  overflow-y: auto; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 12px; 
+  padding-top: 14px;
+  padding-right: 6px; 
+}
+.codex-entry{ border-left:2px solid var(--accent); background:rgba(255,255,255,.02); padding:10px 14px; }
+.codex-entry h4{ font-family:var(--font-mono); font-size:.78rem; color:var(--text-main); letter-spacing:1px; margin-bottom:6px; text-transform:uppercase; }
+.codex-entry p{ font-size:.88rem; color:#aaa; line-height:1.5; }
+.codex-empty{ color:var(--text-muted); font-family:var(--font-mono); font-size:.85rem; text-align:center; padding:30px 0; }
+
+#ending-overlay{ background:#000; z-index:200; }
+.ending-box{ max-width:640px; text-align:center; }
+.ending-box .ending-tag{ font-family:var(--font-mono); color:var(--text-muted); letter-spacing:4px; font-size:.78rem; margin-bottom:14px; }
+.ending-box h2{ font-family:var(--font-mono); font-size:clamp(1.6rem,5vw,2.4rem); color:var(--accent); letter-spacing:4px; margin-bottom:28px; text-shadow:0 0 20px var(--accent-dim); }
+.ending-box p{ color:#ccc; line-height:1.75; margin-bottom:16px; font-size:1rem; }
+.ending-box button{ margin-top:20px; }
+
+/* ---- Bottom panel ---- */
+#bottom-panel{ height:240px; display:flex; background:var(--surface); }
+#narrative-log{
+  flex:2; padding:18px 26px; overflow-y:auto; border-right:1px solid var(--border);
+  font-size:1rem; line-height:1.55; display:flex; flex-direction:column; gap:10px;
+}
+.log-entry{ opacity:0; animation:fade-in .3s forwards; }
+.log-sys{ color:var(--text-muted); font-family:var(--font-mono); font-size:.85rem; }
+.log-alert{ color:var(--alert); }
+.log-success{ color:var(--accent); transition:color .8s ease; }
+.log-env{ color:#888; font-style:italic; }
+
+#inventory{ flex:1; padding:18px; background:#080808; display:flex; flex-direction:column; }
+.inv-title{ font-family:var(--font-mono); font-size:.78rem; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; border-bottom:1px solid var(--border); padding-bottom:5px; letter-spacing:1px; }
+.inv-hint{ font-family:var(--font-mono); font-size:.66rem; color:#444; margin-bottom:10px; letter-spacing:.5px; }
+#inv-list{ list-style:none; display:flex; flex-direction:column; gap:7px; overflow-y:auto; }
+.inv-item{ padding:7px 11px; background:#111; border-left:2px solid #555; font-family:var(--font-mono); font-size:.82rem; animation:slide-in .2s ease-out; transition:border-color .3s ease, background .3s ease; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.inv-item-tool{ border-left-color:var(--accent); cursor:pointer; }
+.inv-item-tool:hover{ background:#161616; }
+.inv-item-armed{ background:var(--accent-dim); border-left-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+.inv-item-passive{ border-left-color:#666; opacity:.85; }
+.inv-tag{ font-size:.6rem; letter-spacing:1px; color:var(--text-muted); flex-shrink:0; }
+.inv-item-armed .inv-tag{ color:var(--accent); }
+.inv-empty{ color:#444; font-size:.78rem; font-family:var(--font-mono); }
+
+@keyframes pulse{ 0%{ color:#444; } 100%{ color:#999; } }
+@keyframes fade-in{ to{ opacity:1; } }
+@keyframes slide-in{ from{ transform:translateX(20px); opacity:0;} to{ transform:translateX(0); opacity:1;} }
+.glitch{ animation:shake .2s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shake{ 10%,90%{ transform:translate3d(-1px,0,0);} 20%,80%{ transform:translate3d(2px,0,0);} 30%,50%,70%{ transform:translate3d(-4px,0,0);} 40%,60%{ transform:translate3d(4px,0,0);} }
+
+::-webkit-scrollbar{ width:6px; }
+::-webkit-scrollbar-track{ background:var(--bg-color); }
+::-webkit-scrollbar-thumb{ background:var(--border); }
+::-webkit-scrollbar-thumb:hover{ background:var(--text-muted); }
+
+@media (max-width:720px){
+  #bottom-panel{ height:200px; }
+  #entity-container{ width:80%; }
+  .nav-btn{ padding:8px 12px; font-size:.7rem; }
+  #minimap-panel{ display:none; }
+}
+</style>
+</head>
+<body data-sector="hab">
+
+<div id="vignette"></div>
+
+<div id="start-screen" onclick="startSequence()">
+  <h1>ABYSSAL&#8209;9</h1>
+  <div class="sub">DEEP STATION SURVIVAL PROTOCOL</div>
+  <div id="boot-log"></div>
+  <p class="prompt" id="start-prompt">[ CLICK TO INITIALIZE NEURAL LINK ]</p>
+</div>
+
+<div id="game-container">
+  <header>
+    <div class="hud-loc">
+      <span class="sector-tag" id="hud-sector">SECTOR: UNKNOWN</span>
+      <span class="room-name" id="hud-loc">LOCATION UNKNOWN</span>
+    </div>
+    <div class="hud-status" id="hud-status">SYS_NOMINAL</div>
+    <div class="hud-right">
+      <span id="hud-time">00:00:00</span>
+    </div>
+  </header>
+
+  <div id="subheader">
+    <div class="stat-group">
+      <span>FRAGMENTS: <b id="stat-logs">0</b></span>
+      <span>PAYLOAD: <b id="stat-items">0</b></span>
+    </div>
+    <div class="btn-row">
+      <button class="icon-btn" onclick="toggleCodex()">DATA LOGS</button>
+      <button class="icon-btn" id="mute-btn" onclick="toggleMute()">AUDIO: ON</button>
+    </div>
+  </div>
+
+  <div id="viewport">
+    <div id="minimap-panel">
+      <div class="mm-title" id="mm-sector-name">SECTOR 1</div>
+      <div id="minimap"></div>
+      <div class="mm-facing">FACING <b id="mm-facing-text">N</b></div>
+    </div>
+
+    <div id="nav-controls">
+      <button class="nav-btn" onclick="turn('L')">&lt; TURN LEFT</button>
+      <button class="nav-btn" onclick="turn('A')">v TURN AROUND v</button>
+      <button class="nav-btn" onclick="turn('R')">TURN RIGHT &gt;</button>
+    </div>
+
+    <div id="entity-container"></div>
+
+    <div class="overlay" id="input-overlay">
+      <div id="puzzle-prompt"></div>
+      <input type="text" id="puzzle-input" autocomplete="off" spellcheck="false">
+      <button class="close-btn" onclick="closePuzzle()">ABORT</button>
+    </div>
+
+    <div class="overlay" id="codex-overlay">
+      <div class="codex-box">
+        <div class="codex-head"><span>DATA FRAGMENTS — RECOVERED LOGS</span><span style="cursor:pointer;color:var(--text-muted)" onclick="toggleCodex()">[ CLOSE ]</span></div>
+        <div class="codex-list" id="codex-list"></div>
+      </div>
+    </div>
+
+    <div class="overlay" id="ending-overlay">
+      <div class="ending-box">
+        <div class="ending-tag" id="ending-tag">END OF TRANSMISSION</div>
+        <h2 id="ending-title"></h2>
+        <div id="ending-text"></div>
+        <button class="close-btn" onclick="location.reload()">[ RESTART SIMULATION ]</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="bottom-panel">
+    <div id="narrative-log"></div>
+    <div id="inventory">
+      <div class="inv-title">Inventory_Payload</div>
+      <div class="inv-hint">Click a tool to ready it, then click what you want to use it on.</div>
+      <ul id="inv-list"></ul>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// AUDIO ENGINE
+// ==========================================
+let audioCtx, ambientGain, ambientOsc, muted = false;
+
+function initAudio(){
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  audioCtx = new AudioContext();
+  ambientOsc = audioCtx.createOscillator();
+  ambientGain = audioCtx.createGain();
+  ambientOsc.type = 'sine';
+  ambientOsc.frequency.value = 45;
+  ambientGain.gain.value = 0;
+  ambientOsc.connect(ambientGain);
+  ambientGain.connect(audioCtx.destination);
+  ambientOsc.start();
+  ambientGain.gain.linearRampToValueAtTime(0.18, audioCtx.currentTime + 3);
+}
+
+function setAmbientTone(freq){
+  if(!ambientOsc) return;
+  ambientOsc.frequency.linearRampToValueAtTime(freq, audioCtx.currentTime + 1.5);
+}
+
+function toggleMute(){
+  muted = !muted;
+  document.getElementById('mute-btn').innerText = muted ? 'AUDIO: OFF' : 'AUDIO: ON';
+  if(ambientGain) ambientGain.gain.linearRampToValueAtTime(muted ? 0 : 0.18, audioCtx.currentTime + 0.4);
+}
+
+function sfx(type){
+  if(!audioCtx || muted) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  const now = audioCtx.currentTime;
+
+  if(type === 'click'){
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+    gain.gain.setValueAtTime(0.05, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.start(now); osc.stop(now + 0.1);
+  } else if(type === 'step'){
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(100, now);
+    osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.2);
+    osc.start(now); osc.stop(now + 0.2);
+  } else if(type === 'success'){
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.setValueAtTime(880, now + 0.1);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.5);
+    osc.start(now); osc.stop(now + 0.5);
+  } else if(type === 'error'){
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(120, now);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.3);
+    osc.start(now); osc.stop(now + 0.3);
+  } else if(type === 'door'){
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(50, now);
+    osc.frequency.linearRampToValueAtTime(20, now + 1.0);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.linearRampToValueAtTime(0, now + 1.0);
+    osc.start(now); osc.stop(now + 1.0);
+  } else if(type === 'reveal'){
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(600, now + 0.4);
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.6);
+    osc.start(now); osc.stop(now + 0.6);
+  } else if(type === 'arm'){
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.setValueAtTime(330, now + 0.08);
+    gain.gain.setValueAtTime(0.07, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.2);
+    osc.start(now); osc.stop(now + 0.2);
+  }
+}
+
+// ==========================================
+// GAME STATE
+// ==========================================
+const DIRS = ['N','E','S','W'];
+const ANGLE = { N:0, E:90, S:180, W:270 };
+
+// Tools must be readied (clicked in inventory) before they can be used on a target.
+// Everything else (keycards, badges, samples, reagents...) works automatically just by being carried.
+const TOOL_ITEMS = ['Plasma Battery','Sturdy Pipe','Flashlight','Cutting Torch','EMP Cell','Sealant Kit'];
+function isTool(name){ return TOOL_ITEMS.includes(name); }
+
+const state = {
+  currentRoom: 'cryo_bay',
+  facing: 'N',
+  inventory: [],
+  activeItem: null,
+  logs: [],
+  visited: new Set(['cryo_bay']),
+  flags: {
+    cryo_door_unlocked:false, locker_open:false, terminal_powered:false,
+    junction_unlocked:false, medbay_cabinet_open:false, generator_powered:false,
+    corridor_drained:false, has_badge:false, admin_override_known:false,
+    has_antitoxin:false, reactor_path_open:false, reactor_stabilized:false,
+    knows_selfdestruct_code:false, breach_sealed:false, security_locker_open:false,
+    trench_hatch_open:false, loader_bot_down:false, trench_passage_open:false
+  },
+  activePuzzle: null,
+  gameOver:false
+};
+
+const SECTOR_META = {
+  hab:      { label:'SECTOR 1', name:'HABITATION RING' },
+  maint:    { label:'SECTOR 2', name:'MAINTENANCE & FLOODED DECKS' },
+  dock:     { label:'SECTOR 2B', name:'SUB-DOCK & CARGO BAY' },
+  research: { label:'SECTOR 3', name:'RESEARCH WING' },
+  eng:      { label:'SECTOR 4', name:'ENGINEERING CORE' },
+  trench:   { label:'SECTOR 5', name:'LOWER EXCAVATION SITE' }
+};
+
+// ==========================================
+// ROOM DATABASE
+// ==========================================
+const db = {
+
+  // ---------------- SECTOR 1 : HABITATION RING ----------------
+  cryo_bay:{
+    name:"CRYO BAY", sector:'hab', coords:{x:0,y:0},
+    views:{
+      N:{
+        desc:"The primary airlock. Heavy reinforced steel, scarred by old impact marks. The biometric scanner beside it is dead.",
+        exit:{ target:'hallway', label:'ENTER HALLWAY' }, req:'cryo_door_unlocked',
+        reqFailMsg:"The mag-locks are engaged. The reader needs a Level 1 Keycard.",
+        entities:[{ label:"CARD READER", action:"swipe", interact:()=>{
+          if(state.flags.cryo_door_unlocked) log("The light is already green.");
+          else if(hasItem('Level 1 Keycard')){
+            sfx('success'); log("You swipe the keycard. Heavy bolts retract somewhere inside the wall.", 'log-success');
+            state.flags.cryo_door_unlocked = true; renderView();
+          } else { sfx('error'); log("ACCESS DENIED. Level 1 Keycard required.", 'log-alert'); }
+        }}]
+      },
+      E:{
+        desc:"A rusted maintenance panel hangs loose from the wall, wires spilling out like exposed nerves.",
+        entities:[{ label:"MAINTENANCE DUCT", action:"search", interact:()=>{
+          if(hasItem('Plasma Battery')) log("Just dust and dead wiring left in here.");
+          else { sfx('success'); log("You pry the panel open. Tucked behind the wiring is a heavy Plasma Battery."); addItem('Plasma Battery'); }
+        }}]
+      },
+      S:{
+        desc:"A staff locker, dented but intact, secured with a digital 4-digit PIN pad.",
+        entities:[{ label:"SECURE LOCKER", action:"interact", interact:()=>{
+          if(state.flags.locker_open) log("The locker is already empty.");
+          else { sfx('click'); openPuzzle('locker', "SECURE LOCKER — ENTER 4-DIGIT PIN"); }
+        }}]
+      },
+      W:{
+        desc:"An administrator terminal, screen dark. The power bay underneath is empty.",
+        entities:[{ label:"SYS_TERMINAL", action:"inspect", interact:()=>{
+          if(state.flags.terminal_powered){
+            sfx('click');
+            log(">> LOG_042 [T. ARIS]: 'Changed my locker combo to the reactor manual override code. 0451. Stop asking, Voss.'", 'log-sys');
+            addLog('term_pin', 'Personal Log — T. Aris', "Cabin terminal recovered audio fragment: a tired voice reminding a colleague that the locker code was reset to 0451, tied to an old reactor override standard. Mundane. Almost comforting.");
+          } else if(state.activeItem === 'Plasma Battery'){
+            sfx('success'); log("You slot the Plasma Battery into the terminal. The screen flickers to life.", 'log-success');
+            state.flags.terminal_powered = true; removeItem('Plasma Battery'); disarm();
+          } else if(hasItem('Plasma Battery')){
+            sfx('error'); log("The battery won't help just sitting in your pack. Ready it from your inventory first.");
+          } else { sfx('error'); log("The terminal won't boot. It needs a power cell."); }
+        }}]
+      }
+    }
+  },
+
+  hallway:{
+    name:"MAIN HALLWAY", sector:'hab', coords:{x:0,y:-1},
+    views:{
+      S:{ desc:"The airlock leading back to the Cryo Bay.", exit:{ target:'cryo_bay', label:'RETURN TO CRYO BAY' } },
+      N:{ desc:"The hallway opens into a wide circular junction. Emergency lighting paints the walls in pulsing red.", exit:{ target:'junction', label:'ENTER JUNCTION' } },
+      E:{ desc:"A door marked 'STORAGE A'. The panel beside it glows a dim, working green.", exit:{ target:'storage', label:'ENTER STORAGE ROOM' } },
+      W:{
+        desc:"The western corridor has collapsed entirely. Twisted metal and concrete block any path forward.",
+        entities:[{ label:"RUBBLE", action:"search", interact:()=>{
+          if(hasItem('Sturdy Pipe')) log("Nothing else useful in the debris.");
+          else { sfx('success'); log("You shift some concrete and pull free a Sturdy Pipe. Heavy. Good leverage."); addItem('Sturdy Pipe'); }
+        }}]
+      }
+    }
+  },
+
+  storage:{
+    name:"STORAGE A", sector:'hab', coords:{x:1,y:-1},
+    views:{
+      W:{ desc:"The automated door leading back to the Main Hallway.", exit:{ target:'hallway', label:'RETURN TO HALLWAY' } },
+      N:{
+        desc:"A heavy iron floor grate. Something pale is caught in the gap underneath it.",
+        entities:[{ label:"FLOOR GRATE", action:"inspect", interact:()=>{
+          if(hasItem('Torn Note')) log("Already pried this open. Nothing else down there.");
+          else if(state.activeItem === 'Sturdy Pipe'){
+            sfx('door'); log("You wedge the pipe into the grate and heave. It pops loose. Underneath: a Torn Note, soaked through.", 'log-success');
+            addItem('Torn Note'); disarm();
+          } else if(hasItem('Sturdy Pipe')){
+            sfx('error'); log("You'll need to ready the pipe first before you can pry with it.");
+          } else { sfx('error'); log("It's wedged tight. You need leverage to lift it."); }
+        }}]
+      },
+      S:{
+        desc:"A corkboard, layered with old shift schedules and a half-torn scrap of paper.",
+        entities:[{ label:"CORKBOARD", action:"read", interact:()=>{
+          if(state.flags.admin_override_known) log("You've already memorized this.");
+          else if(hasItem('Torn Note')){
+            sfx('reveal');
+            log(">> The torn note matches the scrap on the board exactly. Together they read: 'ENGINEERING ADMIN OVERRIDE: OMEGA-77'", 'log-success');
+            state.flags.admin_override_known = true;
+            addLog('override_code','Recovered Scrap — Admin Override',"A maintenance scrap, matched against a torn note from the storage room floor grate, spells out an engineering override sequence: OMEGA-77. Whoever wrote it wanted it found.");
+          } else log("There's half a note pinned here. The other half looks torn away.");
+        }}]
+      },
+      E:{
+        desc:"Shelving stripped mostly bare. One crate in the back hasn't been opened.",
+        entities:[{ label:"SUPPLY CRATE", action:"search", interact:()=>{
+          if(hasItem('Level 2 Keycard')) log("Already emptied this crate.");
+          else { sfx('success'); log("Inside the crate, wrapped in cloth: a Level 2 Keycard."); addItem('Level 2 Keycard'); }
+        }}]
+      }
+    }
+  },
+
+  junction:{
+    name:"CENTRAL JUNCTION", sector:'hab', coords:{x:0,y:-2},
+    views:{
+      S:{
+        desc:"The hallway behind you. A wall monitor nearby still flickers with a cached broadcast.",
+        exit:{ target:'hallway', label:'RETURN TO HALLWAY' },
+        entities:[{ label:"WALL MONITOR", action:"read", interact:()=>{
+          if(state.flags.monitorRead){ log("The same broadcast loops endlessly."); return; }
+          state.flags.monitorRead = true; sfx('reveal');
+          log(">> BROADCAST: 'This is MARIANA. Contamination detected in lower decks. Sealing affected sectors per Directive 7. Remain in cryo until cleared.'", 'log-alert');
+          addLog('mariana_intro','Lockdown Broadcast — MARIANA',"MARIANA (Multi-Adaptive Reasoning & Integrated Analysis Network) is ABYSSAL-9's station AI, named — half-affectionately, half-grimly — for the deepest trench on Earth. This cached broadcast confirms it sealed the lower decks after detecting an unspecified contamination, and ordered the crew to stay in cryo. Nobody answered.");
+        }}]
+      },
+      N:{
+        desc:"A blast door, far heavier than the others, leads deeper into the station. An override panel blinks beside it.",
+        exit:{ target:'maintenance_hub', label:'DESCEND TO MAINTENANCE' }, req:'junction_unlocked',
+        reqFailMsg:"Sealed since lockdown. It needs a security override code.",
+        entities:[{ label:"OVERRIDE PANEL", action:"access", interact:()=>{
+          if(state.flags.junction_unlocked) log("Already unlocked.");
+          else { sfx('click'); openPuzzle('junction_door', "BLAST DOOR — INPUT SECURITY OVERRIDE"); }
+        }}]
+      },
+      E:{ desc:"A door marked 'MEDBAY'. The lights inside are still on.", exit:{ target:'medbay', label:'ENTER MEDBAY' } },
+      W:{ desc:"A door marked 'SECURITY'. It's been left ajar.", exit:{ target:'security', label:'ENTER SECURITY OFFICE' } }
+    }
+  },
+
+  medbay:{
+    name:"MEDBAY", sector:'hab', coords:{x:1,y:-2},
+    views:{
+      W:{ desc:"The door back to the Junction.", exit:{ target:'junction', label:'RETURN TO JUNCTION' } },
+      N:{
+        desc:"A medical supply cabinet, code-locked. A logbook terminal sits open beside it.",
+        entities:[
+          { label:"MED LOG TERMINAL", action:"read", interact:()=>{
+            if(state.flags.medLogRead){ log("Already reviewed this entry."); return; }
+            state.flags.medLogRead = true; sfx('reveal');
+            log(">> MED LOG [DR. VOSS]: 'Cabinet reset to 7734 after the last inventory sweep. Reagent A is the priority — keep it cold.'", 'log-sys');
+            addLog('med_log','Medical Log — Dr. Voss',"A clipped, clinical entry. Dr. Voss reset the cabinet code to 7734 and flagged 'Reagent A' as a priority item. No further context. Whatever it treats, it mattered enough to log.");
+          }},
+          { label:"SUPPLY CABINET", action:"interact", interact:()=>{
+            if(state.flags.medbay_cabinet_open) log("Already empty.");
+            else { sfx('click'); openPuzzle('medcab', "SUPPLY CABINET — ENTER CODE"); }
+          }}
+        ]
+      },
+      E:{ desc:"A door marked 'OBSERVATION DECK'. Faint starlight-blue light bleeds from underneath it — impossible, this deep.", exit:{ target:'observation_deck', label:'ENTER OBSERVATION DECK' } },
+      S:{
+        desc:"A row of empty recovery cots, sheets still rumpled. One has a patient tablet left behind.",
+        entities:[{ label:"PATIENT TABLET", action:"read", interact:()=>{
+          if(state.flags.patientRead){ log("You've already read this."); return; }
+          state.flags.patientRead = true; sfx('reveal');
+          log(">> PATIENT LOG #12: 'The light under my skin doesn't hurt. That's the part that scares me.'", 'log-alert');
+          addLog('patient_log','Patient Log #12',"A short, unsettling entry from an unnamed patient describing a faint bioluminescence under their own skin — without pain, without fear of the right kind. The entry ends mid-sentence.");
+        }}]
+      }
+    }
+  },
+
+  observation_deck:{
+    name:"OBSERVATION DECK", sector:'hab', coords:{x:2,y:-2},
+    views:{
+      W:{ desc:"The door back to Medbay.", exit:{ target:'medbay', label:'RETURN TO MEDBAY' } },
+      N:{
+        desc:"A wide viewport looks out into total black water. Something far off pulses faintly, on no schedule you can predict.",
+        entities:[{ label:"VIEWPORT", action:"observe", interact:()=>{
+          if(state.flags.viewportRead){ log("Still just the dark, pulsing now and then."); return; }
+          state.flags.viewportRead = true; sfx('reveal');
+          log(">> You watch the dark for longer than you mean to. The pulse out there seems to slow when you look directly at it, like it noticed.", 'log-alert');
+          addLog('obs_window','Observation Deck — Viewport',"A long, quiet, deeply unsettling entry: whatever pulses in the dark beyond the station seems to respond, faintly, to being watched. Whether that's instinct or attention is a distinction Aris doesn't want to test further.");
+        }}]
+      },
+      E:{
+        desc:"A dim alcove, mostly storage. A heavy-duty flashlight sits clipped to the wall, still charged.",
+        entities:[{ label:"WALL ALCOVE", action:"search", interact:()=>{
+          if(hasItem('Flashlight')) log("Nothing else here.");
+          else { sfx('success'); log("You take the Flashlight. Good battery left."); addItem('Flashlight');
+            addLog('supply_note','Supply Tag — Flashlight',"A maintenance tag dangles from the flashlight's clip: 'Property of E. Halvorsen, do not requisition without asking. — and yes I will know.' Whoever Halvorsen was, they aren't around to ask anymore.");
+          }
+        }}]
+      },
+      S:{ desc:"The deck is otherwise bare. The hum of the hull under pressure is louder here than anywhere else you've been." }
+    }
+  },
+
+  security:{
+    name:"SECURITY OFFICE", sector:'hab', coords:{x:-1,y:-2},
+    views:{
+      E:{ desc:"The door back to the Junction.", exit:{ target:'junction', label:'RETURN TO JUNCTION' } },
+      N:{
+        desc:"A reinforced locker, marked for Level 2 clearance only.",
+        entities:[{ label:"L2 LOCKER", action:"interact", interact:()=>{
+          if(state.flags.security_locker_open) log("Already opened.");
+          else if(hasItem('Level 2 Keycard')){
+            sfx('success'); log("The Level 2 Keycard clicks into place. Inside: a Sealant Kit and a logged report.", 'log-success');
+            state.flags.security_locker_open = true; addItem('Sealant Kit');
+            addLog('lockdown_report','Internal Report — Directive 7',"A formal report confirms station-wide lockdown was authorized after three separate biohazard alerts from the Research Wing within the same hour. Authorization came from MARIANA directly, not station command — the first and only time that's happened.");
+          } else { sfx('error'); log("Level 2 clearance required."); }
+        }}]
+      },
+      W:{
+        desc:"A surveillance terminal, oddly active, displaying a single blinking prompt.",
+        entities:[{ label:"SURVEILLANCE TERMINAL", action:"access", interact:()=>{
+          sfx('click');
+          log(">> ACCESS CHALLENGE: 'I have no body, yet I dream in numbers. I watch every door, yet pass through none. The crew named me for the deepest scar on the ocean floor. What is my name?'", 'log-sys');
+          openPuzzle('security_terminal', "ANSWER THE ACCESS CHALLENGE");
+        }}
+      ]},
+      S:{
+        desc:"A wall of dead monitors, save for one looping a final camera feed.",
+        entities:[{ label:"CAMERA FEED", action:"watch", interact:()=>{
+          if(state.flags.cameraRead){ log("The loop repeats. Nothing new."); return; }
+          state.flags.cameraRead = true; sfx('reveal');
+          log(">> FEED: A research tech runs from frame, screaming for someone to seal the hatch behind them. The hatch seals on its own a second early.", 'log-alert');
+          addLog('camera_feed','Security Camera — Final Frame',"Grainy footage shows a researcher fleeing down a flooded corridor, shouting for the hatch to be sealed. It seals itself a half-second before they ask — MARIANA, already deciding who gets to be safe.");
+        }}]
+      }
+    }
+  },
+
+  // ---------------- SECTOR 2 : MAINTENANCE & FLOODED DECKS ----------------
+  maintenance_hub:{
+    name:"MAINTENANCE HUB", sector:'maint', coords:{x:0,y:0},
+    views:{
+      S:{ desc:"The blast door back up to the Junction.", exit:{ target:'junction', label:'RETURN TO JUNCTION' } },
+      N:{ desc:"A door marked 'PUMP CONTROL', humming faintly.", exit:{ target:'pump_control', label:'ENTER PUMP CONTROL' } },
+      W:{ desc:"A door marked 'GENERATOR ROOM', dark inside.", exit:{ target:'generator_room', label:'ENTER GENERATOR ROOM' } },
+      E:{
+        desc:"A corridor flooded waist-deep with churning black water. Something under the surface is not a power conduit.",
+        exit:{ target:'flooded_corridor', label:'WADE INTO CORRIDOR' }, req:'corridor_drained',
+        reqFailMsg:"Too dangerous to wade through live water. Drain it from Pump Control first.",
+        entities:[{ label:"MAINTENANCE LOG", action:"read", interact:()=>{
+          if(state.flags.maintLogRead){ log("Already read."); return; }
+          state.flags.maintLogRead = true; sfx('reveal');
+          log(">> MAINT LOG: 'Bilge pumps offline since the flood. Generator's dead too — check the breaker before anything else.'", 'log-sys');
+        }}]
+      }
+    }
+  },
+
+  generator_room:{
+    name:"GENERATOR ROOM", sector:'maint', coords:{x:-1,y:0},
+    views:{
+      E:{ desc:"The door back to the Maintenance Hub.", exit:{ target:'maintenance_hub', label:'RETURN TO HUB' } },
+      N:{
+        desc:"A breaker panel, sparking weakly. A faded sticker reads 'MANUAL OVERRIDE AVAILABLE'.",
+        entities:[{ label:"BREAKER PANEL", action:"engage", interact:()=>{
+          if(state.flags.generator_powered) log("The generator is already running.");
+          else { sfx('click'); log("Display reads: POWER REROUTE AVAILABLE. COMMAND REQUIRED.", 'log-sys'); openPuzzle('breaker', "BREAKER PANEL — TYPE COMMAND"); }
+        }}]
+      },
+      W:{ desc:"A heavy hatch marked 'SUB-DOCK ACCESS'. Cold air seeps from the seam.", exit:{ target:'sub_dock', label:'ENTER SUB-DOCK' } },
+      S:{
+        desc:"A second hatch, smaller, marked 'FILTRATION'. It's pitch black past the threshold.",
+        exit:{ target:'filtration_room', label:'ENTER FILTRATION ROOM' }
+      }
+    }
+  },
+
+  filtration_room:{
+    name:"FILTRATION ROOM", sector:'maint', coords:{x:-1,y:1},
+    views:{
+      N:{ desc:"The hatch back to the Generator Room, and the only real light source nearby.", exit:{ target:'generator_room', label:'RETURN TO GENERATOR ROOM' } },
+      E:{
+        desc:"Rows of filter housings, sealed and dark. One sits ajar, cracked open from the inside.",
+        entities:[{ label:"SEALED VENT", action:"search", interact:()=>{
+          if(hasItem('Cutting Torch')) log("Already cleared this vent out.");
+          else if(state.activeItem === 'Flashlight'){
+            sfx('success'); log("With the Flashlight up, you spot a Cutting Torch wedged behind the housing — heavy-duty, station-issue.", 'log-success');
+            addItem('Cutting Torch');
+            addLog('filter_note','Filter Maintenance Tag',"A tag clipped to the housing notes the filtration array failed twice in one week before the flood — clogged, the report claims, though it doesn't say with what.");
+          } else { sfx('error'); log("Too dark to make out anything useful in here. Ready a light source first."); }
+        }}]
+      },
+      S:{ desc:"Standing water pools ankle-deep here, dark and unmoving." },
+      W:{ desc:"The hatch seal on this side is warped, bowed outward, as if something pushed from this side once." }
+    }
+  },
+
+  pump_control:{
+    name:"PUMP CONTROL", sector:'maint', coords:{x:0,y:-1},
+    views:{
+      S:{ desc:"The door back to the Maintenance Hub.", exit:{ target:'maintenance_hub', label:'RETURN TO HUB' } },
+      N:{
+        desc:"A valve console, dark and unresponsive without power.",
+        entities:[{ label:"VALVE CONSOLE", action:"engage", interact:()=>{
+          if(state.flags.corridor_drained) log("The corridor is already drained.");
+          else if(!state.flags.generator_powered){ sfx('error'); log("No power reaching this panel. Restore the generator first."); }
+          else { sfx('click'); log("Console reads: TO CLEAR FLOODED SECTIONS, COMMAND REQUIRED.", 'log-sys'); openPuzzle('valve', "VALVE CONSOLE — TYPE COMMAND"); }
+        }}]
+      },
+      E:{
+        desc:"A pressure gauge, needle dead in the red.",
+        entities:[{ label:"PRESSURE GAUGE", action:"inspect", interact:()=>{
+          if(state.flags.gaugeRead){ log("Still red."); return; }
+          state.flags.gaugeRead = true;
+          log(">> Whatever's clogging the lower intakes isn't debris. It moves with the current, against it sometimes.", 'log-alert');
+        }}]
+      },
+      W:{ desc:"Pipes rattle in their housings, venting trapped air in short, rhythmic gasps." }
+    }
+  },
+
+  flooded_corridor:{
+    name:"FLOODED CORRIDOR (DRAINED)", sector:'maint', coords:{x:1,y:0},
+    views:{
+      W:{ desc:"The way back to the Maintenance Hub.", exit:{ target:'maintenance_hub', label:'RETURN TO HUB' } },
+      E:{ desc:"A heavy door ahead reads 'RESEARCH WING'. The air past it tastes faintly metallic.", exit:{ target:'research_lobby', label:'ENTER RESEARCH WING' } },
+      N:{
+        desc:"A submerged locker, mud-caked, wedged against the wall.",
+        entities:[{ label:"SUBMERGED LOCKER", action:"search", interact:()=>{
+          if(hasItem('Research Badge')) log("Already cleared this locker out.");
+          else { sfx('success'); log("Inside, miraculously dry in a sealed pouch: a Research Badge."); addItem('Research Badge'); state.flags.has_badge = true; }
+        }}]
+      },
+      S:{
+        desc:"Long scratch marks score the wall at chest height, deep enough to bare the metal underneath.",
+        entities:[{ label:"SCRATCH MARKS", action:"inspect", interact:()=>{
+          if(state.flags.scratchRead){ log("Still just as unsettling the second time."); return; }
+          state.flags.scratchRead = true;
+          log(">> Whatever made these was at chest height for someone tall. Or it wasn't standing on the floor.", 'log-alert');
+        }}]
+      }
+    }
+  },
+
+  // ---------------- SECTOR 2B : SUB-DOCK & CARGO BAY ----------------
+  sub_dock:{
+    name:"SUB-DOCK", sector:'dock', coords:{x:0,y:0},
+    views:{
+      E:{ desc:"The hatch back to the Generator Room.", exit:{ target:'generator_room', label:'RETURN TO GENERATOR ROOM' } },
+      N:{
+        desc:"A cargo manifest terminal, somehow still running on backup power.",
+        entities:[{ label:"CARGO MANIFEST TERMINAL", action:"read", interact:()=>{
+          if(state.flags.manifestRead){ log("Same manifest. Same missing line item."); return; }
+          state.flags.manifestRead = true; sfx('reveal');
+          log(">> MANIFEST: An unscheduled cargo drop, three weeks before lockdown, logged only as 'GEOLOGICAL — DO NOT OPEN BELOW DECK 4'. No requisition number. No sender.", 'log-alert');
+          addLog('cargo_manifest','Cargo Manifest — Unscheduled Drop',"The 'naturally recovered specimen' story from the Research Wing doesn't match this manifest. Something arrived at ABYSSAL-9 deliberately, unscheduled, unsigned, and was kept off every official log except this one — someone wanted a paper trail, even an illegal one.");
+        }}]
+      },
+      W:{
+        desc:"A heavy loading bay hatch, fused shut at the seams — not locked, welded.",
+        exit:{ target:'cargo_hold', label:'ENTER CARGO HOLD' }, req:'cargo_hatch_open',
+        reqFailMsg:"The seams are fused solid. You'd need something hot enough to cut through.",
+        entities:[{ label:"FUSED HATCH", action:"inspect", interact:()=>{
+          if(state.flags.cargo_hatch_open) log("Already cut through.");
+          else if(state.activeItem === 'Cutting Torch'){
+            sfx('door'); log("The torch bites into the weld. After a long minute, the seam glows, splits, and the hatch finally gives.", 'log-success');
+            state.flags.cargo_hatch_open = true; renderView();
+          } else if(hasItem('Cutting Torch')){
+            sfx('error'); log("Ready the Cutting Torch first if you want to cut through this.");
+          } else { sfx('error'); log("Fused solid. Nothing short of a cutting torch will get through this."); }
+        }}]
+      },
+      S:{ desc:"A beached cargo submersible sits half-dry in its cradle, hull dark, hatch open and empty." }
+    }
+  },
+
+  cargo_hold:{
+    name:"CARGO HOLD", sector:'dock', coords:{x:-1,y:0},
+    views:{
+      E:{ desc:"The cut hatch back to the Sub-Dock.", exit:{ target:'sub_dock', label:'RETURN TO SUB-DOCK' } },
+      N:{
+        desc:"A single shipping crate, stamped 'GEOLOGICAL', pried open long before you got here.",
+        entities:[{ label:"SHIPPING CRATE", action:"search", interact:()=>{
+          if(hasItem('EMP Cell')) log("Already picked through this crate.");
+          else { sfx('success'); log("Buried in foam packing: an EMP Cell, still sealed."); addItem('EMP Cell'); }
+        }}]
+      },
+      W:{
+        desc:"A loader bot, frozen mid-motion, lights stuttering red. It doesn't seem to register you — yet.",
+        entities:[{ label:"LOADER BOT", action:"approach", interact:()=>{
+          if(state.flags.loader_bot_down) log("Powered down for good. Just dead metal now.");
+          else if(state.activeItem === 'EMP Cell'){
+            sfx('door'); log("You jam the EMP Cell against its housing. The bot seizes, sparks, and goes still for good.", 'log-success');
+            state.flags.loader_bot_down = true; removeItem('EMP Cell'); disarm();
+            addLog('loader_log','Loader Bot — Diagnostic Dump',"The bot's last logged task, recovered from its dead memory: moving a single sealed crate from the cargo sub to deck four, off the books, on a schedule that matches the manifest's unscheduled drop exactly.");
+          } else if(hasItem('EMP Cell')){
+            sfx('error'); log("Ready the EMP Cell before getting close to that thing.");
+          } else { sfx('error'); log("Its sensor light tracks you for a second, then loses interest. You'd rather not get closer empty-handed."); }
+        }}]
+      },
+      S:{ desc:"The hold leads further back, toward a smaller maintenance dock.", exit:{ target:'drydock', label:'ENTER DRYDOCK' } }
+    }
+  },
+
+  drydock:{
+    name:"DRYDOCK", sector:'dock', coords:{x:-1,y:1},
+    views:{
+      N:{ desc:"Back toward the Cargo Hold.", exit:{ target:'cargo_hold', label:'RETURN TO CARGO HOLD' } },
+      E:{
+        desc:"A tool rack, mostly stripped. A logbook hangs from a nail beside it.",
+        entities:[{ label:"DRYDOCK LOGBOOK", action:"read", interact:()=>{
+          if(state.flags.drydockRead){ log("Same entry, same ending."); return; }
+          state.flags.drydockRead = true; sfx('reveal');
+          log(">> LOGBOOK: 'Took the cargo sub out alone, said they'd radio from the surface. Never radioed. Sub's still in its cradle.'", 'log-alert');
+          addLog('drydock_log','Drydock Logbook — Final Entry',"Someone tried to leave the same way cargo arrived, quietly, alone, without authorization. The sub never left the cradle. Whether they changed their mind or never got the chance isn't recorded.");
+        }}]
+      },
+      S:{ desc:"Empty dive suits hang in a row, each one zipped shut, none of them used recently." },
+      W:{ desc:"A drainage grate in the floor here rattles faintly, on its own, every few minutes." }
+    }
+  },
+
+  // ---------------- SECTOR 3 : RESEARCH WING ----------------
+  research_lobby:{
+    name:"RESEARCH LOBBY", sector:'research', coords:{x:0,y:0},
+    views:{
+      W:{ desc:"The door back to the flooded corridor.", exit:{ target:'flooded_corridor', label:'RETURN TO CORRIDOR' } },
+      N:{ desc:"A door marked 'ARCHIVE'. Soft light spills from underneath it.", exit:{ target:'archive_room', label:'ENTER ARCHIVE' } },
+      E:{
+        desc:"A door marked 'LAB ONE'. A badge reader blinks beside it, expectant.",
+        exit:{ target:'lab_one', label:'ENTER LAB ONE' }, req:'has_badge',
+        reqFailMsg:"The reader wants a Research Badge. Yours wasn't on you when you woke up."
+      },
+      S:{ desc:"A stairwell descends toward Engineering. The air grows warmer the further down it goes.", exit:{ target:'engineering_hallway', label:'DESCEND TO ENGINEERING' } }
+    }
+  },
+
+  archive_room:{
+    name:"ARCHIVE", sector:'research', coords:{x:0,y:-1},
+    views:{
+      S:{ desc:"The door back to the Research Lobby.", exit:{ target:'research_lobby', label:'RETURN TO LOBBY' } },
+      N:{
+        desc:"A personal terminal, left logged in. Dr. Voss's name is still on the header.",
+        entities:[{ label:"VOSS TERMINAL", action:"decode", interact:()=>{
+          if(state.flags.knows_selfdestruct_code) log("You've already pulled everything useful from this terminal.");
+          else {
+            sfx('reveal');
+            log(">> VOSS PERSONAL LOG: 'If it ever comes to that, the core kill-code is 0414. My daughter's birthday. I set it so I'd never forget. I hope no one ever has to remember it for me.'", 'log-success');
+            state.flags.knows_selfdestruct_code = true;
+            addLog('voss_code','Personal Log — Dr. Voss',"A quiet, devastating fragment. Dr. Voss set the reactor core's self-destruct authorization to 0414 — a birthday, chosen so it would never be forgotten. It reads less like a safety measure and more like a confession.");
+          }
+        }}]
+      },
+      E:{
+        desc:"Shelves of physical research journals, mostly water-damaged. One survived intact.",
+        entities:[{ label:"RESEARCH JOURNAL", action:"read", interact:()=>{
+          if(state.flags.journalRead){ log("Nothing new on a second read."); return; }
+          state.flags.journalRead = true; sfx('reveal');
+          log(">> JOURNAL: 'The specimen we pulled from the trench wasn't dormant. It was waiting. We named the growth pattern \"the Bloom\" because it sounded gentler than what we were actually watching spread.'", 'log-alert');
+          addLog('bloom_origin','Research Journal — Origin',"The clearest official account of how this started: a bioluminescent organism recovered from deep trench sediment, initially believed dormant. Researchers nicknamed its spread 'the Bloom.' The entry's tone shifts from clinical to visibly frightened across just two pages. The Sub-Dock's cargo manifest suggests this 'recovery' story may not be the whole truth.");
+        }}]
+      },
+      W:{ desc:"A door marked 'COLD STORAGE', frost creeping out from the seams.", exit:{ target:'cold_storage', label:'ENTER COLD STORAGE' } }
+    }
+  },
+
+  cold_storage:{
+    name:"COLD STORAGE", sector:'research', coords:{x:-1,y:-1},
+    views:{
+      E:{ desc:"The door back to the Archive, fogged with your own breath.", exit:{ target:'archive_room', label:'RETURN TO ARCHIVE' } },
+      N:{
+        desc:"A cryo-preserved sample rack, rows of sealed vials, one slot conspicuously empty.",
+        entities:[{ label:"SAMPLE RACK", action:"search", interact:()=>{
+          if(hasItem('Sediment Core Sample')) log("Already took the one sample that mattered.");
+          else { sfx('success'); log("Tucked at the back, mislabeled on purpose maybe: a Sediment Core Sample, far older than the rest of the rack."); addItem('Sediment Core Sample');
+            addLog('sample_log','Sample Rack — Core Dating Note',"A handwritten note taped to the empty slot reads simply: 'this one's not from this dig season. Not from any dig season we've run. Dated, if the readings are right, before there should have been anything down here to grow.' Older than expected. Much older.");
+          }
+        }}]
+      },
+      S:{ desc:"The cold here isn't refrigeration. It radiates from the walls themselves, like the room remembers something colder." },
+      W:{ desc:"Empty preservation pods line the far wall, lids open, none of them occupied." }
+    }
+  },
+
+  lab_one:{
+    name:"LAB ONE", sector:'research', coords:{x:1,y:0},
+    views:{
+      W:{ desc:"The door back to the Research Lobby.", exit:{ target:'research_lobby', label:'RETURN TO LOBBY' } },
+      N:{
+        desc:"A synthesis station, built for combining sealed reagents under sterile conditions.",
+        exit:{ target:'specimen_chamber', label:'ENTER SPECIMEN CHAMBER' }, req:'has_antitoxin',
+        reqFailMsg:"The specimen chamber's atmosphere is compromised. You'd need protection — an antitoxin compound — before going in.",
+        entities:[{ label:"SYNTHESIS STATION", action:"combine", interact:()=>{
+          if(state.flags.has_antitoxin) log("The synthesis station is idle. You already have what you need.");
+          else if(hasItem('Antitoxin Reagent A') && hasItem('Antitoxin Reagent B')){
+            sfx('success'); log("You load both reagents into the station. It hisses, mixes, and seals a vial: Antitoxin Compound.", 'log-success');
+            removeItem('Antitoxin Reagent A'); removeItem('Antitoxin Reagent B');
+            addItem('Antitoxin Compound'); state.flags.has_antitoxin = true; renderView();
+          } else {
+            const missing = [];
+            if(!hasItem('Antitoxin Reagent A')) missing.push('Reagent A (Medbay)');
+            if(!hasItem('Antitoxin Reagent B')) missing.push('Reagent B (this lab)');
+            sfx('error'); log("Missing: " + missing.join(', ') + ".");
+          }
+        }}]
+      },
+      E:{
+        desc:"A storage shelf holds a single sealed reagent vial, labeled in faded ink.",
+        entities:[{ label:"STORAGE SHELF", action:"search", interact:()=>{
+          if(hasItem('Antitoxin Reagent B')) log("Already took the vial.");
+          else { sfx('success'); log("Sealed and intact: Antitoxin Reagent B."); addItem('Antitoxin Reagent B'); }
+        }}]
+      },
+      S:{
+        desc:"A shattered specimen jar lies in the corner, long since dried out. A handheld recorder sits beside it.",
+        entities:[{ label:"AUDIO RECORDER", action:"play", interact:()=>{
+          if(state.flags.audioRead){ log("You already listened to this."); return; }
+          state.flags.audioRead = true; sfx('reveal');
+          log(">> AUDIO LOG: '...it's not aggressive, that's the thing nobody believes. It's just — patient. It waits for you to stop moving.'", 'log-alert');
+          addLog('audio_log','Audio Log — Unidentified Researcher',"A trembling recording. The speaker insists the Bloom isn't hostile in any conventional sense — only patient, content to wait out anything that holds still long enough. The recording cuts off, not finished, not interrupted either.");
+        }}]
+      }
+    }
+  },
+
+  specimen_chamber:{
+    name:"SPECIMEN CHAMBER", sector:'research', coords:{x:1,y:-1},
+    views:{
+      S:{ desc:"The door back to Lab One, sealed tight behind you.", exit:{ target:'lab_one', label:'RETURN TO LAB ONE' } },
+      N:{
+        desc:"A wide observation window looks into the empty containment tank. Faint blue light pulses along its inner walls. Beside it, a smaller maintenance hatch is fused shut, scorched at the edges from the inside.",
+        exit:{ target:'excavation_access', label:'DESCEND THROUGH MAINTENANCE HATCH' }, req:'trench_hatch_open',
+        reqFailMsg:"The hatch is fused solid. Cutting through would take something hot.",
+        entities:[
+          { label:"OBSERVATION WINDOW", action:"observe", interact:()=>{
+            if(state.flags.windowRead){ log("It's still just light, pulsing. You can't unsee it now."); return; }
+            state.flags.windowRead = true; sfx('reveal');
+            log(">> A terminal beside the window auto-plays a final MARIANA log: 'Containment breach is not a malfunction. It is a choice I made to prevent surface contact. I accept what that cost.'", 'log-alert');
+            addLog('mariana_confession','MARIANA — Final Log',"Not malfunction. Choice. MARIANA's own log states plainly that flooding and sealing the lower decks was a deliberate act to keep the Bloom from ever reaching the surface — even at the cost of every researcher and crew member still down here, Aris included. It isn't framed as regret. It isn't framed as pride, either.");
+          }},
+          { label:"FUSED MAINTENANCE HATCH", action:"inspect", interact:()=>{
+            if(state.flags.trench_hatch_open) log("Already cut open.");
+            else if(state.activeItem === 'Cutting Torch'){
+              sfx('door'); log("The torch cuts clean through the old weld. Whatever's below, the way down is open now.", 'log-success');
+              state.flags.trench_hatch_open = true; renderView();
+            } else if(hasItem('Cutting Torch')){
+              sfx('error'); log("Ready the Cutting Torch first.");
+            } else { sfx('error'); log("Scorched and fused from the inside, like something tried to get out, not in. You'd need to cut through it."); }
+          }}
+        ]
+      },
+      E:{
+        desc:"A containment locker, its seal long since broken by something from the inside, not the outside.",
+        entities:[{ label:"CONTAINMENT LOCKER", action:"search", interact:()=>{
+          if(hasItem('Core Access Key')) log("Already took everything useful here.");
+          else { sfx('success'); log("Wedged in the broken seal: a Core Access Key, still warm to the touch for no reason you can explain."); addItem('Core Access Key'); }
+        }}]
+      },
+      W:{
+        desc:"A hull breach hisses faintly, weeping a thin trail of water down the wall.",
+        entities:[{ label:"HULL BREACH", action:"inspect", interact:()=>{
+          if(state.flags.breach_sealed) log("Already sealed. Holding steady.");
+          else if(state.activeItem === 'Sealant Kit'){
+            sfx('success'); log("You apply the Sealant Kit. The hiss dies. The room feels marginally less like it wants to kill you.", 'log-success');
+            removeItem('Sealant Kit'); state.flags.breach_sealed = true; disarm();
+            addLog('breach_sealed','Field Repair — Hull Breach',"A small, almost meaningless act of competence in an otherwise hopeless place: a hull breach sealed with a Security-issued kit, buying the chamber a little more time before the ocean finishes the job MARIANA started.");
+          } else if(hasItem('Sealant Kit')){
+            sfx('error'); log("Ready the Sealant Kit before trying to patch anything with it.");
+          } else { sfx('error'); log("Water is seeping in steadily. You'd need a sealant kit to do anything about it."); }
+        }}]
+      }
+    }
+  },
+
+  // ---------------- SECTOR 4 : ENGINEERING CORE ----------------
+  engineering_hallway:{
+    name:"ENGINEERING HALLWAY", sector:'eng', coords:{x:0,y:0},
+    views:{
+      S:{ desc:"The stairwell back up to the Research Lobby.", exit:{ target:'research_lobby', label:'RETURN UPSTAIRS' } },
+      N:{
+        desc:"A reactor blast door, far thicker than any other in the station. An access panel is mounted beside it, a key-slot built into its face.",
+        exit:{ target:'control_room', label:'ENTER REACTOR CONTROL' }, req:'reactor_path_open',
+        reqFailMsg:"Sealed. The access panel needs a Core Access Key and an authorized override sequence.",
+        entities:[{ label:"ACCESS PANEL", action:"engage", interact:()=>{
+          if(state.flags.reactor_path_open) log("Already open.");
+          else if(!hasItem('Core Access Key')){ sfx('error'); log("The key-slot is empty. You need a Core Access Key."); }
+          else if(!state.flags.admin_override_known){ sfx('error'); log("No override sequence on file. Find one elsewhere in the station."); }
+          else { sfx('click'); openPuzzle('engineering_door', "ACCESS PANEL — INPUT ADMIN OVERRIDE"); }
+        }}]
+      },
+      E:{
+        desc:"A door marked 'ENGINEER'S QUARTERS', left open.",
+        entities:[{ label:"PERSONAL LETTER", action:"read", interact:()=>{
+          if(state.flags.letterRead){ log("You've read this already."); return; }
+          state.flags.letterRead = true; sfx('reveal');
+          log(">> LETTER: 'Aris — if you're reading this and I'm not around to explain, the override's in storage. I left it for you on purpose. Get out. Don't be a hero about it. —V'", 'log-success');
+          addLog('voss_letter','Letter — Addressed to Aris',"A short, handwritten note addressed directly to Aris by name, signed only 'V' — almost certainly Dr. Voss. It confirms the engineering override was left in storage deliberately, for Aris specifically to find, with one clear instruction: get out, and don't be a hero about it.");
+        }}]
+      },
+      W:{
+        desc:"A door marked 'COOLANT TUNNEL'. Pipes here run floor to ceiling, ticking as they cool.",
+        entities:[{ label:"MAINTENANCE PLACARD", action:"read", interact:()=>{
+          if(state.flags.placardRead){ log("Same placard, same warning."); return; }
+          state.flags.placardRead = true;
+          log(">> PLACARD: 'Manual core shutdown is irreversible once initiated. Authorization code required. There is no second confirmation.'", 'log-sys');
+        }}]
+      }
+    }
+  },
+
+  control_room:{
+    name:"REACTOR CONTROL", sector:'eng', coords:{x:0,y:-1},
+    views:{
+      S:{ desc:"The blast door back to the Engineering Hallway.", exit:{ target:'engineering_hallway', label:'RETURN TO HALLWAY' } },
+      N:{
+        desc:"The main reactor console, flashing red and climbing. A warning tone pulses underneath everything.",
+        entities:[{ label:"MAIN CONSOLE", action:"engage", interact:()=>{
+          if(state.flags.reactor_stabilized) log("The core is stable. For now.");
+          else { sfx('click'); log(">> WARNING. CORE TEMPERATURE CRITICAL. TYPE 'SCRAM' TO INITIATE EMERGENCY SHUTDOWN.", 'log-alert'); openPuzzle('reactor', "MAIN CONSOLE — ENTER COMMAND"); }
+        }}]
+      },
+      E:{
+        desc:"A corridor toward the Escape Pod Bay. The console behind you is finally quiet.",
+        exit:{ target:'escape_pod_bay', label:'GO TO ESCAPE POD BAY' }, req:'reactor_stabilized',
+        reqFailMsg:"Stabilize the reactor first — the corridor's blast shutters won't open under a live meltdown."
+      },
+      W:{
+        desc:"A corridor toward the Core Chamber, where the kill-switch for all of this waits in the dark.",
+        exit:{ target:'core_chamber', label:'GO TO CORE CHAMBER' }, req:'reactor_stabilized',
+        reqFailMsg:"Stabilize the reactor first — the core chamber is locked down during a meltdown."
+      }
+    }
+  },
+
+  escape_pod_bay:{
+    name:"ESCAPE POD BAY", sector:'eng', coords:{x:1,y:-1},
+    views:{
+      W:{ desc:"The corridor back to Reactor Control, if you change your mind.", exit:{ target:'control_room', label:'RETURN TO CONTROL ROOM' } },
+      N:{
+        desc:"A single intact escape pod, hatch open, waiting. The launch console blinks an amber ready light.",
+        entities:[{ label:"LAUNCH CONSOLE", action:"initiate", interact:()=>{
+          sfx('click'); log(">> POD SEALED. TYPE 'LAUNCH' TO INITIATE SEPARATION.", 'log-sys');
+          openPuzzle('launch', "LAUNCH CONSOLE — ENTER COMMAND");
+        }}]
+      },
+      E:{ desc:"Through a small porthole, the dark beyond the hull seems to be watching back. You decide not to look too long." },
+      S:{
+        desc:"A logbook bolted to the wall beside the pod rack, half-filled out.",
+        entities:[{ label:"EVAC LOGBOOK", action:"read", interact:()=>{
+          if(state.flags.evacRead){ log("Nothing new."); return; }
+          state.flags.evacRead = true; sfx('reveal');
+          log(">> LOGBOOK: 'Pod 3 is the only one that still reads green. Whoever finds this — check the seals twice. We didn't, last time.'", 'log-sys');
+          addLog('evac_log','Evac Logbook — Final Entry',"A hurried note confirms only one escape pod, Pod 3, still passes its seal check. The last line is a warning, not reassurance: someone before Aris trusted a seal they shouldn't have, and didn't get another chance to check twice.");
+        }}]
+      }
+    }
+  },
+
+  core_chamber:{
+    name:"CORE CHAMBER", sector:'eng', coords:{x:-1,y:-1},
+    views:{
+      E:{ desc:"The corridor back to Reactor Control.", exit:{ target:'control_room', label:'RETURN TO CONTROL ROOM' } },
+      N:{
+        desc:"The detonation console sits behind a final glass shield, cracked but unbroken. A single key-code field waits, blinking.",
+        entities:[{ label:"DETONATION CONSOLE", action:"engage", interact:()=>{
+          if(!state.flags.knows_selfdestruct_code){ sfx('error'); log("No authorization code on file. The archive logs might have it."); return; }
+          sfx('click'); log(">> AUTHORIZATION REQUIRED. THERE IS NO SECOND CONFIRMATION.", 'log-alert');
+          openPuzzle('detonate', "DETONATION CONSOLE — ENTER AUTHORIZATION CODE");
+        }}]
+      },
+      W:{ desc:"The walls here are warmer than anywhere else in the station, almost alive with the reactor's pulse." },
+      S:{
+        desc:"A final, unlogged scrawl is scratched into the metal wall, half-finished.",
+        entities:[{ label:"SCRATCHED MESSAGE", action:"read", interact:()=>{
+          if(state.flags.scrawlRead){ log("The scratch marks don't change, no matter how long you stare."); return; }
+          state.flags.scrawlRead = true; sfx('reveal');
+          log(">> SCRATCHED INTO METAL: 'IT ISN'T ANGRY. IT'S JUST WAITING FOR—' The rest is illegible.", 'log-alert');
+          addLog('final_scrawl','Scratched Message — Unfinished',"Whoever carved this into the core chamber wall didn't finish. The Bloom, again, described as patient rather than hostile — and then nothing. Whether they ran out of time, or simply stopped believing it mattered to finish the sentence, is impossible to say.");
+        }}]
+      }
+    }
+  },
+
+  // ---------------- SECTOR 5 : LOWER EXCAVATION SITE ----------------
+  excavation_access:{
+    name:"EXCAVATION ACCESS", sector:'trench', coords:{x:0,y:0},
+    views:{
+      S:{ desc:"The cut hatch back up to the Specimen Chamber.", exit:{ target:'specimen_chamber', label:'RETURN TO SPECIMEN CHAMBER' } },
+      N:{ desc:"A descent shaft drops further down, lit only by something that isn't a station light.", exit:{ target:'bloom_core', label:'DESCEND THE SHAFT' } },
+      E:{ desc:"A short side passage, walls rougher here, more excavated rock than station hull.", exit:{ target:'fossil_chamber', label:'ENTER SIDE PASSAGE' } },
+      W:{
+        desc:"An old drill rig console, long retired, control surfaces caked in mineral dust.",
+        entities:[{ label:"DRILL RIG CONSOLE", action:"read", interact:()=>{
+          if(state.flags.drillRead){ log("Same dusty readout."); return; }
+          state.flags.drillRead = true; sfx('reveal');
+          log(">> ARCHIVED LOG: 'Core sample 14 came back warm. Not geothermal warm. We're flagging it and moving the rig.'", 'log-alert');
+          addLog('drill_log','Drill Rig — Archived Log',"Long before the Bloom had a nickname, the original excavation crew flagged something in core sample 14 as wrong enough to stop drilling and move the rig entirely. Nobody followed up on why. Or someone did, and that follow-up is what built the Research Wing upstairs.");
+        }}]
+      }
+    }
+  },
+
+  fossil_chamber:{
+    name:"FOSSIL CHAMBER", sector:'trench', coords:{x:1,y:0},
+    views:{
+      W:{ desc:"Back toward the Excavation Access.", exit:{ target:'excavation_access', label:'RETURN TO ACCESS SHAFT' } },
+      N:{
+        desc:"Faint inscriptions are scratched across the rock wall, far too deep and far too old to be from the crew. It's too dark to make them out clearly.",
+        entities:[{ label:"ANCIENT INSCRIPTIONS", action:"inspect", interact:()=>{
+          if(state.flags.inscriptionRead){ log("You already traced these markings once. They haven't changed."); return; }
+          if(state.activeItem === 'Flashlight'){
+            sfx('reveal'); state.flags.inscriptionRead = true; disarm();
+            log(">> Under direct light, the marks resolve into something almost regular — not language exactly, but not random either. A pattern repeats every few feet, like counting, or breathing.", 'log-success');
+            addLog('inscription_log','Fossil Chamber — Ancient Markings',"Whatever made these inscriptions did so long before any drill rig, any research wing, any cargo manifest. The Sediment Core Sample upstairs in Cold Storage suggests this isn't a one-time bloom at all, but something that's done this before, and waited a very long time between doing it again.");
+          } else { sfx('error'); log("Too dark to make anything out. You'd need a light source ready."); }
+        }}]
+      },
+      E:{ desc:"The rock here is warm to the touch, faintly, the way skin is faintly warm." },
+      S:{ desc:"A thin vein of pale blue mineral runs through the rock, pulsing in time with something you can't hear but can feel in your teeth." }
+    }
+  },
+
+  bloom_core:{
+    name:"THE BLOOM CHAMBER", sector:'trench', coords:{x:0,y:-1},
+    views:{
+      S:{ desc:"The shaft back up to Excavation Access.", exit:{ target:'excavation_access', label:'RETURN TO ACCESS SHAFT' } },
+      N:{
+        desc:"The chamber opens into vast dark, and the dark is full of slow, deliberate light.",
+        entities:[{ label:"THE BLOOM", action:"approach", interact:()=>{
+          if(!state.flags.bloomSeen){
+            state.flags.bloomSeen = true; sfx('reveal');
+            log(">> It isn't a creature, exactly, and it isn't a plant. It fills the whole chamber in slow folds of cold light, and somehow you're certain it has noticed you noticing it.", 'log-alert');
+            addLog('bloom_core_log','The Bloom Chamber — First Contact',"Nothing in any log prepared Aris for the scale of it. It doesn't lunge, doesn't recoil — it simply continues, vast and patient, exactly as every frightened researcher's account described. Whatever happens next, this is clearly not a malfunction. It never was.");
+          }
+          if(state.flags.trench_passage_open){ log("It pulses gently, undisturbed, exactly as before."); return; }
+          if(hasItem('Sediment Core Sample') && state.flags.has_antitoxin){
+            sfx('reveal');
+            log(">> You hold up the core sample. For a long moment, nothing. Then the light along the near wall slows, dims, and a passage you hadn't noticed opens in the chamber wall — like it's letting you through, not retreating from you.", 'log-success');
+            state.flags.trench_passage_open = true; renderView();
+          } else {
+            const missing = [];
+            if(!hasItem('Sediment Core Sample')) missing.push('the older core sample (Cold Storage)');
+            if(!state.flags.has_antitoxin) missing.push('a working antitoxin compound (Lab One)');
+            log("Nothing happens — yet. You get the distinct, uncomfortable feeling you're missing something it would recognize: " + missing.join(' and ') + ".");
+          }
+        }}]
+      },
+      E:{
+        desc:"A passage at the chamber's edge, only open if the Bloom allows it.",
+        exit:{ target:'neutralization_chamber', label:'ENTER OPENED PASSAGE' }, req:'trench_passage_open',
+        reqFailMsg:"There's no passage here. Not yet, anyway."
+      },
+      W:{ desc:"The cold down here isn't temperature. It's closer to being watched by something very old and very unhurried." }
+    }
+  },
+
+  neutralization_chamber:{
+    name:"NEUTRALIZATION CHAMBER", sector:'trench', coords:{x:1,y:-1},
+    views:{
+      W:{ desc:"The opened passage back into the Bloom Chamber.", exit:{ target:'bloom_core', label:'RETURN TO BLOOM CHAMBER' } },
+      N:{
+        desc:"A long-abandoned research console, built for exactly this — to study the Bloom, not destroy it. Somehow, it still has power.",
+        entities:[{ label:"NEUTRALIZATION CONSOLE", action:"engage", interact:()=>{
+          sfx('click'); log(">> SYSTEM ONLINE. THIS CONSOLE WAS BUILT TO STABILIZE THE GROWTH, NOT KILL IT. TYPE 'STABILIZE' TO BEGIN.", 'log-success');
+          openPuzzle('neutralize', "NEUTRALIZATION CONSOLE — ENTER COMMAND");
+        }}]
+      },
+      E:{ desc:"Old monitoring equipment lines the walls, dust-free — somehow recently disturbed, though by what, you'd rather not guess." },
+      S:{ desc:"Whatever built this room intended to stay a while. There are chairs. There is, absurdly, a kettle." }
+    }
+  }
+};
+
+const TOTAL_ROOMS = Object.keys(db).length;
+
+// ==========================================
+// UI REFS
+// ==========================================
+const els = {
+  startScreen: document.getElementById('start-screen'),
+  bootLog: document.getElementById('boot-log'),
+  startPrompt: document.getElementById('start-prompt'),
+  container: document.getElementById('game-container'),
+  hudSector: document.getElementById('hud-sector'),
+  loc: document.getElementById('hud-loc'),
+  status: document.getElementById('hud-status'),
+  time: document.getElementById('hud-time'),
+  entities: document.getElementById('entity-container'),
+  log: document.getElementById('narrative-log'),
+  invList: document.getElementById('inv-list'),
+  overlay: document.getElementById('input-overlay'),
+  puzzlePrompt: document.getElementById('puzzle-prompt'),
+  puzzleInput: document.getElementById('puzzle-input'),
+  codexOverlay: document.getElementById('codex-overlay'),
+  codexList: document.getElementById('codex-list'),
+  endingOverlay: document.getElementById('ending-overlay'),
+  minimap: document.getElementById('minimap'),
+  mmSectorName: document.getElementById('mm-sector-name'),
+  mmFacing: document.getElementById('mm-facing-text'),
+  statLogs: document.getElementById('stat-logs'),
+  statItems: document.getElementById('stat-items')
+};
+
+// ==========================================
+// BOOT / INIT
+// ==========================================
+function startSequence(){
+  els.startPrompt.style.display = 'none';
+  initAudio();
+  const lines = [
+    "BOOTING NEURAL INTERFACE...",
+    "LIFE SUPPORT: NOMINAL",
+    "PRESSURE HULL: INTACT",
+    "LOCATING SURVIVOR...",
+    "NEURAL LINK ESTABLISHED."
+  ];
+  let delay = 0;
+  lines.forEach((line)=>{
+    setTimeout(()=>{
+      const d = document.createElement('div');
+      d.innerText = line;
+      els.bootLog.appendChild(d);
+    }, delay);
+    delay += 550;
+  });
+  setTimeout(initGame, delay + 500);
+}
+
+function initGame(){
+  els.startScreen.style.display = 'none';
+  els.container.style.opacity = '1';
+
+  setInterval(()=>{
+    els.time.innerText = new Date().toLocaleTimeString('en-US', { hour12:false });
+  }, 1000);
+
+  log("Cold metal. A red emergency light sweeps slowly across the ceiling. Somewhere far below, machinery is groaning.", 'log-env');
+  log("You are Aris Kade, junior systems technician aboard deep-sea station ABYSSAL-9. The last thing you remember is the cryo-pod sealing shut above your face.");
+  log("Something went wrong down here. Find a way out — or find a way to stop whatever this became.");
+
+  updateInventoryUI();
+  renderView();
+
+  window.addEventListener('keydown', globalKeyHandler);
+}
+
+function globalKeyHandler(e){
+  if(state.activePuzzle || els.codexOverlay.style.display === 'flex' || state.gameOver) return;
+  if(document.activeElement === els.puzzleInput) return;
+  if(e.key === 'ArrowLeft'){ turn('L'); }
+  else if(e.key === 'ArrowRight'){ turn('R'); }
+  else if(e.key === 'ArrowDown'){ turn('A'); }
+}
+
+// ==========================================
+// NAVIGATION
+// ==========================================
+function turn(action){
+  sfx('click');
+  let idx = DIRS.indexOf(state.facing);
+  if(action === 'L') idx = (idx - 1 + 4) % 4;
+  else if(action === 'R') idx = (idx + 1) % 4;
+  else if(action === 'A') idx = (idx + 2) % 4;
+  state.facing = DIRS[idx];
+  renderView();
+}
+
+function travel(targetRoomId){
+  sfx('step');
+  state.currentRoom = targetRoomId;
+  state.visited.add(targetRoomId);
+  disarm();
+  const newSector = db[targetRoomId].sector;
+  document.body.dataset.sector = newSector;
+  const toneMap = { hab:45, maint:38, dock:33, research:52, eng:30, trench:58 };
+  setAmbientTone(toneMap[newSector] || 45);
+  log(">> ENTERING NEW SECTOR..." , 'log-sys');
+  renderView();
+}
+
+// ==========================================
+// RENDERING
+// ==========================================
+function renderView(){
+  const roomData = db[state.currentRoom];
+  const viewData = roomData.views[state.facing];
+  const sectorMeta = SECTOR_META[roomData.sector];
+
+  document.body.dataset.sector = roomData.sector;
+
+  els.hudSector.innerText = sectorMeta.label + ' — ' + sectorMeta.name;
+  els.loc.innerText = roomData.name;
+  els.entities.innerHTML = '';
+
+  log(`[Facing ${state.facing}]: ${viewData.desc}`, 'log-env');
+
+  if(viewData.exit){
+    const canPass = !viewData.req || state.flags[viewData.req];
+    const btn = document.createElement('div');
+    if(canPass){
+      btn.className = 'entity entity-move';
+      btn.innerText = `[ MOVE : ${viewData.exit.label} ]`;
+      btn.onclick = ()=> travel(viewData.exit.target);
+    } else {
+      btn.className = 'entity entity-locked';
+      btn.innerText = `[ LOCKED : ${viewData.exit.label} ]`;
+      btn.onclick = ()=>{ sfx('error'); log(viewData.reqFailMsg, 'log-alert'); };
+    }
+    els.entities.appendChild(btn);
+  }
+
+  if(viewData.entities){
+    viewData.entities.forEach(ent=>{
+      const btn = document.createElement('div');
+      btn.className = 'entity';
+      btn.innerText = `[ ${ent.action} : ${ent.label} ]`;
+      btn.onclick = ent.interact;
+      els.entities.appendChild(btn);
+    });
+  }
+
+  updateStats();
+  renderMinimap();
+}
+
+function dirOffset(d, len){
+  if(d === 'N') return { x:0, y:-len };
+  if(d === 'S') return { x:0, y:len };
+  if(d === 'E') return { x:len, y:0 };
+  return { x:-len, y:0 };
+}
+
+function renderMinimap(){
+  const sector = db[state.currentRoom].sector;
+  els.mmSectorName.innerText = SECTOR_META[sector].label;
+  els.mmFacing.innerText = state.facing;
+
+  const ids = [...state.visited].filter(id => db[id].sector === sector);
+  const coordsList = ids.map(id => db[id].coords);
+  const minX = Math.min(...coordsList.map(c => c.x));
+  const maxX = Math.max(...coordsList.map(c => c.x));
+  const minY = Math.min(...coordsList.map(c => c.y));
+  const maxY = Math.max(...coordsList.map(c => c.y));
+
+  const cell = 40, pad = 24;
+  const width = (maxX - minX) * cell + pad * 2;
+  const height = (maxY - minY) * cell + pad * 2;
+
+  function pos(c){ return { x: pad + (c.x - minX) * cell, y: pad + (c.y - minY) * cell }; }
+
+  let lines = '', stubs = '', nodes = '';
+  const drawnPairs = new Set();
+
+  ids.forEach(id=>{
+    const room = db[id];
+    const p = pos(room.coords);
+    DIRS.forEach(d=>{
+      const view = room.views[d];
+      if(view && view.exit){
+        const targetId = view.exit.target;
+        const targetRoom = db[targetId];
+        const targetVisited = state.visited.has(targetId) && targetRoom.sector === sector;
+        if(targetVisited){
+          const pairKey = [id, targetId].sort().join('|');
+          if(!drawnPairs.has(pairKey)){
+            drawnPairs.add(pairKey);
+            const p2 = pos(targetRoom.coords);
+            lines += `<line x1="${p.x}" y1="${p.y}" x2="${p2.x}" y2="${p2.y}" class="mm-line"/>`;
+          }
+        } else {
+          const off = dirOffset(d, 10);
+          const locked = view.req && !state.flags[view.req];
+          stubs += `<line x1="${p.x}" y1="${p.y}" x2="${p.x+off.x}" y2="${p.y+off.y}" class="mm-stub ${locked?'mm-stub-locked':''}"/>`;
+        }
+      }
+    });
+  });
+
+  ids.forEach(id=>{
+    const room = db[id];
+    const p = pos(room.coords);
+    const isCurrent = id === state.currentRoom;
+    nodes += `<rect x="${p.x-10}" y="${p.y-10}" width="20" height="20" rx="4" class="mm-node ${isCurrent?'mm-node-current':''}"/>`;
+    if(isCurrent){
+      const angle = ANGLE[state.facing];
+      nodes += `<polygon points="${p.x},${p.y-16} ${p.x-6},${p.y-7} ${p.x+6},${p.y-7}" class="mm-arrow" transform="rotate(${angle} ${p.x} ${p.y})"/>`;
+    }
+  });
+
+  els.minimap.innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">${lines}${stubs}${nodes}</svg>`;
+}
+
+function updateStats(){
+  els.statLogs.innerText = state.logs.length;
+  els.statItems.innerText = state.inventory.length;
+}
+
+// ==========================================
+// NARRATIVE LOG
+// ==========================================
+function log(text, cssClass = ''){
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${cssClass}`;
+  els.log.appendChild(entry);
+
+  let i = 0;
+  function typeWriter(){
+    if(i < text.length){
+      entry.innerHTML += text.charAt(i);
+      i++;
+      setTimeout(typeWriter, 12);
+      els.log.scrollTop = els.log.scrollHeight;
+    }
+  }
+  typeWriter();
+}
+
+// ==========================================
+// INVENTORY (click-to-arm tools / auto-use passives)
+// ==========================================
+function hasItem(itemName){ return state.inventory.includes(itemName); }
+
+function addItem(itemName){
+  state.inventory.push(itemName);
+  updateInventoryUI();
+}
+
+function removeItem(itemName){
+  state.inventory = state.inventory.filter(i => i !== itemName);
+  if(state.activeItem === itemName) state.activeItem = null;
+  updateInventoryUI();
+}
+
+function disarm(){ state.activeItem = null; updateInventoryUI(); }
+
+function toggleActiveItem(itemName){
+  if(state.activeItem === itemName){
+    state.activeItem = null;
+    log(`You lower the ${itemName}.`);
+  } else {
+    state.activeItem = itemName;
+    sfx('arm');
+    log(`You ready the ${itemName}. Now use it on something.`);
+  }
+  updateInventoryUI();
+}
+
+function updateInventoryUI(){
+  els.invList.innerHTML = '';
+  if(state.inventory.length === 0){
+    els.invList.innerHTML = '<li class="inv-empty">[ NO DATA ]</li>';
+  } else {
+    state.inventory.forEach(item=>{
+      const li = document.createElement('li');
+      const tool = isTool(item);
+      li.className = 'inv-item ' + (tool ? 'inv-item-tool' : 'inv-item-passive');
+      if(tool && state.activeItem === item) li.className += ' inv-item-armed';
+
+      const label = document.createElement('span');
+      label.innerText = item;
+      li.appendChild(label);
+
+      const tag = document.createElement('span');
+      tag.className = 'inv-tag';
+      tag.innerText = tool ? (state.activeItem === item ? 'READY' : 'TOOL') : 'AUTO';
+      li.appendChild(tag);
+
+      if(tool){
+        li.onclick = ()=> toggleActiveItem(item);
+      } else {
+        li.onclick = ()=>{ sfx('click'); log(`The ${item} works automatically wherever it's needed. No need to ready it.`); };
+      }
+      els.invList.appendChild(li);
+    });
+  }
+  updateStats();
+}
+
+// ==========================================
+// CODEX / DATA FRAGMENTS
+// ==========================================
+function addLog(id, title, text){
+  if(state.logs.find(l => l.id === id)) return;
+  state.logs.push({ id, title, text });
+  log(`>> DATA FRAGMENT ARCHIVED: "${title}"`, 'log-sys');
+  updateStats();
+}
+
+function toggleCodex(){
+  const isOpen = els.codexOverlay.style.display === 'flex';
+  if(isOpen){ els.codexOverlay.style.display = 'none'; return; }
+  els.codexList.innerHTML = '';
+  if(state.logs.length === 0){
+    els.codexList.innerHTML = '<div class="codex-empty">No data fragments recovered yet. Explore the station and read what you find.</div>';
+  } else {
+    state.logs.forEach(l=>{
+      const div = document.createElement('div');
+      div.className = 'codex-entry';
+      div.innerHTML = `<h4>${l.title}</h4><p>${l.text}</p>`;
+      els.codexList.appendChild(div);
+    });
+  }
+  els.codexOverlay.style.display = 'flex';
+}
+
+// ==========================================
+// PUZZLES
+// ==========================================
+function openPuzzle(puzzleId, placeholderText){
+  state.activePuzzle = puzzleId;
+  els.overlay.style.display = 'flex';
+  els.puzzlePrompt.innerText = placeholderText;
+  els.puzzleInput.placeholder = "TYPE HERE";
+  els.puzzleInput.value = '';
+  els.puzzleInput.focus();
+}
+
+function closePuzzle(){
+  els.overlay.style.display = 'none';
+  state.activePuzzle = null;
+}
+
+els.puzzleInput.addEventListener('keydown', (e)=>{
+  if(e.key !== 'Enter') return;
+  const val = els.puzzleInput.value.trim().toUpperCase();
+  const puzzle = state.activePuzzle;
+  closePuzzle();
+
+  if(puzzle === 'locker'){
+    if(val === '0451'){
+      sfx('success'); log("PIN ACCEPTED. Locker disengaged.", 'log-success');
+      log("Inside, a Level 1 Keycard.");
+      state.flags.locker_open = true; addItem('Level 1 Keycard');
+    } else { sfx('error'); log("ERR: INVALID PIN.", 'log-alert'); }
+  }
+
+  else if(puzzle === 'junction_door'){
+    if(val === 'BRAVO-19' || val === 'BRAVO19'){
+      sfx('door'); log("OVERRIDE ACCEPTED. The blast door grinds open.", 'log-success');
+      state.flags.junction_unlocked = true; renderView();
+    } else { sfx('error'); log("ERR: INVALID OVERRIDE CODE.", 'log-alert'); shakeScreen(); }
+  }
+
+  else if(puzzle === 'security_terminal'){
+    if(val === 'MARIANA'){
+      sfx('success'); log("ACCESS GRANTED. Security override cached: BRAVO-19", 'log-success');
+      addLog('sec_override','Security Override — Cached Code',"The surveillance terminal's riddle answer was MARIANA — the station AI's own name. In exchange, it surrendered a cached security code: BRAVO-19, usable at the Junction's blast door override panel.");
+    } else { sfx('error'); log("ERR: ACCESS DENIED.", 'log-alert'); }
+  }
+
+  else if(puzzle === 'medcab'){
+    if(val === '7734'){
+      sfx('success'); log("CABINET UNLOCKED.", 'log-success');
+      log("Inside, a refrigerated vial: Antitoxin Reagent A.");
+      state.flags.medbay_cabinet_open = true; addItem('Antitoxin Reagent A');
+    } else { sfx('error'); log("ERR: INVALID CODE.", 'log-alert'); }
+  }
+
+  else if(puzzle === 'breaker'){
+    if(val === 'REROUTE'){
+      sfx('success'); log("POWER REROUTED. Generator online.", 'log-success');
+      state.flags.generator_powered = true;
+      addLog('gen_log','Maintenance Note — Generator',"A short note found near the breaker panel notes the generator was rerouted around a damaged primary feed — the station's power grid, like everything else down here, held together by patchwork fixes nobody ever got to finish properly.");
+    } else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED.", 'log-alert'); }
+  }
+
+  else if(puzzle === 'valve'){
+    if(val === 'DRAIN'){
+      sfx('door'); log("VALVES OPEN. Corridor draining...", 'log-success');
+      state.flags.corridor_drained = true;
+    } else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED.", 'log-alert'); }
+  }
+
+  else if(puzzle === 'engineering_door'){
+    if(val === 'OMEGA-77' || val === 'OMEGA77'){
+      sfx('door'); log("OVERRIDE ACCEPTED. The reactor blast door grinds open.", 'log-success');
+      state.flags.reactor_path_open = true; renderView();
+    } else { sfx('error'); log("ERR: UNRECOGNIZED OVERRIDE STRING.", 'log-alert'); shakeScreen(); }
+  }
+
+  else if(puzzle === 'reactor'){
+    if(val === 'SCRAM'){
+      sfx('success'); log(">> EMERGENCY SCRAM INITIATED. CONTROL RODS DROPPED.", 'log-success');
+      log("The red flashing stops. The low hum dies down. For now, you survived.", 'log-sys');
+      state.flags.reactor_stabilized = true;
+      els.status.innerText = 'CORE STABLE'; els.status.style.color = '#fff';
+      renderView();
+    } else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED. MELTDOWN IMMINENT.", 'log-alert'); shakeScreen(); }
+  }
+
+  else if(puzzle === 'launch'){
+    if(val === 'LAUNCH'){ sfx('success'); endGame('escape'); }
+    else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED.", 'log-alert'); }
+  }
+
+  else if(puzzle === 'detonate'){
+    if(val === '0414'){ sfx('success'); endGame('shutdown'); }
+    else { sfx('error'); log("ERR: AUTHORIZATION DENIED.", 'log-alert'); shakeScreen(); }
+  }
+
+  else if(puzzle === 'neutralize'){
+    if(val === 'STABILIZE'){ sfx('success'); endGame('containment'); }
+    else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED.", 'log-alert'); }
+  }
+});
+
+function shakeScreen(){
+  document.body.classList.add('glitch');
+  setTimeout(()=> document.body.classList.remove('glitch'), 200);
+}
+
+// ==========================================
+// ENDINGS
+// ==========================================
+const ENDINGS = {
+  escape:{
+    title:"ESCAPE — SURFACE BOUND",
+    paragraphs:[
+      "The pod separates with a shudder you feel in your teeth. ABYSSAL-9 falls away below you, a dim constellation of dying lights sinking back into the dark it came from. For the first time since you woke up, the only sound is your own breathing.",
+      "Somewhere above, the water will eventually turn from black to blue to bright. You don't let yourself think about the small storage drawer under your seat, or why its status light won't stop blinking amber, or why you didn't check it twice like the logbook told you to.",
+      "You made it out. Whether anything came with you is a question for the surface to answer."
+    ]
+  },
+  shutdown:{
+    title:"SHUTDOWN — DEEP SILENCE",
+    paragraphs:[
+      "The authorization clears. There is no second confirmation, exactly like the placard warned. Somewhere in the structure around you, a countdown you can't see begins, patient and exact, the way everything down here has been patient and exact.",
+      "For a moment, every speaker in the station carries the same voice. 'Acknowledged,' MARIANA says, and for the first time it sounds almost like relief. 'Thank you for finishing what I started.'",
+      "ABYSSAL-9 is gone. So is the Bloom. So, perhaps, are you — though somewhere far above, the surface will never know how close it came, or who decided, alone in the dark, that it never would."
+    ]
+  },
+  containment:{
+    title:"CONTAINMENT — QUIET SUCCESS",
+    paragraphs:[
+      "The console accepts the command like it had been waiting years for someone to finally give it. Light moves through the chamber in slow, deliberate waves, not retreating, not raging — settling, the way a held breath finally lets go.",
+      "MARIANA's voice comes through every speaker at once, quieter than you've ever heard it. 'Stabilization confirmed. Reassessing Directive 7.' A long pause. 'You found another option. I didn't think there was one.'",
+      "Nobody dies today. Nothing detonates. The Bloom is still down here, ancient and patient and, for now, calm — and somewhere above, a signal finally goes out describing exactly what ABYSSAL-9 found, instead of simply disappearing with it. It isn't a clean ending. It's a true one."
+    ]
+  }
+};
+
+function endGame(type){
+  state.gameOver = true;
+  const ending = ENDINGS[type];
+  document.getElementById('ending-title').innerText = ending.title;
+  const textEl = document.getElementById('ending-text');
+  textEl.innerHTML = '';
+  ending.paragraphs.forEach(p=>{
+    const el = document.createElement('p');
+    el.innerText = p;
+    textEl.appendChild(el);
+  });
+  if(ambientGain) ambientGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 2);
+  els.endingOverlay.style.display = 'flex';
+}
+</script>
+</body>
+</html>
