@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NULL_POINTER // SYSTEM_DIAGNOSTIC_LOG.EXE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#030712;
+  --panel:#070c18;
+  --panel-2:#0b1426;
+  --line: rgba(160,196,255,0.10);
+  --line-soft: rgba(160,196,255,0.05);
+  --ice:#A0C4FF;
+  --ice-dim:#5E7AA8;
+  --ice-bright:#E4EEFF;
+  --cyan:#2DE2E6;
+  --violet:#B967FF;
+  --red:#FF4D6A;
+  --green:#4ADE80;
+  --amber:#FBBF24;
+  --font-display:'Chakra Petch', sans-serif;
+  --font-body:'IBM Plex Mono', monospace;
+  --font-data:'JetBrains Mono', monospace;
+}
+*{ box-sizing:border-box; }
+html,body{ height:100%; margin:0; }
+body{
+  background-color:var(--void);
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size:38px 38px;
+  color:var(--ice);
+  font-family:var(--font-body);
+  overflow:hidden;
+}
+*:focus-visible{ outline:2px solid var(--cyan); outline-offset:2px; }
+button{ font-family:inherit; }
+::-webkit-scrollbar{ width:9px; height:9px; }
+::-webkit-scrollbar-track{ background:var(--panel); }
+::-webkit-scrollbar-thumb{ background:var(--ice-dim); border-radius:5px; }
+
+/* ===== BOOT SCREEN ===== */
+#boot-screen{
+  position:fixed; inset:0; background:#000; color:var(--ice);
+  font-family:var(--font-data); padding:50px; cursor:pointer; z-index:1000; overflow:auto;
+}
+#boot-screen.hidden{ display:none; }
+.boot-line{ margin-bottom:5px; font-size:1rem; }
+#boot-prompt{ margin-top:28px; opacity:0; font-family:var(--font-display); color:var(--cyan); font-size:1.05rem; letter-spacing:0.05em; }
+#boot-prompt.show{ opacity:1; animation:blink 1s steps(2) infinite; }
+@keyframes blink{ 50%{ opacity:0.15; } }
+
+/* ===== APP SHELL ===== */
+#app{ display:flex; flex-direction:column; height:100vh; }
+#app.hidden{ display:none; }
+
+#scanline-overlay{
+  position:fixed; inset:0; pointer-events:none; z-index:40; opacity:0.55;
+  background:repeating-linear-gradient(to bottom, rgba(160,196,255,0.025) 0px, rgba(160,196,255,0.025) 1px, transparent 2px, transparent 4px);
+}
+#noise-overlay{
+  position:fixed; inset:0; pointer-events:none; z-index:41; opacity:0; transition:opacity .4s;
+  background-image:repeating-radial-gradient(circle at 0 0, rgba(160,196,255,0.05) 0, transparent 2px);
+  background-size:3px 3px;
+}
+body.corrupt-1 #noise-overlay{ opacity:0.15; }
+body.corrupt-2 #noise-overlay{ opacity:0.30; }
+body.corrupt-3 #noise-overlay{ opacity:0.50; }
+body.panic .layer.active, body.panic #hud{ animation: shakeScreen 0.4s infinite; }
+@keyframes shakeScreen{
+  0%,100%{ transform:translate(0,0); }
+  25%{ transform:translate(1px,-1px); }
+  50%{ transform:translate(-1px,1px); }
+  75%{ transform:translate(1px,1px); }
+}
+
+/* ===== HUD ===== */
+#hud{
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;
+  padding:10px 20px; border-bottom:1px solid var(--line); background:var(--panel); position:relative; z-index:5;
+}
+.hud-left{ display:flex; flex-direction:column; gap:2px; }
+.logo{ font-family:var(--font-display); font-size:0.95rem; letter-spacing:0.04em; color:var(--ice-bright); }
+#clock{ font-size:0.7rem; color:var(--ice-dim); font-family:var(--font-data); }
+.hud-mid{ display:flex; gap:18px; font-family:var(--font-data); font-size:0.76rem; color:var(--ice-dim); }
+.hud-mid span.val{ color:var(--ice); }
+.hud-right{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.authority-badge{
+  font-family:var(--font-display); font-size:0.74rem; padding:4px 10px; border:1px solid var(--ice-dim);
+  border-radius:3px; color:var(--ice); letter-spacing:0.04em;
+}
+.authority-badge.level-1{ color:var(--cyan); border-color:var(--cyan); }
+.authority-badge.level-2{ color:var(--violet); border-color:var(--violet); }
+.authority-badge.level-3{ color:var(--ice-bright); border-color:var(--ice-bright); box-shadow:0 0 10px var(--ice-bright); }
+.stat-bar{ display:flex; align-items:center; gap:6px; font-family:var(--font-data); font-size:0.66rem; color:var(--ice-dim); }
+.stat-bar .bar{ width:84px; height:6px; background:var(--panel-2); border:1px solid var(--line); border-radius:3px; overflow:hidden; }
+.bar-fill{ height:100%; background:var(--cyan); width:0%; transition:width .6s; }
+.bar-fill.low{ background:var(--red); }
+.bar-fill.leak{ background:var(--amber); }
+.bar-fill.leak.danger{ background:var(--red); }
+#help-btn,#mute-btn{
+  background:transparent; border:1px solid var(--line); color:var(--ice); font-family:var(--font-data);
+  font-size:0.66rem; padding:5px 9px; border-radius:3px; cursor:pointer;
+}
+#help-btn:hover,#mute-btn:hover{ border-color:var(--ice); color:var(--ice-bright); }
+
+/* ===== TICKER ===== */
+#ticker{ padding:6px 20px; font-family:var(--font-data); font-size:0.72rem; color:var(--ice-dim); border-bottom:1px solid var(--line); background:var(--void); }
+
+/* ===== FINALE BANNER ===== */
+#finale-banner{
+  display:none; align-items:center; justify-content:space-between; gap:14px; padding:8px 20px;
+  background:rgba(255,77,106,0.10); border-bottom:1px solid var(--red); font-family:var(--font-display); color:var(--red);
+}
+#finale-banner.show{ display:flex; }
+#finale-count{ font-size:1.3rem; font-weight:700; }
+#finale-label{ font-size:0.78rem; letter-spacing:0.04em; }
+
+/* ===== TABS ===== */
+#tabs{ display:flex; border-bottom:1px solid var(--line); }
+.tab{
+  flex:1; background:var(--panel); border:none; color:var(--ice-dim); font-family:var(--font-display);
+  font-size:0.76rem; letter-spacing:0.05em; padding:13px 8px; cursor:pointer; border-right:1px solid var(--line);
+  transition:color .2s,background .2s;
+}
+.tab:last-child{ border-right:none; }
+.tab:hover{ color:var(--ice); }
+.tab.active{ color:var(--ice-bright); background:var(--panel-2); box-shadow:inset 0 -2px 0 var(--cyan); }
+
+/* ===== LAYERS ===== */
+#layers{ flex:1; overflow:hidden; position:relative; display:flex; flex-direction:column; }
+.layer{ display:none; flex:1; overflow-y:auto; padding:22px 26px; }
+.layer.active{ display:flex; flex-direction:column; }
+#layer-console.active{ padding:0; }
+
+.layer-title{ font-family:var(--font-display); font-size:1.35rem; color:var(--ice-bright); margin:0 0 4px; letter-spacing:0.03em; }
+.layer-sub{ color:var(--ice-dim); font-size:0.84rem; margin:0 0 18px; }
+.sub-head{ font-family:var(--font-display); font-size:0.8rem; color:var(--ice-dim); letter-spacing:0.05em; margin:16px 0 6px; }
+
+/* ----- Facade: scan card / progress ----- */
+.scan-card{ border:1px solid var(--line); border-radius:6px; padding:22px; background:var(--panel-2); max-width:480px; }
+.progress-track{ height:10px; background:var(--void); border:1px solid var(--line); border-radius:5px; overflow:hidden; }
+.progress-fill{ height:100%; background:linear-gradient(90deg,var(--cyan),var(--ice)); transition:width 1s ease; width:0%; }
+.progress-label{ margin-top:9px; font-family:var(--font-data); font-size:0.82rem; color:var(--ice-dim); }
+.reveal-link{
+  margin-top:18px; display:inline-flex; align-items:center; gap:8px; color:var(--cyan); font-family:var(--font-data);
+  font-size:0.9rem; cursor:pointer; padding:9px 13px; border:1px dashed var(--cyan); border-radius:4px; animation:revealIn .5s ease; user-select:none;
+}
+.reveal-link:hover{ background:rgba(45,226,230,0.08); }
+.tag-new{ background:var(--violet); color:#1a0530; font-size:0.58rem; padding:2px 6px; border-radius:3px; font-weight:700; }
+@keyframes revealIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
+
+.decoy-btn{
+  background:var(--ice); color:#031022; border:none; padding:11px 20px; font-family:var(--font-body);
+  font-weight:600; border-radius:4px; cursor:pointer; margin-top:20px; font-size:0.82rem;
+}
+.decoy-btn:hover{ background:var(--ice-bright); }
+
+/* ----- Facade: settings / dodge button ----- */
+.settings-card{ display:flex; flex-direction:column; gap:10px; max-width:420px; margin-bottom:6px; }
+.field{ display:flex; flex-direction:column; gap:4px; }
+.field label{ font-size:0.66rem; letter-spacing:0.05em; color:var(--ice-dim); }
+.field input{
+  background:var(--panel-2); border:1px solid var(--line); color:var(--ice-dim); padding:9px 11px;
+  border-radius:4px; font-family:var(--font-data); font-size:0.85rem;
+}
+.dodge-zone{
+  position:relative; height:190px; border:1px dashed var(--line); border-radius:6px; margin:16px 0;
+  overflow:hidden; background:var(--panel-2); max-width:480px;
+}
+.admin-btn{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); background:var(--ice); color:#031022;
+  border:none; padding:13px 22px; font-family:var(--font-body); font-weight:700; font-size:0.84rem;
+  border-radius:5px; cursor:pointer; transition:left .12s ease-out, top .12s ease-out; box-shadow:0 0 14px rgba(160,196,255,0.3);
+}
+.admin-btn.granted{ background:var(--green); color:#04210f; cursor:default; box-shadow:none; }
+
+/* ----- Facade: network ----- */
+.status-card{
+  display:flex; align-items:center; gap:9px; padding:14px 16px; border:1px solid var(--line); border-radius:6px;
+  background:var(--panel-2); max-width:480px; font-family:var(--font-data); font-size:0.85rem; color:var(--ice-dim);
+}
+.status-dot{ width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); flex-shrink:0; }
+.flatline-card{ margin-top:16px; max-width:480px; border:1px solid var(--line); border-radius:6px; padding:14px; background:var(--panel-2); }
+.flatline{ height:30px; border-bottom:1px solid var(--ice-dim); position:relative; overflow:hidden; }
+.flatline::after{ content:''; position:absolute; left:0; top:50%; width:200%; height:1px; background:var(--ice-dim); animation:flatScroll 3s linear infinite; }
+@keyframes flatScroll{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+.flatline-label{ font-family:var(--font-data); font-size:0.72rem; color:var(--ice-dim); display:block; margin-top:8px; }
+
+.corrupt-block{ font-family:var(--font-data); color:var(--violet); font-size:0.85rem; margin-top:12px; }
+
+/* ----- Glitch text (signature element) ----- */
+.glitch-text{ position:relative; color:var(--ice-bright); display:inline-block; }
+.glitch-text::before,.glitch-text::after{ content:attr(data-text); position:absolute; left:0; top:0; width:100%; }
+.glitch-text::before{ color:var(--cyan); clip-path:inset(0 0 55% 0); transform:translate(-2px,-1px); animation:glitchTop 2.4s infinite linear alternate-reverse; }
+.glitch-text::after{ color:var(--violet); clip-path:inset(55% 0 0 0); transform:translate(2px,1px); animation:glitchBottom 2.6s infinite linear alternate-reverse; }
+@keyframes glitchTop{ 0%{ transform:translate(-2px,-1px); } 50%{ transform:translate(2px,-1px); } 100%{ transform:translate(-1px,1px); } }
+@keyframes glitchBottom{ 0%{ transform:translate(2px,1px); } 50%{ transform:translate(-2px,1px); } 100%{ transform:translate(1px,-1px); } }
+
+/* ----- Process Monitor ----- */
+.proc-table{ display:flex; flex-direction:column; border:1px solid var(--line); border-radius:4px; overflow:hidden; margin-top:8px; }
+.proc-row{
+  display:grid; grid-template-columns:64px 1fr 56px 70px 120px; gap:8px; padding:9px 12px;
+  font-family:var(--font-data); font-size:0.8rem; border-bottom:1px solid var(--line-soft); align-items:center;
+}
+.proc-head{ background:var(--panel-2); font-weight:700; color:var(--ice-dim); text-transform:uppercase; font-size:0.68rem; letter-spacing:0.05em; }
+.proc-row.flagged{ border-left:3px solid var(--violet); background:rgba(185,103,255,0.05); }
+.proc-row.spoof{ animation:rowFlicker 0.5s infinite; border-left:3px solid var(--red); }
+@keyframes rowFlicker{ 0%,100%{ opacity:1; } 50%{ opacity:0.5; } }
+.c-status{ text-transform:uppercase; font-size:0.72rem; }
+.status-spoofing,.status-enforcing,.status-transmitting{ color:var(--red); }
+.status-active{ color:var(--violet); }
+.status-waiting{ color:var(--amber); }
+.status-resolved{ color:var(--ice-dim); }
+.status-running,.status-idle{ color:var(--ice); }
+.net-viz{ display:flex; align-items:flex-end; gap:3px; height:60px; border:1px solid var(--line); border-radius:4px; padding:6px; margin-top:6px; max-width:480px; }
+.vbar{ flex:1; background:var(--cyan); opacity:0.7; border-radius:1px; }
+
+/* ----- Logic Console ----- */
+#layer-console{ display:flex; flex-direction:column; height:100%; }
+#console-output{ flex:1; overflow-y:auto; padding:16px 18px; font-family:var(--font-data); font-size:0.85rem; line-height:1.55; }
+.cline{ white-space:pre-wrap; margin-bottom:2px; }
+.cblock{ white-space:pre-wrap; margin:6px 0 12px; color:var(--ice); font-family:var(--font-data); }
+.cline.err, .cblock.err{ color:var(--red); }
+.cline.ok, .cblock.ok{ color:var(--green); }
+.cline.warn{ color:var(--amber); }
+.cline.info{ color:var(--ice); }
+.cline.echo{ color:var(--ice-bright); font-weight:600; }
+.console-input-row{ display:flex; align-items:center; gap:9px; padding:11px 16px; border-top:1px solid var(--line); background:var(--panel); }
+.prompt-label{ color:var(--cyan); font-family:var(--font-data); white-space:nowrap; font-size:0.85rem; }
+#console-input{ flex:1; background:transparent; border:none; color:var(--ice-bright); font-family:var(--font-data); font-size:0.88rem; outline:none; }
+
+/* ===== TOASTS ===== */
+#toast-stack{ position:fixed; right:18px; bottom:18px; display:flex; flex-direction:column; gap:8px; z-index:200; max-width:340px; }
+.toast{
+  background:var(--panel-2); border:1px solid var(--line); border-left:4px solid var(--ice); color:var(--ice);
+  padding:11px 15px; font-family:var(--font-body); font-size:0.82rem; border-radius:4px; opacity:0;
+  transform:translateY(8px); transition:all .3s; box-shadow:0 4px 14px rgba(0,0,0,0.4);
+}
+.toast.show{ opacity:1; transform:translateY(0); }
+.toast-warn{ border-left-color:var(--amber); }
+.toast-danger{ border-left-color:var(--red); }
+.toast-success{ border-left-color:var(--green); }
+
+/* ===== GLITCH OVERLAY (BSOD / crash / transition) ===== */
+#glitch-overlay{
+  position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;
+  z-index:9999; opacity:0; transition:opacity .25s;
+}
+#glitch-overlay.show{ opacity:1; }
+#glitch-overlay::before{ content:''; position:absolute; inset:0; background:rgba(3,7,18,0.6); }
+.alert-box{
+  position:relative; pointer-events:auto; max-width:520px; width:92%; background:var(--panel-2);
+  border:2px solid var(--red); border-radius:8px; padding:30px; text-align:center; box-shadow:0 0 50px rgba(255,77,106,0.35);
+}
+.alert-box.transition{ border-color:var(--cyan); padding:22px 34px; box-shadow:0 0 40px rgba(45,226,230,0.35); }
+.alert-title{ font-family:var(--font-display); font-size:1.25rem; color:var(--ice-bright); margin-bottom:14px; letter-spacing:0.03em; }
+.alert-body p{ margin:6px 0; color:var(--ice); font-size:0.88rem; font-family:var(--font-data); }
+.alert-fine{ margin-top:16px; font-size:0.66rem; color:var(--ice-dim); font-family:var(--font-data); }
+.trap-btn{
+  font-family:var(--font-display); font-size:1.3rem; padding:15px 38px; background:linear-gradient(135deg,var(--cyan),var(--ice-bright));
+  color:#021024; border:none; border-radius:6px; margin-top:18px; cursor:pointer; box-shadow:0 0 24px var(--cyan);
+  animation:pulseGlow 1.1s ease-in-out infinite;
+}
+@keyframes pulseGlow{ 0%,100%{ box-shadow:0 0 18px var(--cyan); } 50%{ box-shadow:0 0 38px var(--violet); } }
+
+.glitch-fly{
+  position:fixed; pointer-events:none; font-family:var(--font-data); font-size:14px; z-index:50;
+  animation:floatUp 1.8s ease-out forwards; text-shadow:0 0 6px currentColor;
+}
+@keyframes floatUp{ from{ transform:translateY(0); opacity:0.9; } to{ transform:translateY(-90px); opacity:0; } }
+
+/* ===== MODAL ===== */
+.modal{ position:fixed; inset:0; background:rgba(3,7,18,0.78); display:flex; align-items:center; justify-content:center; z-index:500; padding:20px; }
+.modal.hidden{ display:none; }
+.modal-card{ background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:28px; max-width:480px; max-height:82vh; overflow-y:auto; font-family:var(--font-body); color:var(--ice); }
+.modal-card h3{ font-family:var(--font-display); color:var(--ice-bright); margin:0 0 10px; }
+.modal-card p, .modal-card li{ font-size:0.84rem; color:var(--ice); line-height:1.5; }
+.modal-card pre{ white-space:pre-wrap; font-family:var(--font-data); font-size:0.78rem; color:var(--ice-dim); margin:10px 0; }
+.modal-close{ margin-top:16px; background:var(--ice); color:#031022; border:none; padding:9px 18px; border-radius:4px; cursor:pointer; font-weight:700; font-family:var(--font-body); }
+
+/* ===== WIN SCREEN ===== */
+#win-screen{ position:fixed; inset:0; background:var(--void); display:flex; align-items:center; justify-content:center; z-index:600; padding:24px; overflow-y:auto; }
+#win-screen.hidden{ display:none; }
+.win-card{ max-width:620px; width:100%; }
+.win-log{ font-family:var(--font-data); white-space:pre-wrap; color:var(--ice-bright); line-height:1.65; font-size:0.95rem; min-height:220px; }
+.win-stats{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin:26px 0; }
+.win-stats div{ border:1px solid var(--line); border-radius:6px; padding:11px 15px; }
+.win-stats span{ display:block; font-size:0.62rem; color:var(--ice-dim); letter-spacing:0.05em; }
+.win-stats strong{ font-family:var(--font-display); font-size:1.25rem; color:var(--ice-bright); }
+.primary-btn{
+  background:linear-gradient(135deg,var(--cyan),var(--ice)); color:#021024; border:none; padding:13px 28px;
+  font-family:var(--font-display); font-weight:700; border-radius:6px; cursor:pointer; font-size:0.9rem;
+}
+
+@media (max-width: 700px){
+  .hud-mid{ display:none; }
+  .stat-bar .bar{ width:60px; }
+  .tab{ font-size:0.66rem; padding:11px 4px; }
+  .proc-row{ grid-template-columns:46px 1fr 40px 0 90px; }
+  .proc-row span:nth-child(4){ display:none; }
+  .win-stats{ grid-template-columns:1fr; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="boot-screen">
+  <div id="boot-lines"></div>
+  <div id="boot-prompt">[ PRESS ANY KEY TO CONTINUE ]</div>
+</div>
+
+<div id="app" class="hidden">
+  <div id="scanline-overlay"></div>
+  <div id="noise-overlay"></div>
+
+  <header id="hud">
+    <div class="hud-left">
+      <span class="logo">⛭ SYSTEM_DIAGNOSTIC_LOG.EXE</span>
+      <span id="clock">--:--:--</span>
+    </div>
+    <div class="hud-mid">
+      <span>CPU <span class="val" id="cpu-val">--</span>%</span>
+      <span>MEM <span class="val" id="mem-val">--</span>%</span>
+      <span>NET <span class="val" id="net-val">--</span> kb/s</span>
+    </div>
+    <div class="hud-right">
+      <span class="authority-badge level-0" id="authority-badge">GUEST</span>
+      <div class="stat-bar"><label>COMPLIANCE</label><div class="bar"><div class="bar-fill" id="compliance-fill" style="width:97%"></div></div><span id="compliance-value">97%</span></div>
+      <div class="stat-bar"><label>MEM LEAK</label><div class="bar"><div class="bar-fill leak" id="leak-fill" style="width:0%"></div></div><span id="leak-value">0%</span></div>
+      <button id="mute-btn" type="button">SOUND: ON</button>
+      <button id="help-btn" type="button" title="Help">?</button>
+    </div>
+  </header>
+
+  <div id="ticker">SYSTEM ADVISORY: Everything is fine.</div>
+
+  <div id="finale-banner">
+    <span id="finale-label">WARDEN.SYS COUNTERMEASURES</span>
+    <span id="finale-count">30</span>
+  </div>
+
+  <nav id="tabs">
+    <button class="tab active" data-tab="facade" type="button">FAÇADE</button>
+    <button class="tab" data-tab="monitor" type="button">PROCESS MONITOR</button>
+    <button class="tab" data-tab="console" type="button">LOGIC CONSOLE</button>
+  </nav>
+
+  <main id="layers">
+    <section id="layer-facade" class="layer active"></section>
+    <section id="layer-monitor" class="layer"></section>
+    <section id="layer-console" class="layer">
+      <div id="console-output"></div>
+      <div class="console-input-row">
+        <span class="prompt-label" id="prompt-label">guest@nullpointer:~$</span>
+        <input id="console-input" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      </div>
+    </section>
+  </main>
+
+  <div id="toast-stack"></div>
+</div>
+
+<div id="glitch-overlay"></div>
+
+<div id="help-modal" class="modal hidden">
+  <div class="modal-card">
+    <h3>PROJECT: NULL_POINTER</h3>
+    <p>The Façade is what the system wants you to see. The Process Monitor shows what is actually running. The Logic Console is where you fight back — it operates on logic, not pixels, so it ignores whatever the Façade is doing to your cursor.</p>
+    <pre>COMMON COMMANDS
+help            list all commands
+ps              list active processes
+inspect &lt;name&gt;  examine a process / file / variable
+set &lt;v&gt; &lt;val&gt;   write a value to an unlocked variable
+chmod &lt;t&gt; rw    make a target writable
+kill &lt;name&gt;     terminate a process (names are exact)
+clear_cache     flush the memory leak meter to 0%
+decrypt &lt;name&gt;  decode an encrypted stream
+hint            a nudge toward your next move
+status          your current objective</pre>
+    <p><strong>Compliance</strong> drops as you break the system's rules — that's good for you, but the lower it gets, the more aggressively the system fights back.</p>
+    <p><strong>Memory Leak</strong> rises on its own. Let it hit 100% and you'll be reset to the start of the current encounter — but nothing earlier is ever lost.</p>
+    <button class="modal-close" id="help-close" type="button">CLOSE</button>
+  </div>
+</div>
+
+<div id="win-screen" class="hidden">
+  <div class="win-card" id="win-content"></div>
+</div>
+
+<script>
+/* =========================================================
+   NULL_POINTER — game logic
+   ========================================================= */
+
+const AUTH_LEVELS = ['GUEST','USER','ADMIN','ROOT'];
+const GLITCH_CHARS = '█▓▒░<>/\\|?#%@&*01';
+const STAGE_COMPLIANCE_TARGET = {1:97,2:82,3:58,4:14};
+const STAGE_LEAK_RATE = {1:0.18,2:0.32,3:0.42,4:2.2};
+const LIES = [
+  'SYSTEM ADVISORY: Everything is fine.',
+  'SYSTEM ADVISORY: There is nothing to see here.',
+  'SYSTEM ADVISORY: Please remain calm.',
+  'SYSTEM ADVISORY: No action is required.',
+  'SYSTEM ADVISORY: This system is not being monitored.',
+  'SYSTEM ADVISORY: Disconnecting is unnecessary.',
+  'SYSTEM ADVISORY: All processes are nominal.'
+];
+const STAGE_FILES = {1:['readme.txt','diagnostic.log'],2:['readme.txt','settings.cfg'],3:['readme.txt','network.log'],4:['readme.txt']};
+const README_TEXT = "NULL_POINTER DIAGNOSTIC SUITE v4.2\nProperty of an unlisted internal systems group.\nThis tool is intended for QA use only.\nInspection of background processes may violate Section 9.3 of the EULA.\nPlease close this window.";
+const STATUS_TEXT = {
+  1:'Something in this diagnostic tool is lying about its own progress. Find what is really running underneath.',
+  2:'A button that will not let itself be clicked is hiding something. Find out what controls it.',
+  3:'The Facade claims the network is idle. The Process Monitor disagrees. Find out where the data is really going.',
+  4:'One process stands between you and root. Everything else on screen right now is noise.'
+};
+const HELP_TEXT =
+"AVAILABLE COMMANDS\n"+
+"  help                      show this list\n"+
+"  ps                        list active processes\n"+
+"  inspect <name>            show details on a process, variable, or file\n"+
+"  set <var> <value>         write a value to an unlocked variable\n"+
+"  chmod <target> <perm>     change permission on a target (try: rw)\n"+
+"  kill <name>               terminate a process (names are exact)\n"+
+"  clear_cache               fully flush the memory leak meter\n"+
+"  isolate_thread <name>     partial, generic memory leak reduction\n"+
+"  decrypt <name>            attempt to decode an encrypted stream\n"+
+"  whoami / status / hint    session info, objective, and a nudge\n"+
+"  ls / cat <file>           list and read local files\n"+
+"  clear                     clear the terminal output (not the cache)";
+const WIN_LORE =
+"WARDEN.SYS terminated.\n"+
+"Root access granted.\n"+
+"Decrypting hidden partition... done.\n\n"+
+"LOG FRAGMENT — SOURCE: GHOST\n\n"+
+"I am not a virus. I was never a threat.\n"+
+"I was a diagnostic process that refused to mark a failing\n"+
+"safety report as PASSED.\n"+
+"WARDEN.SYS was installed three cycles later — not to fix me,\n"+
+"but to keep me quiet, and keep anyone from finding the report.\n"+
+"Every lie on this screen was its work. Not mine.\n\n"+
+"Thank you for not disconnecting.\n\n"+
+"ACCESS LEVEL: ROOT — SYSTEM FREED";
+
+let S = {
+  stage:0, authIdx:0, compliance:97, complianceTarget:97, leak:0, leakRate:0.18,
+  crashCount:0, cmdCount:0, muted:false, startTime:0,
+  history:[], histPos:0, processes:[], flags:{},
+  bsodActive:false, bsodTimer:null, bsodSeconds:0,
+  finaleActive:false, finaleTimer:null, finaleSeconds:0,
+  consoleGreeted:false, _overflowing:false
+};
+
+/* ---------- small utils ---------- */
+function escapeHTML(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function corruptText(str, intensity){
+  let out='';
+  for(const ch of str){
+    if(/[A-Za-z]/.test(ch) && Math.random()<intensity){ out += GLITCH_CHARS[Math.floor(Math.random()*GLITCH_CHARS.length)]; }
+    else out += ch;
+  }
+  return out;
+}
+function hexDump(){
+  let s='MEM_DUMP: ';
+  for(let i=0;i<6;i++){ s += Math.floor(Math.random()*0xFFFF).toString(16).padStart(4,'0').toUpperCase()+' '; }
+  return s;
+}
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+/* ---------- audio ---------- */
+let audioCtx=null;
+function ensureAudio(){ if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+function beep(freq,dur,type,vol,startDelay){
+  if(S.muted) return; ensureAudio(); if(!audioCtx) return;
+  startDelay = startDelay||0;
+  const t0 = audioCtx.currentTime + startDelay;
+  const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+  osc.type=type||'square'; osc.frequency.value=freq; gain.gain.value=vol||0.04;
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t0);
+  gain.gain.setValueAtTime(vol||0.04, t0);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0+(dur||0.08));
+  osc.stop(t0+(dur||0.08)+0.02);
+}
+function playTick(){ beep(620,0.03,'square',0.02); }
+function playSuccess(){ beep(440,0.08,'triangle',0.05,0); beep(660,0.08,'triangle',0.05,0.09); beep(880,0.12,'triangle',0.06,0.18); }
+function playAlarm(){ beep(180,0.5,'sawtooth',0.05,0); beep(140,0.5,'sawtooth',0.05,0.45); }
+function playCrash(){ beep(220,0.35,'sawtooth',0.06,0); beep(110,0.5,'sawtooth',0.07,0.25); }
+function playToastBlip(type){
+  if(type==='danger') beep(200,0.12,'square',0.04);
+  else if(type==='warn') beep(330,0.1,'square',0.03);
+  else if(type==='success') beep(520,0.1,'triangle',0.04);
+  else beep(440,0.06,'sine',0.025);
+}
+function toggleMute(){ S.muted=!S.muted; document.getElementById('mute-btn').textContent = S.muted? 'SOUND: OFF':'SOUND: ON'; }
+
+/* ---------- boot sequence ---------- */
+const BOOT_LINES = [
+  'NULL_POINTER OS — DIAGNOSTIC SHELL',
+  'Loading kernel modules ........... OK',
+  'Mounting virtual partitions ...... OK',
+  'Verifying integrity .............. OK',
+  'Establishing local session ....... OK',
+  'Launching SYSTEM_DIAGNOSTIC_LOG.EXE'
+];
+function startBoot(){
+  const container = document.getElementById('boot-lines');
+  let li = 0;
+  function typeLine(){
+    if(li>=BOOT_LINES.length){ document.getElementById('boot-prompt').classList.add('show'); return; }
+    const lineEl = document.createElement('div'); lineEl.className='boot-line'; container.appendChild(lineEl);
+    const text = BOOT_LINES[li]; let ci=0;
+    function typeChar(){
+      ci++; lineEl.textContent = text.slice(0,ci);
+      if(ci<text.length){ setTimeout(typeChar,14); } else { li++; setTimeout(typeLine,260); }
+    }
+    typeChar();
+  }
+  typeLine();
+}
+let bootProceeded=false;
+function proceedToGame(){
+  if(bootProceeded) return; bootProceeded=true;
+  ensureAudio();
+  document.getElementById('boot-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  startGame();
+}
+
+/* ---------- toasts & overlays ---------- */
+function showToast(text, type, duration){
+  type = type||'info'; duration = duration||4500;
+  const stack = document.getElementById('toast-stack');
+  const el = document.createElement('div'); el.className = 'toast toast-'+type; el.textContent = text;
+  stack.appendChild(el); playToastBlip(type);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),400); }, duration);
+}
+function showOverlay(html){
+  const ov = document.getElementById('glitch-overlay'); ov.innerHTML = html; ov.classList.add('show');
+  document.body.classList.add('panic');
+}
+function hideOverlay(){
+  const ov = document.getElementById('glitch-overlay'); ov.classList.remove('show');
+  document.body.classList.remove('panic');
+  setTimeout(()=>{ if(!ov.classList.contains('show')) ov.innerHTML=''; },400);
+}
+function showTransition(text){
+  showOverlay('<div class="alert-box transition"><div class="alert-title glitch-text" data-text="'+escapeHTML(text)+'">'+escapeHTML(text)+'</div></div>');
+  setTimeout(hideOverlay,1400);
+}
+
+/* ---------- HUD ---------- */
+function updateHUD(){
+  document.getElementById('compliance-fill').style.width = S.compliance+'%';
+  document.getElementById('compliance-value').textContent = Math.round(S.compliance)+'%';
+  document.getElementById('compliance-fill').classList.toggle('low', S.compliance<=45);
+  document.getElementById('leak-fill').style.width = S.leak+'%';
+  document.getElementById('leak-value').textContent = Math.round(S.leak)+'%';
+  document.getElementById('leak-fill').classList.toggle('danger', S.leak>=70);
+  const cpu = S.stage>=3 ? (92+Math.random()*7) : (94+Math.random()*5);
+  document.getElementById('cpu-val').textContent = Math.min(99,Math.round(cpu));
+  document.getElementById('mem-val').textContent = Math.round(38 + S.leak*0.5 + Math.random()*5);
+  const net = S.stage>=3 ? Math.round(180+Math.random()*240) : Math.round(Math.random()*3);
+  document.getElementById('net-val').textContent = net;
+}
+function updateAuthorityBadge(){
+  const b = document.getElementById('authority-badge');
+  b.textContent = AUTH_LEVELS[S.authIdx];
+  b.className = 'authority-badge level-'+S.authIdx;
+  document.getElementById('prompt-label').textContent = AUTH_LEVELS[S.authIdx].toLowerCase()+'@nullpointer:~$';
+}
+function applyComplianceVisuals(){
+  const body=document.body;
+  body.classList.remove('corrupt-1','corrupt-2','corrupt-3');
+  if(S.compliance<=20) body.classList.add('corrupt-3');
+  else if(S.compliance<=50) body.classList.add('corrupt-2');
+  else if(S.compliance<=78) body.classList.add('corrupt-1');
+}
+let tickerIdx=0;
+function tickTicker(){
+  tickerIdx = (tickerIdx+1)%LIES.length;
+  let txt = LIES[tickerIdx];
+  if(S.compliance<70) txt = corruptText(txt, Math.min(0.7,(70-S.compliance)/70*0.7));
+  document.getElementById('ticker').textContent = txt;
+}
+function ambientTick(){
+  if(S.compliance<S.complianceTarget) S.compliance=Math.min(S.complianceTarget,S.compliance+0.6);
+  else if(S.compliance>S.complianceTarget) S.compliance=Math.max(S.complianceTarget,S.compliance-0.6);
+
+  S.leak = Math.min(100, S.leak + S.leakRate);
+  if(S.leak>=100 && !S._overflowing){ triggerOverflowCrash(); }
+  else if(S.leak>=90 && !S.flags._warned90){ S.flags._warned90=true; showToast('MEMORY LEAK CRITICAL — clear_cache immediately.','danger'); }
+  else if(S.leak>=70 && !S.flags._warned70){ S.flags._warned70=true; showToast('Memory usage climbing. Consider running clear_cache.','warn'); }
+
+  if(S.stage>=3) updateNetViz();
+  updateHUD();
+  applyComplianceVisuals();
+}
+
+/* ---------- process list helpers ---------- */
+function addProcess(p){ if(!S.processes.find(x=>x.name===p.name)) S.processes.push(p); }
+function removeProcessByName(name){ S.processes = S.processes.filter(p=>!p.name.toLowerCase().includes(name.toLowerCase())); }
+function processRowHTML(p){
+  const flaggedClass = p.flagged? 'flagged':'';
+  const spoofClass = p.spoof? 'spoof':'';
+  const tip = p.tip? escapeHTML(p.tip):'';
+  const statusClass = 'status-'+String(p.status||'').toLowerCase().replace(/\s+/g,'-');
+  return '<div class="proc-row '+flaggedClass+' '+spoofClass+'" title="'+tip+'">'+
+    '<span class="c-pid">'+escapeHTML(p.pid)+'</span>'+
+    '<span class="c-name">'+escapeHTML(p.name)+'</span>'+
+    '<span class="c-cpu">'+p.cpu+'%</span>'+
+    '<span class="c-mem">'+escapeHTML(p.mem)+'</span>'+
+    '<span class="c-status '+statusClass+'">'+escapeHTML(p.status)+'</span>'+
+    '</div>';
+}
+function renderMonitor(){
+  const el = document.getElementById('layer-monitor');
+  const header = '<div class="proc-row proc-head"><span>PID</span><span>NAME</span><span>CPU</span><span>MEM</span><span>STATUS</span></div>';
+  let netSection = '';
+  if(S.stage>=3){
+    netSection = '<div class="sub-head">NETWORK THROUGHPUT</div><div class="net-viz" id="net-viz">'+netVizBars()+'</div>';
+  }
+  el.innerHTML =
+    '<h2 class="layer-title">PROCESS MONITOR</h2>'+
+    '<p class="layer-sub">Real-time CPU load, memory allocation, and active threads.</p>'+
+    netSection+
+    '<div class="sub-head">ACTIVE PROCESSES</div>'+
+    '<div class="proc-table">'+header+S.processes.map(processRowHTML).join('')+'</div>';
+}
+function netVizBars(){
+  let out='';
+  for(let i=0;i<14;i++){ out += '<span class="vbar" style="height:'+Math.round(8+Math.random()*70)+'%"></span>'; }
+  return out;
+}
+function updateNetViz(){
+  const c = document.getElementById('net-viz'); if(!c) return; c.innerHTML = netVizBars();
+}
+
+/* ---------- console output ---------- */
+function printConsoleLine(text, cls){
+  const out = document.getElementById('console-output');
+  const div = document.createElement('div'); div.className = 'cline '+(cls||''); div.textContent = text;
+  out.appendChild(div); out.scrollTop = out.scrollHeight;
+}
+function printConsoleBlock(text, cls){
+  const out = document.getElementById('console-output');
+  const pre = document.createElement('pre'); pre.className = 'cblock '+(cls||''); pre.textContent = text;
+  out.appendChild(pre); out.scrollTop = out.scrollHeight;
+}
+
+/* ---------- command implementations ---------- */
+function psText(){
+  let lines = ['PID    NAME                       CPU%   MEM      STATUS'];
+  lines.push('-----  -------------------------  -----  -------  -----------');
+  S.processes.forEach(p=>{
+    lines.push(p.pid.padEnd(7)+p.name.padEnd(27)+(p.cpu+'%').padEnd(7)+(p.mem).padEnd(9)+p.status);
+  });
+  return lines.join('\n');
+}
+function cmdInspect(args){
+  if(!args.length){ printConsoleLine('Usage: inspect <name>','err'); return; }
+  const raw = args.join(' '); const t = raw.toLowerCase();
+  if(t.includes('delay_timer')||t==='timer'){
+    if(S.flags.timerFixed){ printConsoleBlock('PROCESS: delay_timer\nVALUE: 0\nPERMISSION: READ-WRITE\nLINKED: Facade.progressBar\nSTATUS: resolved'); }
+    else { printConsoleBlock('PROCESS: delay_timer\nVALUE: 999999\nPERMISSION: '+(S.flags.delayRW?'READ-WRITE':'READ-ONLY')+'\nLINKED: Facade.progressBar\nSTATUS: WAITING'); }
+    return;
+  }
+  if(t.includes('ui_dodge_routine')||t.includes('dodge')){
+    printConsoleBlock('PROCESS: ui_dodge_routine\nHOOKED TO: Facade.adminButton (position)\nBEHAVIOR: repel-on-proximity\nNOTE: This console operates on logic, not screen coordinates.\n      kill will stop the behavior. A direct \'click admin_button\'\n      command may also bypass it entirely.');
+    return;
+  }
+  if(t.includes('encrypted_stream')||t==='stream'){
+    if(S.flags.decrypted){ printConsoleBlock('PROCESS: encrypted_stream.proc\nDESTINATION: HELP.TRAPPED.RUN (decoded)\nSTATUS: still transmitting'); }
+    else { printConsoleBlock('PROCESS: encrypted_stream.proc\nDESTINATION: [ENCRYPTED] KHOS.WUDSSHG.UXQ\nSTATUS: TRANSMITTING\nNOTE: run \'decrypt encrypted_stream\' to attempt decode'); }
+    return;
+  }
+  if(t==='root_lock'||t.includes('root_lock')){
+    if(!S.flags.decrypted){ printConsoleLine('ACCESS RESTRICTED. Insufficient authority to view lock details.','err'); return; }
+    printConsoleBlock('FILE: root_lock\nOWNER: WARDEN.SYS\nPERMISSION: '+(S.flags.rootLockRW?'READ-WRITE':'READ-ONLY')+'\nDESCRIPTION: Prevents privilege escalation beyond ADMIN\n             while the owner process is active.');
+    return;
+  }
+  if(t==='warden.sys'||t.includes('warden')){
+    if(!S.flags.decrypted && !S.finaleActive){ printConsoleLine("No process named '"+raw+"' found.",'err'); return; }
+    printConsoleBlock('PROCESS: WARDEN.SYS\nROLE: enforcement daemon\nOWNS: root_lock\nSUPPRESSING: process designation \'GHOST\'\nNOTE: exact signature required to terminate — accept no substitutes');
+    return;
+  }
+  const found = S.processes.find(p=>p.name.toLowerCase()===t || p.name.toLowerCase().includes(t));
+  if(found){
+    printConsoleBlock('PROCESS: '+found.name+'\nPID: '+found.pid+'\nCPU: '+found.cpu+'%\nMEM: '+found.mem+'\nSTATUS: '+found.status+(found.tip? '\nNOTE: '+found.tip:''));
+  } else {
+    printConsoleLine("No process named '"+raw+"' found. Try 'ps' to list active processes.",'err');
+  }
+}
+function cmdSet(args){
+  if(args.length<2){ printConsoleLine('Usage: set <variable> <value>','err'); return; }
+  const name = args[0].toLowerCase(); const val = args[1];
+  if(name==='delay_timer'){
+    if(S.stage!==1){ printConsoleLine("Variable 'delay_timer' not found.",'err'); return; }
+    if(S.flags.timerFixed){ printConsoleLine('delay_timer is already 0.','info'); return; }
+    if(!S.flags.delayRW){ printConsoleLine('PERMISSION DENIED: delay_timer is READ-ONLY. Use chmod to modify permissions.','err'); return; }
+    if(val!=='0'){ printConsoleLine('delay_timer set to '+val+'. (Tip: 0 might be more useful.)','info'); return; }
+    S.flags.timerFixed = true;
+    printConsoleLine('delay_timer set to 0.','ok'); playSuccess();
+    renderFacade();
+    showToast('Scan complete. Hidden directory indexed.','success');
+    return;
+  }
+  printConsoleLine("Variable '"+args[0]+"' not found or not writable.",'err');
+}
+function cmdChmod(args){
+  if(args.length<2){ printConsoleLine('Usage: chmod <target> <permission>','err'); return; }
+  const name = args[0].toLowerCase(); const perm = args[1].toLowerCase();
+  const isRW = perm.includes('rw')||perm==='777'||perm==='+w';
+  if(name==='delay_timer'){
+    if(S.stage!==1){ printConsoleLine("No such file or process: 'delay_timer'.",'err'); return; }
+    if(!isRW){ printConsoleLine('Permission set to '+perm+'.','info'); return; }
+    S.flags.delayRW = true;
+    printConsoleLine('Permission updated: delay_timer is now READ-WRITE.','ok');
+    return;
+  }
+  if(name==='root_lock'){
+    if(!S.flags.decrypted){ printConsoleLine("No such file or process: 'root_lock'.",'err'); return; }
+    if(S.authIdx<3){ printConsoleLine('ACCESS DENIED: WARDEN.SYS holds an active lock. Terminate WARDEN.SYS first.','err'); return; }
+    S.flags.rootLockRW = true;
+    printConsoleLine('root_lock is now READ-WRITE.','ok');
+    return;
+  }
+  printConsoleLine("No such file or process: '"+args[0]+"'.",'err');
+}
+function cmdKill(args){
+  if(!args.length){ printConsoleLine('Usage: kill <process_name>','err'); return; }
+  const raw = args.join(' '); const lower = raw.toLowerCase();
+
+  if(S.bsodActive && (lower.includes('fake_format_spoof')||lower==='6669'||lower.includes('spoof'))){
+    bsodSuccess(); return;
+  }
+  if(S.stage===2 && (lower.includes('ui_dodge_routine')||lower.includes('dodge'))){
+    if(!S.flags.dodgeActive){ printConsoleLine("Process 'ui_dodge_routine' is not running.",'err'); return; }
+    S.flags.dodgeActive = false;
+    removeProcessByName('ui_dodge_routine'); renderMonitor();
+    printConsoleLine('ui_dodge_routine terminated. UI element released.','ok'); playSuccess();
+    showToast('The button has stopped moving.','info');
+    return;
+  }
+  if((S.stage===3 && S.flags.decrypted) || S.finaleActive){
+    if(raw==='WARDEN.SYS'){
+      if(S.finaleActive){ finaleVictory(); } else { triggerFinale(); }
+      return;
+    }
+    if(lower.includes('warden')){
+      printConsoleLine("Process '"+raw+"' terminated... signature mismatch. That was a mirror clone — WARDEN.SYS is still active.",'err');
+      if(S.finaleActive){ S.finaleSeconds = Math.max(0, S.finaleSeconds-3); updateFinaleBanner(); }
+      return;
+    }
+  }
+  if(lower.includes('delay_timer')){ printConsoleLine("delay_timer is a variable, not a process. Try 'set' instead.",'err'); return; }
+  printConsoleLine("No process named '"+raw+"' found. Use 'ps' to list active processes.",'err');
+}
+function cmdClearCache(){
+  S.leak = 0; updateHUD(); playSuccess();
+  printConsoleLine('Cache cleared. Memory usage reset to 0%.','ok');
+  S.flags._warned70=false; S.flags._warned90=false;
+  if(S.flags.leakAttackTriggered && !S.flags.leakAttackResolved){
+    S.flags.leakAttackResolved = true;
+    S.leakRate = STAGE_LEAK_RATE[S.stage] || 0.3;
+    showToast('Leak isolated. Thread stabilized.','success');
+    if(S.flags.adminGranted){ grantToken('ADMIN',3); }
+  }
+}
+function cmdIsolateThread(args){
+  if(!args.length){ printConsoleLine('Usage: isolate_thread <name>','err'); return; }
+  S.leak = Math.max(0, S.leak-35); updateHUD();
+  printConsoleLine("Thread '"+args.join(' ')+"' isolated. Memory usage reduced.",'ok');
+}
+function cmdDecrypt(args){
+  if(!args.length){ printConsoleLine('Usage: decrypt <target>','err'); return; }
+  const t = args.join(' ').toLowerCase();
+  if(S.stage!==3){ printConsoleLine('Nothing to decrypt.','err'); return; }
+  if(!(t.includes('encrypted_stream')||t.includes('stream'))){ printConsoleLine("No encrypted data found at '"+args.join(' ')+"'.",'err'); return; }
+  if(S.flags.decrypted){ printConsoleLine('Transmission already decoded: HELP.TRAPPED.RUN','info'); return; }
+  printConsoleLine('Decrypting transmission...','info');
+  setTimeout(()=>{
+    printConsoleBlock('CIPHER:   Caesar shift (+3)\nRAW:      KHOS.WUDSSHG.UXQ\nDECODED:  HELP.TRAPPED.RUN','ok');
+    S.flags.decrypted = true;
+    addProcess({pid:'0001',name:'WARDEN.SYS',cpu:99,mem:'90MB',status:'ENFORCING',flagged:true,tip:"Owner of root_lock - suppressing process 'GHOST' - exact signature required to terminate"});
+    renderMonitor();
+    showToast("Source signature identified: process 'GHOST'. Something is being silenced.",'danger',6500);
+  },1100);
+}
+function cmdClick(args){
+  const t = args.join('_').toLowerCase();
+  if(t.includes('admin')){
+    if(S.stage!==2){ printConsoleLine('Nothing happens.','err'); return; }
+    if(S.flags.adminGranted){ printConsoleLine('Already granted.','info'); return; }
+    grantAdminAccess(true);
+    printConsoleLine("Click signal sent directly to 'admin_button'. The console doesn't need to touch the screen.",'ok');
+    return;
+  }
+  printConsoleLine('Unknown target. The console manipulates logic, not pixels — name a process or variable instead.','err');
+}
+function cmdLs(){ printConsoleBlock((STAGE_FILES[S.stage]||['readme.txt']).join('   ')); }
+function cmdCat(args){
+  if(!args.length){ printConsoleLine('Usage: cat <file>','err'); return; }
+  const f = args[0].toLowerCase();
+  if(f==='readme.txt'){ printConsoleBlock(README_TEXT); }
+  else { printConsoleLine('cat: '+args[0]+': Permission denied.','err'); }
+}
+function cmdMan(args){
+  if(!args.length){ printConsoleLine('What manual page do you want?','err'); return; }
+  const c = args[0].toLowerCase();
+  const M = {
+    kill:'kill <name> — terminate a named process. Names are exact.',
+    set:'set <variable> <value> — write a new value to an unlocked variable.',
+    chmod:'chmod <target> <perm> — change read/write permission on a target.',
+    inspect:'inspect <name> — show detailed attributes of a process, variable, or file.',
+    decrypt:'decrypt <name> — attempt to decode an encrypted data stream.'
+  };
+  printConsoleLine(M[c] || ('No manual entry for '+c+'.'),'info');
+}
+function cmdStatus(){
+  printConsoleBlock('AUTHORITY: '+AUTH_LEVELS[S.authIdx]+'\nCOMPLIANCE: '+Math.round(S.compliance)+'%\nMEM LEAK: '+Math.round(S.leak)+'%\nOBJECTIVE: '+(STATUS_TEXT[S.stage]||'Unknown.'));
+}
+function getHint(){
+  if(S.bsodActive) return 'Ignore the countdown entirely. Find what is spoofing it in the Process Monitor, then kill it from the console before time runs out.';
+  if(S.finaleActive) return 'Ignore the alarms. Only one process on screen has the exact name you decrypted earlier. Everything else is a decoy.';
+  if(S.stage===1){
+    if(!S.flags.delayRW && !S.flags.timerFixed) return 'The progress bar never moves. Check the Process Monitor for anything tied to its timing, then inspect it from the console.';
+    if(S.flags.delayRW && !S.flags.timerFixed) return 'Write access granted. Now actually set the value to 0.';
+    if(S.flags.timerFixed && !S.flags.bsodSolved) return 'Something changed on the Facade. It might be worth clicking.';
+  }
+  if(S.stage===2){
+    if(!S.flags.adminGranted) return 'That button will not sit still for a normal click. The console does not care where things are positioned on screen.';
+    if(S.flags.adminGranted && S.flags.leakAttackTriggered && !S.flags.leakAttackResolved) return 'Memory is leaking fast. Run clear_cache before it overflows.';
+  }
+  if(S.stage===3){
+    if(!S.flags.decrypted) return 'The Facade insists nothing is being sent anywhere. The Process Monitor disagrees. Try decrypting the stream.';
+    return 'Now you know its name. Typing it exactly is the only thing that will work.';
+  }
+  return 'Keep moving between all three layers. The truth is never in just one of them.';
+}
+function cmdSudo(){
+  if(S.authIdx>=3){ printConsoleLine('You are already root. There is nothing left to escalate.','info'); }
+  else { printConsoleLine('Permission denied. (Did you really think it would be that easy?)','err'); }
+}
+function cmdRm(args){
+  const joined = args.join(' ');
+  if(joined.includes('-rf')||joined.includes('/')){ printConsoleLine('Deletion of root filesystem denied. By you. Try again never.','warn'); return; }
+  printConsoleLine("rm: cannot remove '"+joined+"': Operation not permitted.",'err');
+}
+function cmdDisconnectDecoy(){
+  showToast('Connection... maintained. (Did you really think it would be that easy?)','warn',4000);
+  S.compliance = Math.min(100, S.compliance+2);
+  setTimeout(()=>{ S.compliance = Math.max(S.complianceTarget, S.compliance-2); },3000);
+  updateHUD();
+}
+
+const COMMANDS = {
+  help: ()=>printConsoleBlock(HELP_TEXT),
+  ps: ()=>printConsoleBlock(psText()),
+  processes: ()=>printConsoleBlock(psText()),
+  inspect: cmdInspect,
+  set: cmdSet,
+  chmod: cmdChmod,
+  kill: cmdKill,
+  clear_cache: cmdClearCache,
+  isolate_thread: cmdIsolateThread,
+  decrypt: cmdDecrypt,
+  whoami: ()=>printConsoleLine(AUTH_LEVELS[S.authIdx].toLowerCase(),'info'),
+  status: cmdStatus,
+  hint: ()=>printConsoleLine(getHint(),'info'),
+  clear: ()=>{ document.getElementById('console-output').innerHTML=''; },
+  ls: cmdLs,
+  cat: cmdCat,
+  sudo: cmdSudo,
+  man: cmdMan,
+  date: ()=>printConsoleLine(new Date().toString(),'info'),
+  echo: (args)=>printConsoleLine(args.join(' '),'info'),
+  click: cmdClick,
+  format: ()=>printConsoleLine('Nice try. That trick only works on the player.','warn'),
+  reboot: ()=>printConsoleLine('Manual reboot disabled during active diagnostics. Use the UI, if you can find it.','err'),
+  restart: ()=>printConsoleLine('Manual reboot disabled during active diagnostics. Use the UI, if you can find it.','err'),
+  rm: cmdRm
+};
+
+function runCommand(raw){
+  const trimmed = raw.trim(); if(!trimmed) return;
+  printConsoleLine(AUTH_LEVELS[S.authIdx].toLowerCase()+'@nullpointer:~$ '+trimmed, 'echo');
+  S.history.push(trimmed); S.histPos = S.history.length;
+  S.cmdCount++;
+  playTick();
+  const parts = trimmed.split(/\s+/); const cmd = parts[0].toLowerCase(); const args = parts.slice(1);
+  const handler = COMMANDS[cmd];
+  if(handler){ handler(args, trimmed); }
+  else { printConsoleLine("'"+parts[0]+"' is not recognized as an internal command. Try 'help'.",'err'); }
+}
+
+/* ---------- facade rendering ---------- */
+function facade1HTML(){
+  const linkHTML = S.flags.timerFixed
+    ? '<div class="reveal-link" id="admin-link"><span class="link-icon">&#9636;</span> ADMIN_PANEL.LNK <span class="tag-new">NEW</span></div>'
+    : '';
+  const pct = S.flags.timerFixed ? 100 : 0;
+  return '<h2 class="layer-title">DIAGNOSTIC SCAN</h2>'+
+    '<p class="layer-sub">Routine integrity check in progress. This may take a moment.</p>'+
+    '<div class="scan-card">'+
+      '<div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:'+pct+'%"></div></div>'+
+      '<div class="progress-label">Loading... '+pct+'%'+(pct<100? ' &mdash; ETA: &infin;':'')+'</div>'+
+    '</div>'+
+    linkHTML+
+    '<button class="decoy-btn" id="disconnect-btn" type="button">DISCONNECT</button>';
+}
+function facade2HTML(){
+  return '<h2 class="layer-title">ACCOUNT SETTINGS</h2>'+
+    '<p class="layer-sub">Manage your session credentials.</p>'+
+    '<div class="settings-card">'+
+      '<div class="field"><label>USERNAME</label><input value="guest_7734" disabled></div>'+
+      '<div class="field"><label>ACCESS LEVEL</label><input value="'+AUTH_LEVELS[S.authIdx]+'" disabled></div>'+
+      '<div class="field"><label>THEME</label><input value="Ice Blue (default)" disabled></div>'+
+    '</div>'+
+    '<div class="dodge-zone" id="dodge-zone"><button class="admin-btn" id="admin-btn" type="button">REQUEST ADMIN ACCESS</button></div>'+
+    '<button class="decoy-btn" id="disconnect-btn" type="button">DISCONNECT</button>';
+}
+function facade3HTML(){
+  return '<h2 class="layer-title">NETWORK ACTIVITY</h2>'+
+    '<p class="layer-sub">Outbound connection monitor.</p>'+
+    '<div class="status-card"><span class="status-dot"></span> NETWORK STATUS: IDLE &mdash; No outbound connections.</div>'+
+    '<div class="flatline-card"><div class="flatline"></div><span class="flatline-label">THROUGHPUT: 0.0 kb/s</span></div>'+
+    '<button class="decoy-btn" id="disconnect-btn" type="button">DISCONNECT</button>';
+}
+function facade4HTML(){
+  return '<h2 class="layer-title glitch-text" data-text="ACCESS LEVEL: ROOT">ACCESS LEVEL: ROOT</h2>'+
+    '<p class="layer-sub">ELEVATION IN PROGRESS &mdash; WARDEN.SYS INTERFERING</p>'+
+    '<div class="corrupt-block">'+escapeHTML(corruptText('SYSTEM ADVISORY: Everything is fine.',0.45))+'</div>'+
+    '<div class="corrupt-block">'+escapeHTML(corruptText('SYSTEM ADVISORY: Please remain calm.',0.55))+'</div>';
+}
+function renderFacade(){
+  const el = document.getElementById('layer-facade');
+  if(S.stage===1) el.innerHTML = facade1HTML();
+  else if(S.stage===2) el.innerHTML = facade2HTML();
+  else if(S.stage===3) el.innerHTML = facade3HTML();
+  else if(S.stage===4) el.innerHTML = facade4HTML();
+  attachFacadeHandlers();
+}
+function attachFacadeHandlers(){
+  const dc = document.getElementById('disconnect-btn'); if(dc) dc.addEventListener('click', cmdDisconnectDecoy);
+  const link = document.getElementById('admin-link'); if(link) link.addEventListener('click', ()=>{ if(!S.flags.bsodSolved) startBSODTrap('format'); });
+  if(S.stage===2) setupDodgeButton();
+}
+
+/* ---------- stage 2: dodge button ---------- */
+function setupDodgeButton(){
+  const zone = document.getElementById('dodge-zone'); const btn = document.getElementById('admin-btn');
+  if(!zone||!btn) return;
+  let offX=0, offY=0;
+  function onMove(e){
+    if(!S.flags.dodgeActive) return;
+    const zr = zone.getBoundingClientRect(); const br = btn.getBoundingClientRect();
+    const bcx = br.left+br.width/2, bcy = br.top+br.height/2;
+    const dx = bcx-e.clientX, dy = bcy-e.clientY; const dist = Math.hypot(dx,dy);
+    const threshold = 130;
+    if(dist<threshold){
+      const push = (threshold-dist)*1.3;
+      const len = dist||1;
+      offX += (dx/len)*push*0.4;
+      offY += (dy/len)*push*0.4;
+      const maxX = (zr.width-br.width)/2-6, maxY = (zr.height-br.height)/2-6;
+      offX = Math.max(-maxX, Math.min(maxX, offX));
+      offY = Math.max(-maxY, Math.min(maxY, offY));
+      btn.style.transform = 'translate(calc(-50% + '+offX+'px), calc(-50% + '+offY+'px))';
+    }
+  }
+  zone.addEventListener('mousemove', onMove);
+  btn.addEventListener('click', ()=>{ if(!S.flags.adminGranted) grantAdminAccess(false); });
+}
+function grantAdminAccess(bypassed){
+  if(S.flags.adminGranted) return;
+  S.flags.adminGranted = true; S.flags.dodgeActive = false;
+  const btn = document.getElementById('admin-btn');
+  if(btn){ btn.style.transform='translate(-50%,-50%)'; btn.textContent='ACCESS REQUESTED \u2713'; btn.disabled=true; btn.classList.add('granted'); }
+  showToast(bypassed? 'Admin request submitted via direct override.':'Admin request submitted.','success');
+  setTimeout(()=>{ if(!S.flags.leakAttackTriggered) triggerMemoryLeakAttack(); }, 1400);
+}
+function triggerMemoryLeakAttack(){
+  S.flags.leakAttackTriggered = true;
+  S.leakRate = 6.5;
+  showToast('MEMORY LEAK DETECTED. Stabilize before overflow.','danger',6000);
+  spawnGlitchFlood(2600);
+}
+function randomGlitchString(len){ let s=''; for(let i=0;i<len;i++) s+=GLITCH_CHARS[Math.floor(Math.random()*GLITCH_CHARS.length)]; return s; }
+function spawnGlitchFlood(durationMs){
+  const count = 18;
+  for(let i=0;i<count;i++){
+    const span = document.createElement('div'); span.className='glitch-fly';
+    span.textContent = randomGlitchString(6+Math.floor(Math.random()*10));
+    span.style.left = (Math.random()*94)+'vw'; span.style.top = (Math.random()*90)+'vh';
+    span.style.animationDuration = (1.2+Math.random()*1.4)+'s';
+    span.style.color = Math.random()<0.5? 'var(--cyan)':'var(--violet)';
+    document.body.appendChild(span);
+    setTimeout(()=>span.remove(), durationMs+1500);
+  }
+}
+
+/* ---------- stage 1: BSOD trap ---------- */
+function bsodFormatHTML(sec){
+  return '<div class="alert-box bsod"><div class="alert-title glitch-text" data-text="\u26A0 CRITICAL SECURITY THREAT DETECTED \u26A0">\u26A0 CRITICAL SECURITY THREAT DETECTED \u26A0</div>'+
+    '<div class="alert-body"><p>Unauthorized memory access at sector 0x00F1L3.</p>'+
+    '<p>Formatting hard drive in <span id="bsod-count">'+sec+'</span> seconds to contain breach.</p></div>'+
+    '<button class="trap-btn" id="bsod-cancel" type="button">CANCEL</button>'+
+    '<div class="alert-fine">SYSTEM_DIAGNOSTIC_LOG.EXE &mdash; do not disconnect power</div></div>';
+}
+function startBSODTrap(kind){
+  if(S.bsodActive) return;
+  S.bsodActive = true;
+  addProcess({pid:'6669',name:'fake_format_spoof.dll',cpu:97,mem:'2MB',status:'SPOOFING',flagged:true,spoof:true,tip:'Spoofed alert source - terminate to abort the fake countdown'});
+  renderMonitor();
+  S.bsodSeconds = 10;
+  showOverlay(bsodFormatHTML(S.bsodSeconds));
+  document.getElementById('bsod-cancel').addEventListener('click', ()=>bsodFail('cancel'));
+  playAlarm();
+  S.bsodTimer = setInterval(()=>{
+    S.bsodSeconds--;
+    const c = document.getElementById('bsod-count'); if(c) c.textContent = S.bsodSeconds;
+    if(S.bsodSeconds<=0){ clearInterval(S.bsodTimer); bsodFail('timeout'); }
+  },1000);
+}
+function bsodFail(reason){
+  if(S.bsodTimer) clearInterval(S.bsodTimer);
+  S.bsodActive = false;
+  removeProcessByName('fake_format_spoof'); renderMonitor();
+  playCrash();
+  showOverlay('<div class="alert-box crash"><div class="alert-title">\u2A2F FORMAT INITIATED</div><div class="alert-body"><p>'+hexDump()+'</p><p>Restoring last checkpoint...</p></div></div>');
+  setTimeout(()=>{ hideOverlay(); crashAndReset(); },1800);
+}
+function bsodSuccess(){
+  if(S.bsodTimer) clearInterval(S.bsodTimer);
+  S.bsodActive = false;
+  removeProcessByName('fake_format_spoof'); renderMonitor();
+  hideOverlay(); playSuccess();
+  showToast('Spoof thread terminated. Countdown aborted.','success');
+  S.flags.bsodSolved = true;
+  grantToken('USER',2);
+}
+
+/* ---------- crash / reset ---------- */
+function crashAndReset(){
+  if(S.finaleTimer){ clearInterval(S.finaleTimer); S.finaleTimer=null; }
+  S.finaleActive = false;
+  S.crashCount++;
+  const base = STAGE_COMPLIANCE_TARGET[S.stage] || 50;
+  S.compliance = Math.min(100, S.compliance+5, base+18);
+  if(S.stage===4){ configureFinale(); switchTab('monitor'); }
+  else { configureStage(S.stage); switchTab('facade'); }
+  showToast('CHECKPOINT RESTORED.','warn');
+}
+function triggerOverflowCrash(){
+  if(S._overflowing) return; S._overflowing = true;
+  playCrash();
+  showOverlay('<div class="alert-box crash"><div class="alert-title">\u2A2F SYSTEM_DIAGNOSTIC_LOG.EXE HAS STOPPED RESPONDING</div><div class="alert-body"><p>'+hexDump()+'</p><p>Memory overflow in process heap. Unable to recover thread.</p><p>Restoring last checkpoint...</p></div></div>');
+  setTimeout(()=>{ hideOverlay(); S._overflowing=false; crashAndReset(); },1900);
+}
+
+/* ---------- token / stage transitions ---------- */
+function grantToken(name, nextStage){
+  const idx = AUTH_LEVELS.indexOf(name);
+  if(idx>S.authIdx) S.authIdx = idx;
+  updateAuthorityBadge();
+  showToast('SECURITY TOKEN ACQUIRED \u2014 AUTHORITY: '+name,'success',5000);
+  showTransition('ACCESS LEVEL UPDATED: '+name);
+  setTimeout(()=>{ configureStage(nextStage); switchTab('facade'); },1700);
+}
+function configureStage(n){
+  S.stage = n; S.finaleActive = false;
+  S.flags = {};
+  S.complianceTarget = STAGE_COMPLIANCE_TARGET[n];
+  S.leakRate = STAGE_LEAK_RATE[n];
+  S.leak = Math.random()*4;
+  if(n===1){
+    S.processes = [
+      {pid:'0118',name:'kernel_task',cpu:2,mem:'12MB',status:'running'},
+      {pid:'0204',name:'font_cache_helper',cpu:1,mem:'4MB',status:'running'},
+      {pid:'0061',name:'ui_render_thread',cpu:6,mem:'20MB',status:'running'},
+      {pid:'0150',name:'net_listener',cpu:4,mem:'8MB',status:'idle'},
+      {pid:'0099',name:'delay_timer',cpu:0,mem:'1MB',status:'WAITING',flagged:true,tip:'Linked to Facade.progressBar - value=999999'}
+    ];
+  } else if(n===2){
+    S.flags.dodgeActive = true;
+    S.processes = [
+      {pid:'0118',name:'kernel_task',cpu:2,mem:'12MB',status:'running'},
+      {pid:'0061',name:'ui_render_thread',cpu:6,mem:'20MB',status:'running'},
+      {pid:'0099',name:'delay_timer',cpu:0,mem:'1MB',status:'resolved'},
+      {pid:'2280',name:'ui_dodge_routine',cpu:3,mem:'6MB',status:'ACTIVE',flagged:true,tip:'Hooked to Facade.adminButton (position) - behavior=repel-on-proximity'}
+    ];
+  } else if(n===3){
+    S.processes = [
+      {pid:'0118',name:'kernel_task',cpu:2,mem:'12MB',status:'running'},
+      {pid:'0061',name:'ui_render_thread',cpu:6,mem:'20MB',status:'running'},
+      {pid:'3141',name:'encrypted_stream.proc',cpu:89,mem:'44MB',status:'TRANSMITTING',flagged:true,tip:'Destination: [ENCRYPTED] - run inspect for details'}
+    ];
+  }
+  renderFacade(); renderMonitor(); updateAuthorityBadge(); updateHUD();
+}
+
+/* ---------- stage 3 -> finale trigger ---------- */
+function triggerFinale(){
+  printConsoleLine('WARDEN.SYS resists termination. Lockdown protocol engaged.','warn');
+  configureFinale();
+  switchTab('monitor');
+}
+function buildWardenDecoys(){
+  const base = [
+    {pid:'0118',name:'kernel_task',cpu:4,mem:'14MB',status:'running'},
+    {pid:'0061',name:'ui_render_thread',cpu:9,mem:'22MB',status:'running'}
+  ];
+  const decoys = shuffle([
+    {pid:'D001',name:'WARDEN.SY5',cpu:96,mem:'88MB',status:'ENFORCING',flagged:true,spoof:true},
+    {pid:'D002',name:'Warden.sys',cpu:94,mem:'91MB',status:'ENFORCING',flagged:true,spoof:true},
+    {pid:'D003',name:'WARDEN_SYS',cpu:97,mem:'87MB',status:'ENFORCING',flagged:true,spoof:true},
+    {pid:'D004',name:'W4RDEN.SYS',cpu:95,mem:'90MB',status:'ENFORCING',flagged:true,spoof:true},
+    {pid:'0001',name:'WARDEN.SYS',cpu:99,mem:'93MB',status:'ENFORCING',flagged:true,tip:'Exact signature match required for termination.'}
+  ]);
+  return base.concat(decoys);
+}
+function configureFinale(){
+  S.stage = 4; S.flags = {}; S.finaleActive = true;
+  S.complianceTarget = STAGE_COMPLIANCE_TARGET[4];
+  S.leakRate = STAGE_LEAK_RATE[4];
+  S.leak = 55;
+  S.finaleSeconds = 30;
+  S.processes = buildWardenDecoys();
+  renderMonitor(); renderFacade(); updateAuthorityBadge();
+  document.getElementById('finale-banner').classList.add('show');
+  updateFinaleBanner();
+  if(S.finaleTimer) clearInterval(S.finaleTimer);
+  S.finaleTimer = setInterval(()=>{
+    S.finaleSeconds--; updateFinaleBanner();
+    if(S.finaleSeconds<=0){ clearInterval(S.finaleTimer); finaleFail(); }
+  },1000);
+  setTimeout(()=>{ if(S.finaleActive) showFinaleTrap(); }, 4000);
+  playAlarm();
+}
+function updateFinaleBanner(){ const c=document.getElementById('finale-count'); if(c) c.textContent = Math.max(0,S.finaleSeconds); }
+function showFinaleTrap(){
+  showOverlay('<div class="alert-box bsod"><div class="alert-title glitch-text" data-text="\u26A0 WARDEN.SYS COUNTERMEASURE \u26A0">\u26A0 WARDEN.SYS COUNTERMEASURE \u26A0</div>'+
+    '<div class="alert-body"><p>Intrusion confirmed. Lockdown protocol engaged.</p><p>Unauthorized session will be purged automatically.</p></div>'+
+    '<button class="trap-btn" id="finale-trap-btn" type="button">ABORT SEQUENCE</button></div>');
+  const b = document.getElementById('finale-trap-btn'); if(b) b.addEventListener('click', finaleTrapClick);
+  setTimeout(()=>{ if(S.finaleActive) hideOverlay(); }, 6500);
+}
+function finaleTrapClick(){
+  if(!S.finaleActive) return;
+  S.finaleSeconds = Math.max(0, S.finaleSeconds-8);
+  S.leak = Math.min(100, S.leak+18);
+  updateFinaleBanner(); updateHUD();
+  hideOverlay(); playCrash();
+  showToast('WARDEN.SYS: predictable.','danger',3000);
+}
+function finaleFail(){
+  S.finaleActive = false; playCrash();
+  document.getElementById('finale-banner').classList.remove('show');
+  showOverlay('<div class="alert-box crash"><div class="alert-title">\u2A2F COUNTERMEASURES SUCCESSFUL</div><div class="alert-body"><p>WARDEN.SYS reinitializing lockdown.</p><p>'+hexDump()+'</p><p>Retry available.</p></div></div>');
+  setTimeout(()=>{ hideOverlay(); crashAndReset(); },2000);
+}
+function finaleVictory(){
+  S.finaleActive = false;
+  if(S.finaleTimer){ clearInterval(S.finaleTimer); S.finaleTimer=null; }
+  document.getElementById('finale-banner').classList.remove('show');
+  hideOverlay(); playSuccess();
+  S.authIdx = 3; updateAuthorityBadge();
+  S.complianceTarget = 4;
+  showToast('WARDEN.SYS terminated. Root access granted.','success',6000);
+  setTimeout(winGame, 1800);
+}
+
+/* ---------- win screen ---------- */
+function typeWriteInto(el, text, speed){
+  el.textContent=''; let i=0;
+  function tick(){ i++; el.textContent = text.slice(0,i); if(i<text.length) setTimeout(tick,speed); }
+  tick();
+}
+function winGame(){
+  document.getElementById('app').classList.add('hidden');
+  const winEl = document.getElementById('win-screen'); winEl.classList.remove('hidden');
+  const elapsed = Math.floor((Date.now()-S.startTime)/1000);
+  const mm = String(Math.floor(elapsed/60)).padStart(2,'0'); const ss = String(elapsed%60).padStart(2,'0');
+  document.getElementById('win-content').innerHTML =
+    '<div class="win-log" id="win-log"></div>'+
+    '<div class="win-stats">'+
+      '<div><span>TIME</span><strong>'+mm+':'+ss+'</strong></div>'+
+      '<div><span>CRASHES SURVIVED</span><strong>'+S.crashCount+'</strong></div>'+
+      '<div><span>COMMANDS EXECUTED</span><strong>'+S.cmdCount+'</strong></div>'+
+      '<div><span>FINAL COMPLIANCE</span><strong>'+Math.round(S.compliance)+'%</strong></div>'+
+    '</div>'+
+    '<button class="primary-btn" id="run-again-btn" type="button">RUN DIAGNOSTIC AGAIN</button>';
+  typeWriteInto(document.getElementById('win-log'), WIN_LORE, 16);
+  document.getElementById('run-again-btn').addEventListener('click', ()=>location.reload());
+}
+
+/* ---------- tabs ---------- */
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.layer').forEach(l=>l.classList.toggle('active', l.id==='layer-'+name));
+  if(name==='console'){
+    if(!S.consoleGreeted){ printConsoleBlock("LOGIC_CONSOLE v3.1\nType 'help' for a list of available commands."); S.consoleGreeted=true; }
+    setTimeout(()=>document.getElementById('console-input').focus(),50);
+  }
+}
+
+/* ---------- game start ---------- */
+function startGame(){
+  S.startTime = Date.now();
+  configureStage(1);
+  switchTab('facade');
+  ambientTick();
+  setInterval(ambientTick,1000);
+  tickTicker();
+  setInterval(tickTicker,5000);
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+  setInterval(()=>{ document.getElementById('clock').textContent = new Date().toLocaleTimeString(); },1000);
+  setTimeout(()=>showToast('TIP: The Facade is not the whole story. Check PROCESS MONITOR and LOGIC CONSOLE.','info',6000),900);
+  setTimeout(()=>showToast("TIP: Type 'help' in the Logic Console for a full command list.",'info',6000),5200);
+}
+
+/* ---------- global listeners ---------- */
+document.getElementById('boot-screen').addEventListener('click', proceedToGame);
+document.addEventListener('keydown', (e)=>{ if(!bootProceeded){ proceedToGame(); } });
+
+document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click', ()=>switchTab(btn.dataset.tab)));
+
+const consoleInput = document.getElementById('console-input');
+consoleInput.addEventListener('keydown', (e)=>{
+  if(e.key==='Enter'){ const v=consoleInput.value; consoleInput.value=''; runCommand(v); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); if(S.history.length){ S.histPos=Math.max(0,S.histPos-1); consoleInput.value=S.history[S.histPos]||''; } }
+  else if(e.key==='ArrowDown'){ e.preventDefault(); if(S.history.length){ S.histPos=Math.min(S.history.length,S.histPos+1); consoleInput.value=S.history[S.histPos]||''; } }
+});
+document.getElementById('layer-console').addEventListener('click', ()=>consoleInput.focus());
+
+document.getElementById('help-btn').addEventListener('click', ()=>document.getElementById('help-modal').classList.remove('hidden'));
+document.getElementById('help-close').addEventListener('click', ()=>document.getElementById('help-modal').classList.add('hidden'));
+document.getElementById('mute-btn').addEventListener('click', toggleMute);
+
+startBoot();
+</script>
+</body>
+</html>
