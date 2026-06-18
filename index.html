@@ -13,10 +13,9 @@
             --border-muted: #1e2538;
             --accent-glow: #00ff6615;
             
-            /* Terminal UI Palette */
+            /* Terminal UI Base Palette */
             --c-green: #00ff66;
             --c-blue: #00bcff;
-            --c-amber: #ffb700;
             --c-text-main: #b4c2e0;
             --c-text-muted: #536488;
             
@@ -170,23 +169,36 @@
             color: var(--c-text-muted);
         }
 
-        /* Unique Accents for specific types of modules */
+        /* ================= MODULE SPECIFIC COLOR MODULES ================= */
+        
+        /* 1. Hollow House: Crimson Dark Red */
         .horror-theme {
             --card-accent: #8b0000;
-            --glow-color: rgba(139, 0, 0, 0.15);
+            --glow-color: rgba(139, 0, 0, 0.25);
         }
         .horror-theme .node-action {
-            color: #ff3b3b;
+            color: #ff4d4d;
         }
 
+        /* 2. Marooned: Seafoam Terminal Mint Green (Matches Game Stylesheet) */
         .marooned-theme {
-            --card-accent: #6ee7b7;
+            --card-accent: #2a4a3c;
             --glow-color: rgba(110, 231, 183, 0.15);
         }
         .marooned-theme .node-action {
             color: #6ee7b7;
         }
 
+        /* 3. Bloodline Veil: Slate Iron */
+        .veil-theme {
+            --card-accent: #70655c;
+            --glow-color: rgba(112, 101, 92, 0.15);
+        }
+        .veil-theme .node-action {
+            color: #8c8075;
+        }
+
+        /* 4. Silent Ledger: Amber Yellow */
         .utility-theme {
             --card-accent: #ffb700;
             --glow-color: rgba(255, 183, 0, 0.15);
@@ -195,12 +207,22 @@
             color: #ffb700;
         }
 
-        .grid-theme {
-            --card-accent: #00e536;
-            --glow-color: rgba(0, 229, 54, 0.15);
+        /* 5. Abyssal-9: Deep Midnight Blue */
+        .abyss-theme {
+            --card-accent: #0b1d3a;
+            --glow-color: rgba(0, 85, 255, 0.25);
         }
-        .grid-theme .node-action {
-            color: #00ff41;
+        .abyss-theme .node-action {
+            color: #4da6ff;
+        }
+
+        /* 6. Null Pointer: Ice Neon Blue */
+        .pointer-theme {
+            --card-accent: #a0c4ff;
+            --glow-color: rgba(160, 196, 255, 0.18);
+        }
+        .pointer-theme .node-action {
+            color: #a0c4ff;
         }
 
         /* System Footer info */
@@ -240,7 +262,7 @@
             <div class="sys-status-metrics">
                 <div class="metric">LOC: <span id="sys-host">LOCALHOST</span></div>
                 <div class="metric">STATUS: <span style="color: var(--c-green);">ONLINE</span></div>
-                <div class="metric">PACKAGES: <span>04</span></div>
+                <div class="metric">PACKAGES: <span>06</span></div>
             </div>
         </header>
 
@@ -250,7 +272,7 @@
                 <div>
                     <div class="node-meta">
                         <span>ID: 001/TXT</span>
-                        <span>TAG: HORROR_ADVENTURE</span>
+                        <span>TAG: PSYCH_SURVIVAL</span>
                     </div>
                     <h2 class="node-title">THE HOLLOW HOUSE</h2>
                     <p class="node-desc">A deep text-based psychological engine. Explore rooms, balance sanity attributes, manage real-time puzzle events, and reverse the ritual anchors.</p>
@@ -270,10 +292,22 @@
                 <div class="node-action">EXECUTE_MODULE</div>
             </a>
 
+            <a href="bloodlineveil.html" class="node-card veil-theme">
+                <div>
+                    <div class="node-meta">
+                        <span>ID: 003/GTH</span>
+                        <span>TAG: CHRONICLE_RPG</span>
+                    </div>
+                    <h2 class="node-title">BLOODLINE VEIL</h2>
+                    <p class="node-desc">A multi-generational gothic engine. Track deep historical evidence, manipulate systemic rituals, balance hereditary sanity, and challenge an ancient structural pact.</p>
+                </div>
+                <div class="node-action">EXECUTE_MODULE</div>
+            </a>
+
             <a href="silentledger.html" class="node-card utility-theme">
                 <div>
                     <div class="node-meta">
-                        <span>ID: 003/DOC</span>
+                        <span>ID: 004/DOC</span>
                         <span>TAG: DETECTIVE_DOSSIER</span>
                     </div>
                     <h2 class="node-title">OPERATION: SILENT LEDGER</h2>
@@ -282,14 +316,26 @@
                 <div class="node-action">EXECUTE_MODULE</div>
             </a>
 
-            <a href="gridengine.html" class="node-card grid-theme">
+            <a href="abyssal9.html" class="node-card abyss-theme">
                 <div>
                     <div class="node-meta">
-                        <span>ID: 004/SYS</span>
-                        <span>TAG: POWER_INCREMENTAL</span>
+                        <span>ID: 005/ENV</span>
+                        <span>TAG: DEEP_STATION_SURVIVAL</span>
                     </div>
-                    <h2 class="node-title">GRID ENGINE</h2>
-                    <p class="node-desc">A volatile grid infrastructure simulation. Deploy generators, stack transformer chain bonuses, monitor waveform frequencies, and prevent systemic fault cascades from collapsing the network.</p>
+                    <h2 class="node-title">ABYSSAL-9</h2>
+                    <p class="node-desc">A dark, interactive station survival protocol. Navigate contaminated sectors, monitor integrated telemetry vectors, bypass secure logical nodes, and safely execute isolation countermeasures.</p>
+                </div>
+                <div class="node-action">EXECUTE_MODULE</div>
+            </a>
+
+            <a href="nullpointer.html" class="node-card pointer-theme">
+                <div>
+                    <div class="node-meta">
+                        <span>ID: 006/EXE</span>
+                        <span>TAG: DECOY_CYBER_HACK</span>
+                    </div>
+                    <h2 class="node-title">NULL_POINTER</h2>
+                    <p class="node-desc">A deceptive logic diagnostic exploit. Traverse hidden system tiers, bypass visual facade locks, investigate hidden process stacks, and neutralize active enforcer daemons.</p>
                 </div>
                 <div class="node-action">EXECUTE_MODULE</div>
             </a>
