@@ -81,6 +81,12 @@
             animation: blink 1s step-end infinite;
         }
 
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+        }
+
         .sys-status-metrics {
             display: flex;
             gap: 20px;
@@ -90,6 +96,32 @@
 
         .metric span {
             color: var(--c-blue);
+        }
+
+        /* Clean Terminal-Style Button */
+        .btn-bmc {
+            display: inline-flex;
+            align-items: center;
+            background: transparent;
+            border: 1px solid var(--c-green);
+            color: var(--c-green);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            text-decoration: none;
+            letter-spacing: 1px;
+            padding: 8px 16px;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0, 255, 102, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        .btn-bmc:hover {
+            background: var(--c-green);
+            color: var(--bg-base);
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.4);
+            font-weight: bold;
+            transform: translateY(-1px);
         }
 
         /* Directory Grid Items */
@@ -239,11 +271,17 @@
             50% { opacity: 0; }
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
             header {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 10px;
+                gap: 15px;
+            }
+            .header-right {
+                width: 100%;
+                flex-direction: column-reverse;
+                align-items: flex-start;
+                gap: 15px;
             }
             .sys-status-metrics {
                 flex-wrap: wrap;
@@ -259,10 +297,13 @@
             <div class="sys-identity">
                 <h1>INDEX://MAIN_CORE<span>_</span></h1>
             </div>
-            <div class="sys-status-metrics">
-                <div class="metric">LOC: <span id="sys-host">LOCALHOST</span></div>
-                <div class="metric">STATUS: <span style="color: var(--c-green);">ONLINE</span></div>
-                <div class="metric">PACKAGES: <span>06</span></div>
+            <div class="header-right">
+                <div class="sys-status-metrics">
+                    <div class="metric">LOC: <span id="sys-host">LOCALHOST</span></div>
+                    <div class="metric">STATUS: <span style="color: var(--c-green);">ONLINE</span></div>
+                    <div class="metric">PACKAGES: <span>06</span></div>
+                </div>
+                <a href="https://buymeacoffee.com/justanotherhuman" target="_blank" class="btn-bmc">Buy Me A Coffee</a>
             </div>
         </header>
 
