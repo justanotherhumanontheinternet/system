@@ -1,0 +1,2245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloodline Veil</title>
+<style>
+:root{
+  --ink:#161210; --bone:#e8e0d0; --parchment:#efe7d8; --parchment-dark:#d8cdb6;
+  --crimson:#7a1626; --crimson-bright:#a3273d; --gold:#a9842f; --gold-dim:#7d6326;
+  --slate:#4a4540; --shadow:#0b0908; --veil:#3a2540;
+  --panel-bg:#1c1714; --panel-border:#4a3d2c;
+  --font-display:'Playfair Display',Georgia,serif; --font-body:Georgia,'Times New Roman',serif; --font-ui:'Inter',Arial,sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;background:#0a0807;color:var(--bone);font-family:var(--font-body);overflow:hidden;}
+#app{position:relative;width:100%;height:100vh;display:flex;flex-direction:column;background:radial-gradient(ellipse at top, #1a1411 0%, #0a0807 70%);}
+
+/* ---------- Texture overlay ---------- */
+.grain{position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+.veil-overlay{position:fixed;inset:0;pointer-events:none;z-index:50;opacity:0;transition:opacity 2.5s ease;background:
+  radial-gradient(ellipse at 50% 0%, rgba(58,37,64,.35), transparent 60%),
+  linear-gradient(180deg, rgba(20,8,14,.25), transparent 40%, rgba(20,8,14,.35));}
+.vignette{position:fixed;inset:0;pointer-events:none;z-index:40;box-shadow:inset 0 0 220px 70px rgba(0,0,0,.75);}
+
+/* ---------- Top bar ---------- */
+#topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 22px;background:linear-gradient(180deg,#171210,#100d0b);border-bottom:1px solid var(--panel-border);z-index:30;flex-shrink:0;}
+.heir-id{display:flex;align-items:center;gap:12px;min-width:220px;}
+.heir-portrait{width:46px;height:46px;border-radius:3px;background:linear-gradient(160deg,#2a2018,#181210);border:1px solid var(--gold-dim);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);color:var(--gold);font-size:18px;}
+.heir-meta{display:flex;flex-direction:column;line-height:1.2;}
+.heir-name{font-family:var(--font-display);font-size:15px;color:var(--bone);}
+.heir-age{font-family:var(--font-ui);font-size:11px;color:var(--slate);letter-spacing:.03em;}
+
+.resources{display:flex;gap:18px;align-items:center;flex:1;justify-content:center;}
+.res{display:flex;flex-direction:column;align-items:flex-start;width:108px;}
+.res-label{font-family:var(--font-ui);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--slate);margin-bottom:3px;}
+.res-bar{width:100%;height:6px;background:#000;border-radius:3px;overflow:hidden;border:1px solid #000;position:relative;}
+.res-fill{height:100%;border-radius:3px;transition:width .6s ease;}
+.res-fill.sanity{background:linear-gradient(90deg,#3a6b7d,#74b6c9);}
+.res-fill.influence{background:linear-gradient(90deg,#7d5a1f,#c9a13f);}
+.res-fill.occult{background:linear-gradient(90deg,#4a2f5e,#8a5fb0);}
+.res-fill.wealth{background:linear-gradient(90deg,#6b5a1f,#d4af37);}
+.res-val{font-family:var(--font-ui);font-size:9px;color:var(--slate);margin-top:2px;}
+
+.veil-meter{display:flex;flex-direction:column;align-items:flex-end;width:150px;padding-left:14px;border-left:1px solid var(--panel-border);}
+.veil-label{font-family:var(--font-ui);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--crimson-bright);margin-bottom:3px;}
+.veil-bar{width:100%;height:8px;background:#000;border-radius:3px;overflow:hidden;border:1px solid var(--crimson);}
+.veil-fill{height:100%;background:linear-gradient(90deg,#3a1018,#7a1626,#a3273d);transition:width .8s ease;}
+.veil-band-name{font-family:var(--font-ui);font-size:9px;color:var(--slate);margin-top:2px;letter-spacing:.04em;}
+
+/* ---------- Left rail ---------- */
+#rail{position:absolute;left:0;top:64px;bottom:0;width:58px;background:linear-gradient(180deg,#161210,#100d0b);border-right:1px solid var(--panel-border);display:flex;flex-direction:column;align-items:center;padding-top:14px;gap:6px;z-index:25;}
+.rail-btn{width:42px;height:42px;border-radius:4px;background:transparent;border:1px solid transparent;color:var(--parchment-dark);display:flex;align-items:center;justify-content:center;font-size:19px;cursor:pointer;position:relative;transition:background .2s,border-color .2s;}
+.rail-btn:hover{background:#241c16;border-color:var(--gold-dim);}
+.rail-btn.active{background:#2a1d1a;border-color:var(--crimson);color:var(--gold);}
+.rail-btn .dot{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--crimson-bright);box-shadow:0 0 5px var(--crimson-bright);display:none;}
+.rail-btn.has-new .dot{display:block;}
+.rail-tooltip{position:absolute;left:64px;top:50%;transform:translateY(-50%);background:#0e0b09;border:1px solid var(--panel-border);padding:5px 10px;font-family:var(--font-ui);font-size:11px;white-space:nowrap;border-radius:3px;opacity:0;pointer-events:none;transition:opacity .15s;z-index:40;}
+.rail-btn:hover .rail-tooltip{opacity:1;}
+
+/* ---------- Main stage ---------- */
+#stage-wrap{position:absolute;left:58px;right:0;top:64px;bottom:0;display:flex;overflow:hidden;}
+#center-stage{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+.scene-bg{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity 1.2s ease;}
+.scene-layer{position:absolute;inset:0;}
+.parallax{position:absolute;inset:-5%;background-repeat:no-repeat;background-size:cover;background-position:center;}
+
+.scene-content{position:relative;z-index:5;flex:1;overflow-y:auto;padding:34px 48px 18px;display:flex;flex-direction:column;}
+.scene-content::-webkit-scrollbar{width:8px;}
+.scene-content::-webkit-scrollbar-thumb{background:#3a302a;border-radius:4px;}
+
+.scene-eyebrow{font-family:var(--font-ui);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;opacity:.85;}
+.scene-title{font-family:var(--font-display);font-size:30px;color:var(--bone);margin:0 0 14px;text-shadow:0 2px 10px rgba(0,0,0,.6);}
+.scene-text{font-family:var(--font-body);font-size:17px;line-height:1.65;color:#d8cfc0;max-width:760px;margin-bottom:14px;text-shadow:0 1px 6px rgba(0,0,0,.5);}
+.scene-text.speaker{font-style:italic;color:var(--parchment-dark);}
+.speaker-name{font-family:var(--font-ui);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--crimson-bright);margin-bottom:5px;display:block;}
+
+.choice-panel{position:relative;z-index:6;padding:14px 48px 26px;display:flex;flex-direction:column;gap:10px;max-width:820px;}
+.choice-card{background:linear-gradient(160deg,#1f1812,#171210);border:1px solid var(--panel-border);border-radius:5px;padding:13px 18px;cursor:pointer;font-family:var(--font-body);font-size:15px;color:var(--parchment);transition:border-color .2s,transform .15s,background .2s;text-align:left;}
+.choice-card:hover{border-color:var(--gold);background:linear-gradient(160deg,#2a2018,#1c1612);transform:translateX(3px);}
+.choice-card.weighty{border-color:var(--gold-dim);border-width:1px;box-shadow:inset 0 0 0 1px rgba(169,132,47,.15);}
+.choice-card.weighty::before{content:'◆';color:var(--gold);margin-right:8px;font-size:10px;}
+.choice-card .choice-sub{display:block;font-family:var(--font-ui);font-size:11.5px;color:var(--slate);margin-top:4px;}
+.choice-card:disabled,.choice-card.locked{opacity:.45;cursor:not-allowed;}
+.choice-card.locked:hover{transform:none;border-color:var(--panel-border);}
+
+.continue-row{display:flex;justify-content:flex-end;padding:0 48px 26px;}
+.btn-continue{font-family:var(--font-ui);font-size:13px;letter-spacing:.06em;text-transform:uppercase;background:transparent;border:1px solid var(--gold-dim);color:var(--gold);padding:10px 22px;border-radius:3px;cursor:pointer;transition:background .2s;}
+.btn-continue:hover{background:rgba(169,132,47,.12);}
+
+/* ---------- Drawer (evidence/journal preview) ---------- */
+#drawer{width:0;background:#141009;border-left:1px solid var(--panel-border);overflow:hidden;transition:width .3s ease;}
+#drawer.open{width:340px;}
+.drawer-inner{padding:18px;width:340px;}
+.drawer-title{font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:10px;}
+
+/* ---------- Panels (fullscreen overlays: evidence, tree, journal, rituals, settings) ---------- */
+.panel-overlay{position:absolute;left:58px;right:0;top:64px;bottom:0;background:#100d0a;z-index:35;display:none;flex-direction:column;overflow:hidden;}
+.panel-overlay.active{display:flex;}
+.panel-header{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--panel-border);}
+.panel-header h2{font-family:var(--font-display);font-size:24px;color:var(--gold);margin:0;}
+.panel-close{background:transparent;border:1px solid var(--panel-border);color:var(--parchment-dark);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px;}
+.panel-close:hover{border-color:var(--crimson-bright);color:var(--crimson-bright);}
+.panel-body{flex:1;overflow-y:auto;padding:24px 32px;}
+
+/* Evidence board */
+.truth-trackers{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap;}
+.truth-tracker{flex:1;min-width:180px;background:#1a1511;border:1px solid var(--panel-border);border-radius:5px;padding:11px 14px;}
+.truth-tracker .tt-name{font-family:var(--font-ui);font-size:11px;letter-spacing:.05em;color:var(--parchment-dark);margin-bottom:6px;text-transform:uppercase;}
+.tt-bar{height:7px;background:#000;border-radius:3px;overflow:hidden;}
+.tt-fill{height:100%;background:linear-gradient(90deg,#5a1018,#a3273d);transition:width .6s;}
+.tt-state{font-family:var(--font-ui);font-size:10px;color:var(--slate);margin-top:4px;}
+
+.evidence-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+.evidence-card{background:linear-gradient(160deg,#1d1712,#161210);border:1px solid var(--panel-border);border-radius:4px;padding:14px;position:relative;}
+.evidence-card.testimony{border-left:3px solid var(--gold-dim);}
+.evidence-card.testimony.ghost{border-left-color:var(--veil);}
+.evidence-card.document{border-left:3px solid var(--crimson);}
+.ev-kind{font-family:var(--font-ui);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--slate);margin-bottom:5px;}
+.ev-title{font-family:var(--font-display);font-size:15px;color:var(--bone);margin-bottom:6px;}
+.ev-text{font-family:var(--font-body);font-style:italic;font-size:13.5px;color:var(--parchment-dark);line-height:1.5;}
+.ev-gen{position:absolute;top:10px;right:12px;font-family:var(--font-ui);font-size:10px;color:var(--gold-dim);}
+.evidence-empty{color:var(--slate);font-style:italic;padding:40px;text-align:center;}
+
+/* Family tree */
+.tree-wrap{display:flex;flex-direction:column;gap:8px;}
+.tree-node{display:flex;align-items:center;gap:14px;background:#181310;border:1px solid var(--panel-border);border-radius:5px;padding:12px 16px;}
+.tree-node.current{border-color:var(--gold);box-shadow:0 0 0 1px rgba(169,132,47,.25);}
+.tree-node.deceased{opacity:.78;}
+.tree-portrait{width:38px;height:38px;border-radius:3px;background:#241c16;border:1px solid var(--panel-border);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);color:var(--gold-dim);flex-shrink:0;}
+.tree-info{flex:1;}
+.tree-name{font-family:var(--font-display);font-size:15px;color:var(--bone);}
+.tree-sub{font-family:var(--font-ui);font-size:11px;color:var(--slate);margin-top:2px;}
+.tree-fate{font-family:var(--font-ui);font-size:10.5px;padding:3px 9px;border-radius:10px;letter-spacing:.03em;}
+.fate-alive{background:rgba(116,182,201,.15);color:#74b6c9;}
+.fate-deceased{background:rgba(140,130,110,.15);color:var(--parchment-dark);}
+.fate-ghost{background:rgba(138,95,176,.18);color:#b08fd0;}
+.fate-missing{background:rgba(163,39,61,.18);color:var(--crimson-bright);}
+.tree-traits{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap;}
+.trait-badge{font-family:var(--font-ui);font-size:9.5px;padding:2px 7px;border-radius:9px;background:#241c16;border:1px solid var(--panel-border);color:var(--parchment-dark);}
+.trait-badge.cursed{border-color:var(--crimson);color:var(--crimson-bright);}
+
+/* Journal */
+.journal-entry{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid #2a2018;}
+.journal-gen{font-family:var(--font-ui);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:5px;}
+.journal-text{font-family:var(--font-body);font-style:italic;color:var(--parchment-dark);font-size:14.5px;line-height:1.6;}
+
+/* Rituals */
+.ritual-grid{display:flex;flex-direction:column;gap:12px;}
+.ritual-card{background:#181310;border:1px solid var(--panel-border);border-radius:5px;padding:16px 18px;}
+.ritual-card.unavailable{opacity:.5;}
+.ritual-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+.ritual-name{font-family:var(--font-display);font-size:17px;color:var(--gold);}
+.ritual-tier{font-family:var(--font-ui);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);}
+.ritual-desc{font-family:var(--font-body);font-size:14px;color:var(--parchment-dark);margin-bottom:8px;line-height:1.5;}
+.ritual-meta{display:flex;gap:16px;font-family:var(--font-ui);font-size:11px;color:var(--slate);margin-bottom:10px;}
+.ritual-btn{font-family:var(--font-ui);font-size:12px;text-transform:uppercase;letter-spacing:.05em;background:rgba(163,39,61,.12);border:1px solid var(--crimson);color:var(--crimson-bright);padding:7px 16px;border-radius:3px;cursor:pointer;}
+.ritual-btn:hover{background:rgba(163,39,61,.22);}
+.ritual-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* Transition screen */
+.transition-screen{position:absolute;inset:0;background:#0a0807;z-index:60;display:none;align-items:center;justify-content:center;flex-direction:column;}
+.transition-screen.active{display:flex;}
+.transition-content{max-width:680px;text-align:center;padding:40px;}
+.transition-title{font-family:var(--font-display);font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:18px;}
+.transition-name{font-family:var(--font-display);font-size:38px;color:var(--bone);margin-bottom:10px;}
+.transition-years{font-family:var(--font-ui);font-size:14px;color:var(--slate);margin-bottom:30px;letter-spacing:.04em;}
+.transition-obit{font-family:var(--font-body);font-style:italic;font-size:16px;color:var(--parchment-dark);line-height:1.7;margin-bottom:30px;}
+.inherit-list{text-align:left;background:#141009;border:1px solid var(--panel-border);border-radius:6px;padding:18px 22px;margin-bottom:28px;}
+.inherit-list h4{font-family:var(--font-ui);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin:0 0 10px;}
+.inherit-item{font-family:var(--font-body);font-size:14px;color:var(--parchment-dark);margin-bottom:5px;}
+.heir-choice-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:10px;}
+.heir-choice-card{background:#181310;border:1px solid var(--panel-border);border-radius:6px;padding:18px 22px;cursor:pointer;width:200px;transition:border-color .2s;}
+.heir-choice-card:hover{border-color:var(--gold);}
+.heir-choice-card .hc-name{font-family:var(--font-display);font-size:17px;color:var(--bone);margin-bottom:4px;}
+.heir-choice-card .hc-sub{font-family:var(--font-ui);font-size:11px;color:var(--slate);}
+
+/* Title / End screens */
+.fullscreen-flow{position:absolute;inset:0;background:#0a0807;z-index:70;display:none;align-items:center;justify-content:center;flex-direction:column;text-align:center;}
+.fullscreen-flow.active{display:flex;}
+.fs-title{font-family:var(--font-display);font-size:64px;color:var(--crimson-bright);letter-spacing:.03em;margin-bottom:8px;text-shadow:0 0 40px rgba(163,39,61,.3);}
+.fs-sub{font-family:var(--font-body);font-style:italic;font-size:17px;color:var(--parchment-dark);margin-bottom:46px;}
+.fs-menu{display:flex;flex-direction:column;gap:12px;width:280px;}
+.fs-btn{font-family:var(--font-ui);font-size:13px;letter-spacing:.08em;text-transform:uppercase;background:transparent;border:1px solid var(--gold-dim);color:var(--gold);padding:14px;border-radius:3px;cursor:pointer;transition:all .2s;}
+.fs-btn:hover{background:rgba(169,132,47,.1);border-color:var(--gold);}
+.fs-btn:disabled{opacity:.35;cursor:not-allowed;}
+.fs-footnote{margin-top:36px;font-family:var(--font-ui);font-size:11px;color:var(--slate);}
+
+.ending-card{max-width:680px;}
+.ending-label{font-family:var(--font-ui);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:10px;}
+.ending-name{font-family:var(--font-display);font-size:44px;color:var(--bone);margin-bottom:24px;}
+.ending-text{font-family:var(--font-body);font-size:16.5px;line-height:1.75;color:var(--parchment-dark);margin-bottom:14px;text-align:left;}
+.archive-box{text-align:left;background:#141009;border:1px solid var(--panel-border);border-radius:6px;padding:20px 24px;margin:24px 0;}
+.archive-box h4{font-family:var(--font-ui);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin:0 0 10px;}
+.archive-item{font-family:var(--font-ui);font-size:12.5px;color:var(--parchment-dark);margin-bottom:5px;}
+
+/* Toast */
+.toast-wrap{position:absolute;top:74px;right:18px;z-index:80;display:flex;flex-direction:column;gap:8px;align-items:flex-end;}
+.toast{background:#1a1511;border:1px solid var(--gold-dim);border-radius:4px;padding:10px 16px;font-family:var(--font-ui);font-size:12px;color:var(--parchment);box-shadow:0 4px 18px rgba(0,0,0,.5);animation:toastIn .3s ease,toastOut .4s ease 3.2s forwards;max-width:280px;}
+.toast.veil{border-color:var(--crimson);color:var(--crimson-bright);}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+@keyframes toastOut{to{opacity:0;transform:translateX(20px);}}
+
+/* Tutorial */
+.tutorial-card{max-width:560px;background:#161210;border:1px solid var(--panel-border);border-radius:8px;padding:40px 44px;text-align:left;}
+.tutorial-step-label{font-family:var(--font-ui);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:16px;}
+.tutorial-title{font-family:var(--font-display);font-size:28px;color:var(--bone);margin-bottom:16px;}
+.tutorial-body{font-family:var(--font-body);font-size:16px;line-height:1.7;color:var(--parchment-dark);margin-bottom:30px;}
+.tutorial-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.tutorial-nav{display:flex;gap:10px;}
+.tut-btn{font-family:var(--font-ui);font-size:12.5px;letter-spacing:.05em;text-transform:uppercase;background:transparent;border:1px solid var(--gold-dim);color:var(--gold);padding:9px 18px;border-radius:3px;cursor:pointer;}
+.tut-btn:hover{background:rgba(169,132,47,.1);}
+.tut-btn:disabled{opacity:.3;cursor:not-allowed;}
+.tut-skip{font-family:var(--font-ui);font-size:12px;color:var(--slate);background:none;border:none;cursor:pointer;text-decoration:underline;}
+.tut-skip:hover{color:var(--parchment-dark);}
+
+/* Audio controls + help button (top bar, right of Veil meter) */
+.audio-controls{display:flex;gap:6px;align-items:center;margin-left:14px;padding-left:14px;border-left:1px solid var(--panel-border);}
+.audio-btn{font-family:var(--font-ui);font-size:10.5px;letter-spacing:.02em;background:transparent;border:1px solid var(--panel-border);color:var(--parchment-dark);padding:6px 10px;border-radius:3px;cursor:pointer;white-space:nowrap;}
+.audio-btn:hover{border-color:var(--gold-dim);color:var(--gold);}
+.audio-btn.muted{color:var(--slate);border-color:var(--panel-border);opacity:.6;}
+.help-btn{width:28px;height:28px;border-radius:50%;background:transparent;border:1px solid var(--panel-border);color:var(--parchment-dark);cursor:pointer;font-family:var(--font-ui);font-size:12px;}
+.help-btn:hover{border-color:var(--gold-dim);color:var(--gold);}
+
+.hidden{display:none !important;}
+.fade-in{animation:fadeIn .6s ease;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.scrollfix{scrollbar-width:thin;}
+
+</style>
+</head>
+<body>
+
+<div class="grain"></div>
+<div class="veil-overlay"></div>
+<div class="vignette"></div>
+
+<div id="app">
+
+  <!-- ============ TITLE SCREEN ============ -->
+  <div id="titleScreen" class="fullscreen-flow">
+    <div class="fs-title">BLOODLINE VEIL</div>
+    <div class="fs-sub">a sin remembered in stone</div>
+    <div class="fs-menu">
+      <button id="btnNewGame" class="fs-btn">Begin a New Bloodline</button>
+      <button id="btnContinueGame" class="fs-btn">Continue</button>
+    </div>
+    <div class="fs-footnote">Eight generations. Two hundred years. One house that remembers everything.</div>
+  </div>
+
+  <!-- ============ TUTORIAL SCREEN ============ -->
+  <div id="tutorialScreen" class="fullscreen-flow">
+    <div class="tutorial-card">
+      <div class="tutorial-step-label" id="tutorialStepLabel">1 / 5</div>
+      <div class="tutorial-title" id="tutorialTitle"></div>
+      <div class="tutorial-body" id="tutorialBody"></div>
+      <div class="tutorial-footer">
+        <button class="tut-skip" id="btnTutorialSkip">Skip introduction</button>
+        <div class="tutorial-nav">
+          <button class="tut-btn" id="btnTutorialBack">Back</button>
+          <button class="tut-btn" id="btnTutorialNext">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ENDING SCREEN ============ -->
+  <div id="endingScreen" class="fullscreen-flow">
+    <div class="ending-card">
+      <div class="ending-label" id="endingCategory"></div>
+      <div class="ending-name" id="endingName"></div>
+      <div id="endingText"></div>
+      <div class="archive-box" id="archiveBox"></div>
+      <div class="fs-menu" style="margin:0 auto;">
+        <button id="btnEndingNewGame" class="fs-btn">Begin Another Bloodline</button>
+        <button id="btnEndingTitle" class="fs-btn">Return to Title</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TRANSITION SCREEN ============ -->
+  <div id="transitionScreen" class="transition-screen">
+    <div class="transition-content">
+      <div class="transition-title">A Generation Closes</div>
+      <div class="transition-name" id="transitionName"></div>
+      <div class="transition-years" id="transitionYears"></div>
+      <div class="transition-obit" id="transitionObit"></div>
+      <div class="inherit-list" id="inheritList"></div>
+      <div id="heirChoiceRow" class="heir-choice-row"></div>
+      <button id="btnConfirmTransition" class="btn-continue">Continue the Bloodline</button>
+    </div>
+  </div>
+
+  <!-- ============ TOP BAR ============ -->
+  <div id="topbar">
+    <div class="heir-id">
+      <div class="heir-portrait" id="heirPortraitInitial">?</div>
+      <div class="heir-meta">
+        <span class="heir-name" id="heirName">—</span>
+        <span class="heir-age" id="heirAge">—</span>
+      </div>
+    </div>
+    <div class="resources">
+      <div class="res">
+        <span class="res-label">Sanity</span>
+        <div class="res-bar"><div class="res-fill sanity" id="res-sanity-fill" style="width:60%"></div></div>
+        <span class="res-val" id="res-sanity-val">60</span>
+      </div>
+      <div class="res">
+        <span class="res-label">Influence</span>
+        <div class="res-bar"><div class="res-fill influence" id="res-influence-fill" style="width:30%"></div></div>
+        <span class="res-val" id="res-influence-val">30</span>
+      </div>
+      <div class="res">
+        <span class="res-label">Occult Knowledge</span>
+        <div class="res-bar"><div class="res-fill occult" id="res-occult-fill" style="width:0%"></div></div>
+        <span class="res-val" id="res-occult-val">0</span>
+      </div>
+      <div class="res">
+        <span class="res-label">Wealth</span>
+        <div class="res-bar"><div class="res-fill wealth" id="res-wealth-fill" style="width:30%"></div></div>
+        <span class="res-val" id="res-wealth-val">30</span>
+      </div>
+    </div>
+    <div class="veil-meter">
+      <span class="veil-label">The Veil</span>
+      <div class="veil-bar"><div class="veil-fill" id="veilFill" style="width:0%"></div></div>
+      <span class="veil-band-name" id="veilBandName">Dormant (0)</span>
+    </div>
+    <div class="audio-controls">
+      <button class="audio-btn" id="btnToggleMusic">♪ Music On</button>
+      <button class="audio-btn" id="btnToggleSfx">🔔 SFX On</button>
+      <button class="help-btn" id="btnShowHelp" title="How to Play">?</button>
+    </div>
+  </div>
+
+  <!-- ============ LEFT RAIL ============ -->
+  <div id="rail">
+    <button class="rail-btn" id="rail-evidence" data-panel="evidence" title="Evidence Board">
+      🗂<span class="dot"></span><span class="rail-tooltip">Evidence Board</span>
+    </button>
+    <button class="rail-btn" id="rail-tree" data-panel="tree" title="Family Tree">
+      🌳<span class="dot"></span><span class="rail-tooltip">Family Tree</span>
+    </button>
+    <button class="rail-btn" id="rail-journal" data-panel="journal" title="Journal">
+      📖<span class="dot"></span><span class="rail-tooltip">Journal</span>
+    </button>
+    <button class="rail-btn" id="rail-rituals" data-panel="rituals" title="Rituals & Artifacts">
+      🗝<span class="dot"></span><span class="rail-tooltip">Rituals &amp; Artifacts</span>
+    </button>
+  </div>
+
+  <!-- ============ MAIN STAGE ============ -->
+  <div id="stage-wrap">
+    <div id="center-stage">
+      <div class="scene-bg" id="sceneBg"></div>
+      <div class="scene-content">
+        <div class="scene-eyebrow" id="sceneEyebrow"></div>
+        <h1 class="scene-title" id="sceneTitle"></h1>
+        <div id="sceneText"></div>
+      </div>
+      <div class="choice-panel" id="choicePanel"></div>
+      <div class="continue-row hidden" id="continueRow">
+        <button class="btn-continue" id="btnGenericContinue">Continue</button>
+      </div>
+    </div>
+    <div id="drawer"></div>
+
+    <!-- ============ EVIDENCE PANEL ============ -->
+    <div class="panel-overlay" id="panel-evidence">
+      <div class="panel-header"><h2>Evidence Board</h2><button class="panel-close">✕</button></div>
+      <div class="panel-body">
+        <div class="truth-trackers" id="truthTrackers"></div>
+        <div class="evidence-grid" id="evidenceGrid"></div>
+      </div>
+    </div>
+
+    <!-- ============ FAMILY TREE PANEL ============ -->
+    <div class="panel-overlay" id="panel-tree">
+      <div class="panel-header"><h2>Family Tree</h2><button class="panel-close">✕</button></div>
+      <div class="panel-body">
+        <div class="tree-wrap" id="treeWrap"></div>
+      </div>
+    </div>
+
+    <!-- ============ JOURNAL PANEL ============ -->
+    <div class="panel-overlay" id="panel-journal">
+      <div class="panel-header"><h2>Journal</h2><button class="panel-close">✕</button></div>
+      <div class="panel-body">
+        <div id="journalWrap"></div>
+      </div>
+    </div>
+
+    <!-- ============ RITUALS PANEL ============ -->
+    <div class="panel-overlay" id="panel-rituals">
+      <div class="panel-header"><h2>Rituals &amp; Artifacts</h2><button class="panel-close">✕</button></div>
+      <div class="panel-body">
+        <div class="ritual-grid" id="ritualGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+</div>
+
+<script>
+// ===================== BLOODLINE VEIL — GAME CONTENT =====================
+// All narrative content, balance numbers, and gating logic live in this object tree.
+// The engine (engine.js) is purely mechanical and reads from CONTENT.
+
+const CONTENT = {
+
+  veilBands: [
+    { min: 0,  max: 19,  name: "Dormant",  desc: "The house is merely old." },
+    { min: 20, max: 39,  name: "Stirring", desc: "Something in the walls has noticed you." },
+    { min: 40, max: 59,  name: "Watching", desc: "The portraits do not blink quite right." },
+    { min: 60, max: 79,  name: "Hungry",   desc: "The halls rearrange themselves when no one insists otherwise." },
+    { min: 80, max: 100, name: "Open",     desc: "The Veil no longer bothers to hide." },
+  ],
+
+  traitPool: {
+    personality: [
+      { id:"skeptical", name:"Skeptical", desc:"Resists sanity loss from ambiguous events, but may miss evidence clues entirely." },
+      { id:"devout", name:"Devout", desc:"Strong Penitent-leaning options; clergy and faithful NPCs trust this heir." },
+      { id:"curious", name:"Curious", desc:"Extra investigation dialogue everywhere; slight passive sanity drain from accumulated dread." },
+      { id:"steady", name:"Steady", desc:"Resource swings are gentler in both directions." },
+    ],
+    acquired: [
+      { id:"silvertongued", name:"Silver-Tongued", desc:"Bonus to Influence choices; reduces trust gained with Abolitionist NPCs." },
+      { id:"ritualscarred", name:"Ritual-Scarred", desc:"Passive sanity drain, but unlocks dialogue that names the supernatural directly." },
+      { id:"archivist", name:"Archivist", desc:"Evidence items are easier to fully read; small Occult Knowledge bonus on discovery." },
+    ],
+    cursed: [
+      { id:"marked", name:"Marked", desc:"The entity knows this heir by name. Ghosts initiate contact unprompted. 40% chance to pass to a child.", cursed:true },
+      { id:"hollow", name:"Hollow", desc:"Dialogue options thin out. Raises the chance of an early, ambiguous death.", cursed:true },
+      { id:"bloodletter", name:"Bloodletter's Memory", desc:"Granted by long ritual-knife use. Unlocks rare ritual dialogue; forecloses some endings.", cursed:true },
+    ],
+  },
+
+  // Truth trackers — filled by evidence items tagged with truthId. Each truth needs `threshold` points to be "complete".
+  truths: {
+    A: { id:"A", name:"The Founding Atrocity", threshold: 3, desc:"What Josiah Thorne actually did in the winter of 1761." },
+    B: { id:"B", name:"The Ghosts Are Family", threshold: 3, desc:"Who the estate's hauntings actually are." },
+    C: { id:"C", name:"The Tally-Keeper's Exhaustion", threshold: 2, desc:"Whether the entity itself wants out of the arrangement." },
+    D: { id:"D", name:"Mercy's Counter-Ledger", threshold: 4, desc:"The hidden, honest record kept since the very first winter." },
+  },
+
+  factions: ["keeper","penitent","abolitionist"],
+
+  rituals: [
+    { id:"tithing", name:"The Tithing Rite", tier:"Minor",
+      desc:"A small offering of wealth and attention, made in the crypt, to keep the household's fortunes from souring.",
+      cost:{wealth:-15, sanity:-8}, veilDelta:9, minGen:2,
+      grantsArtifact:"ledgerknife", taintedWealth:20 },
+    { id:"watchingglass", name:"The Watching Glass", tier:"Minor",
+      desc:"A clouded mirror that, properly addressed, will let the dead speak plainly — for a price paid in your own clarity of mind.",
+      cost:{sanity:-12}, veilDelta:4, minGen:2,
+      evidenceOnUse:"testimony_pool" },
+    { id:"bindingrenewal", name:"The Binding Renewal", tier:"Major",
+      desc:"A formal renewal of the old arrangement. Prosperity, extended — but the ledger will ask for more than coin this time.",
+      cost:{wealth:-10, influence:-10, sanity:-15}, veilDelta:18, minGen:3,
+      requiresOccult:25, triggersBodyPayment:true },
+    { id:"ledgerknifeworking", name:"The Ledger-Knife Working", tier:"Major",
+      desc:"Read the deepest pages of Josiah's account-book the only way they can be read: with the bone-handled knife in hand.",
+      cost:{sanity:-14, occult:-5}, veilDelta:6, minGen:3,
+      requiresArtifact:"ledgerknife", grantsEvidence:["josiah_ledger_deep"], failTrait:"ritualscarred" },
+    { id:"severance", name:"The Severance Attempt", tier:"Severance",
+      desc:"An attempt to cut the bloodline free of the entity by force, using everything the family has learned and kept.",
+      cost:{wealth:-30, influence:-20, sanity:-25, occult:-15}, veilDelta:0, minGen:7,
+      severance:true },
+    { id:"renunciation", name:"The Renunciation Rite", tier:"True Ending",
+      desc:"Using Mercy Thorne's fully assembled counter-ledger, formally and publicly renounce the bargain on the grounds of its fraudulent origin.",
+      cost:{}, veilDelta:0, minGen:7,
+      requiresArtifact:"mercysledger", requiresTruths:["A","B","D"], renunciation:true },
+  ],
+
+  artifacts: {
+    ledgerknife: { name:"The Bone-Handled Ledger-Knife", desc:"Used in tithing rituals since Absalom's time. It is always faintly warm." },
+    christeninggown: { name:"The Christening Gown", desc:"Worn by every Thorne infant for eight generations. The embroidery does not match any known pattern book." },
+    mercysledger: { name:"Mercy's Hidden Ledger (Complete)", desc:"A second, honest account of the winter of 1761, hidden in pieces across two centuries — now whole." },
+    marshprayerbook: { name:"The Marsh Prayer Book", desc:"Recovered from the boundary stones. Pages of it are not in English." },
+  },
+
+};
+
+</script>
+<script>
+// ===================== EVIDENCE POOL =====================
+// Each item: id, kind (document|testimony), title, text, truthId, points, minGen (earliest generation it can surface), ghost (bool, for testimony styling)
+
+CONTENT.evidencePool = [
+  // --- Truth A: The Founding Atrocity ---
+  { id:"ev_relief_ledger", kind:"document", truthId:"A", points:2, minGen:1,
+    title:"Famine Relief Ledger, 1761", text:"Grain deliveries recorded for the marsh congregation stop abruptly in December — the same week Josiah's own granary inventory triples." },
+  { id:"ev_josiah_accountbook", kind:"document", truthId:"A", points:1, minGen:1,
+    title:"Josiah Thorne's Account-Book (Outer Pages)", text:"A torn, partially burned page records 'a bargain struck, terms favorable, thirty-one souls accounted for in full.' No further explanation given." },
+  { id:"ev_marsh_marginalia", kind:"document", truthId:"A", points:2, minGen:3,
+    title:"Marsh Congregation Prayer-Book Marginalia", text:"A hand not Josiah's has written, in the margin of a psalm: 'He let us starve before he sold us. Remember this when the house still stands and we do not.'" },
+  { id:"ev_josiah_ledger_deep", kind:"document", truthId:"A", points:2, minGen:3,
+    title:"Josiah's Account-Book (Deep Pages)", text:"Read with the ledger-knife, the ink beneath the ink resolves: dates, a tally of thirty-one names, and a price paid not in coin but in attention, owed forward." },
+  { id:"ev_boundary_stones", kind:"document", truthId:"A", points:1, minGen:5,
+    title:"Boundary Stone Rubbing", text:"Pre-Thorne markings on stones now inside the estate's walls — proof the land's original boundary did not match what Josiah later recorded with the colonial registrar." },
+
+  // --- Truth B: The Ghosts Are Family ---
+  { id:"ev_weeping_woman_face", kind:"document", truthId:"B", points:2, minGen:2,
+    title:"Restored East Wing Portrait", text:"Beneath a century of soot, the Weeping Woman's face is unmistakably a Thorne daughter recorded only as 'died abroad, 1881.'" },
+  { id:"ev_ghost_log_pattern", kind:"testimony", truthId:"B", points:2, minGen:4, ghost:false,
+    title:"Cross-Generational Sighting Log", text:"Compared side by side, three generations' ghost encounters describe the same handful of figures — never strangers, always someone the family once buried." },
+  { id:"ev_gardener_testimony", kind:"testimony", truthId:"B", points:1, minGen:3, ghost:true,
+    title:"The Gardener (Voice Only)", text:"'I tended these grounds forty years before I was paid into them. Don't tell me I'm not kin. I was kin before I was kindling.'" },
+  { id:"ev_billeting_inventory", kind:"document", truthId:"B", points:1, minGen:6,
+    title:"Wartime Billeting Officer's Inventory", text:"A 1942 room-by-room inventory lists a nursery the family had no record of ever building, with a child's name carved inside a closet door." },
+
+  // --- Truth C: The Tally-Keeper's Exhaustion ---
+  { id:"ev_failed_binding_record", kind:"document", truthId:"C", points:1, minGen:4,
+    title:"Steward's Correspondence, 1863", text:"'The ritual did not take as it should have. Mr. Quell believes the house itself resisted the asking. I do not know what to make of a curse that flinches.'" },
+  { id:"ev_survived_sacrifice", kind:"testimony", truthId:"C", points:1, minGen:5, ghost:true,
+    title:"The Boy in the Flooded Cellar", text:"'It was meant to take me proper. Something held its hand. I don't know if I should thank it or be angrier that it could, all along, and chose not to most times.'" },
+  { id:"ev_sympathetic_exchange", kind:"testimony", truthId:"C", points:2, minGen:5, ghost:true,
+    title:"The Watching Glass, Addressed Kindly", text:"For once, the voice on the other side does not bargain. It says only: 'I did not ask to be the one who collects this. I would very much like to stop.'" },
+
+  // --- Truth D: Mercy's Counter-Ledger ---
+  { id:"ev_mercy_diary_1", kind:"document", truthId:"D", points:1, minGen:1,
+    title:"Mercy Thorne's Diary, Page 1", text:"'My husband has done something tonight he believes I will never learn of. I intend to make certain that is not so, for whoever comes after us.'" },
+  { id:"ev_mercy_diary_garden", kind:"document", truthId:"D", points:1, minGen:2,
+    title:"Mercy's Diary, Recovered from the Gardens", text:"'I have hidden a second page where the Bible's binding will hold it longest. Another, where small hands will keep it warm without knowing.'" },
+  { id:"ev_christening_gown_pages", kind:"document", truthId:"D", points:1, minGen:4,
+    title:"Pages Found in the Christening Gown's Hem", text:"Embroidered in thread, not ink, in a pattern that only resolves to handwriting when held to firelight: an honest count of the dead, and Josiah's part in it, in Mercy's own words." },
+  { id:"ev_mercy_bible_pages", kind:"document", truthId:"D", points:1, minGen:6,
+    title:"Pages from the Family Bible's Binding", text:"The final section of Mercy's account: instructions, addressed to no one in particular and everyone eventually, for how the bargain might be renounced rather than merely managed." },
+];
+
+</script>
+<script>
+// ===================== GENERATIONS — PART 1 (Gen I & II) =====================
+// Each generation is a sequence of "nodes". A node is either:
+//   { type:"scene", id, eyebrow, title, text, speaker?, bg, choices:[...] }
+//   { type:"end", id }  -- marks the end of the generation, triggers transition
+// A choice: { text, sub?, weighty?, requires?:{...}, goto: nodeId, effects:{...} }
+// effects can include: sanity, influence, occult, wealth (deltas), veil (delta),
+//   addEvidence:[ids], addTrait:{pool,id}, setFlag:{key:val}, addArtifact:id, removeArtifact:id,
+//   taintedWealth: number, npcRelation:{npc:delta}
+
+CONTENT.generations = [
+
+// ============================= GENERATION I =============================
+{
+  id:1, heirName:"Josiah Thorne", spouseName:"Mercy Thorne", years:"1761–1789", isPrologue:true,
+  startNode:"g1_open",
+  bg:"manor_exterior_dusk",
+  nodes: [
+    { type:"scene", id:"g1_open", eyebrow:"Generation I — 1761", title:"The Ledger and the Granary",
+      text:"The marsh families have sent word twice this week. Their stores are gone, the fever has taken three already, and the snow shows no sign of relenting. Josiah Thorne stands over his own granary inventory, freshly counted, and the relief ledger, freshly blank.",
+      bg:"manor_exterior_dusk",
+      choices:[
+        { text:"Divert the grain to your own stores and the new foundation.", weighty:true,
+          sub:"The manor's first wing could be roofed by spring.",
+          goto:"g1_hoard", effects:{ veil:25, wealth:30, setFlag:{g1_choice:"hoard"} } },
+        { text:"Distribute the grain honestly, and delay the building.", weighty:true,
+          sub:"The foundation will wait. The marsh families will not have to.",
+          goto:"g1_distribute", effects:{ veil:5, wealth:8, setFlag:{g1_choice:"distribute"} } },
+      ] },
+
+    { type:"scene", id:"g1_hoard", eyebrow:"Generation I — 1761", title:"A Favorable Bargain",
+      text:"By the time the snow breaks, the marsh congregation is gone — scattered, the survivors say, though no one quite agrees on where. Josiah's granary is, by spring, somehow fuller than it was in autumn. A figure he will later describe to no one as anything but 'the surveyor' visits him once, near the new foundation stones, and they speak for a long time. The foundation is poured within the month.",
+      bg:"manor_foundation_night",
+      choices:[ { text:"Continue.", goto:"g1_mercy" } ] },
+
+    { type:"scene", id:"g1_distribute", eyebrow:"Generation I — 1762", title:"A Harder Winter",
+      text:"The grain holds the marsh families through the worst of it, though not all of them. The manor's first wing is not roofed until the following autumn. Josiah is well-regarded in the county for his charity. He alone seems to know it was not charity that built the house that follows — only a smaller, more private arrangement, made later, out of his own desperation rather than his greed.",
+      bg:"manor_foundation_night",
+      choices:[ { text:"Continue.", goto:"g1_mercy" } ] },
+
+    { type:"scene", id:"g1_mercy", eyebrow:"Generation I — 1762", title:"What Mercy Saw",
+      text:"Mercy Thorne does not ask her husband what was said at the foundation stones. She has learned, in nine years of marriage, exactly which of his silences are not to be pushed at. That night she begins a second ledger — not his, not the household's — in a hand she will keep small and careful for the rest of her life.",
+      speaker:"Mercy Thorne", bg:"study_candlelight",
+      choices:[ { text:"Continue.", goto:"g1_end",
+        effects:{ addEvidence:["ev_mercy_diary_1"] } } ] },
+
+    { type:"end", id:"g1_end" },
+  ]
+},
+
+// ============================= GENERATION II =============================
+{
+  id:2, heirName:"Eleanor Thorne", years:"1789–1831",
+  startNode:"g2_open",
+  nodes: [
+    { type:"scene", id:"g2_open", eyebrow:"Generation II — 1789", title:"The Inheritance",
+      text:"Eleanor Thorne is twenty-two when her father dies of a fever no physician can name, and is buried in a crypt extension he commissioned himself, for reasons the household staff seem reluctant to discuss. The manor is finished now, and the fortune behind it has no documented source anyone can point to without changing the subject.",
+      bg:"manor_exterior_day",
+      choices:[ { text:"Begin managing the household.", goto:"g2_hub" } ] },
+
+    { type:"scene", id:"g2_hub", eyebrow:"Generation II", title:"Thornmere Hall",
+      text:"The estate is yours to walk now — the gardens, the east wing whose door has stuck since before you were born, and a cellar your father visited more than the household accounts strictly required.",
+      bg:"manor_hall_day",
+      choices:[
+        { text:"Explore the locked east wing.", goto:"g2_eastwing" },
+        { text:"Walk the overgrown gardens.", goto:"g2_gardens" },
+        { text:"Consider the household's two suitors.", goto:"g2_marriage" },
+        { text:"Move toward closing this chapter of your life.", sub:"You may return to the other rooms first.", goto:"g2_close" },
+      ] },
+
+    { type:"scene", id:"g2_eastwing", eyebrow:"The Locked East Wing", title:"A Door That Remembers Being Shut",
+      text:"The lock gives more easily than it should. Inside: a portrait gallery thick with dust, and a single canvas turned to face the wall, as if someone could not bear to look at it but also could not bring themselves to remove it from the house.",
+      bg:"east_wing_dim",
+      choices:[
+        { text:"Turn the portrait around.", weighty:true, goto:"g2_portrait", effects:{ sanity:-6 } },
+        { text:"Leave it as you found it, for now.", goto:"g2_hub" },
+      ] },
+
+    { type:"scene", id:"g2_portrait", eyebrow:"The Locked East Wing", title:"The Weeping Woman",
+      text:"The portrait is of a young woman in mourning dress, her face rendered with unusual care for an otherwise ordinary family painting. As you watch, you are almost certain — almost — that her expression has changed since you turned the frame. The household staff, when asked, insist there has never been a portrait of anyone matching that description.",
+      bg:"east_wing_portrait",
+      choices:[ { text:"Continue.", goto:"g2_hub", effects:{ addEvidence:["ev_josiah_accountbook"], setFlag:{g2_sawportrait:true} } } ] },
+
+    { type:"scene", id:"g2_gardens", eyebrow:"The Overgrown Gardens", title:"What Grows Where No One Asked It To",
+      text:"Beneath an old hedge, half-buried, you find a small tin box. Inside, brittle and careful, several pages of a diary far older than the house's official history admits to having.",
+      bg:"gardens_overgrown",
+      choices:[ { text:"Read the pages.", goto:"g2_diary" } ] },
+
+    { type:"scene", id:"g2_diary", eyebrow:"The Overgrown Gardens", title:"Mercy's Hand",
+      text:"The handwriting is careful, deliberate, clearly meant to survive — Mercy Thorne's, though the name on the page is only initials. 'I have hidden a second page where the Bible's binding will hold it longest. Another, where small hands will keep it warm without knowing.'",
+      bg:"gardens_overgrown",
+      choices:[ { text:"Continue.", goto:"g2_hub", effects:{ occult:8, addEvidence:["ev_mercy_diary_garden"] } } ] },
+
+    { type:"scene", id:"g2_marriage", eyebrow:"Two Letters", title:"The Suitors",
+      text:"One letter is sealed in wax from a shipping family with no curiosity and considerable money. The other, plainer, is from a folklore scholar — a Reverend's son — who has been asking pointed questions about the east wing for weeks.",
+      bg:"study_candlelight",
+      choices:[
+        { text:"Marry the shipping heir.", weighty:true, sub:"Wealth and standing, and an end to questions about the house.",
+          goto:"g2_marry_wealthy", effects:{ influence:15, wealth:15, setFlag:{g2_marriage:"wealthy"} } },
+        { text:"Marry the folklore scholar.", weighty:true, sub:"Less money. Far more dangerous questions, asked by someone who won't stop.",
+          goto:"g2_marry_scholar", effects:{ occult:15, setFlag:{g2_marriage:"scholar"} } },
+      ] },
+
+    { type:"scene", id:"g2_marry_wealthy", eyebrow:"Two Letters", title:"A Sensible Match",
+      text:"It is, by every external measure, a good marriage. He never once asks about the east wing, the crypt extension, or why the household staff cross themselves passing the cellar door. You find, in time, that you do not entirely mind his lack of curiosity.",
+      bg:"manor_hall_day", choices:[ { text:"Continue.", goto:"g2_hub" } ] },
+
+    { type:"scene", id:"g2_marry_scholar", eyebrow:"Two Letters", title:"A Dangerous Match",
+      text:"He arrives with notebooks already half-full of regional folklore, and within a season has identified three separate local accounts of 'a bargain on the marsh' that predate your family's own telling of its history by decades. He does not yet know how close to home his research has come.",
+      bg:"manor_hall_day", choices:[ { text:"Continue.", goto:"g2_hub", effects:{ setFlag:{pike_line:true} } } ] },
+
+    { type:"scene", id:"g2_close", eyebrow:"Generation II", title:"The Years Pass",
+      text:"Eleanor manages the estate for four decades — through good harvests and bad, through a child born healthy and a second lost early, through a household staff who learn not to discuss certain rooms after dark. She dies, at fifty-eight, of an illness the physician calls simply 'a wasting,' in a bed she insisted be moved away from the east wing wall.",
+      bg:"manor_exterior_dusk",
+      choices:[ { text:"Continue to the next generation.", goto:"g2_end" } ] },
+
+    { type:"end", id:"g2_end" },
+  ]
+},
+
+];
+
+</script>
+<script>
+// ===================== GENERATIONS — PART 2 (Gen III & IV) =====================
+
+CONTENT.generations.push(
+
+// ============================= GENERATION III =============================
+{
+  id:3, heirName:"Absalom Thorne", years:"1831–1858",
+  startNode:"g3_open",
+  nodes: [
+    { type:"scene", id:"g3_open", eyebrow:"Generation III — 1831", title:"A Collapsing Ledger",
+      text:"Absalom inherits a household whose accounts no longer balance no matter how the steward, Mr. Quell, arranges them. The bank has begun, carefully and politely, to suggest patience may not be unlimited.",
+      bg:"study_candlelight",
+      choices:[ { text:"Speak with Mr. Quell.", goto:"g3_quell" } ] },
+
+    { type:"scene", id:"g3_quell", eyebrow:"The Steward's Suggestion", title:"Older Ways",
+      text:"Mr. Quell suggests, carefully, that there are older ways of stabilizing a family's fortune than asking a bank for more time. He does not say the word 'ritual.' He does not have to.",
+      speaker:"Mr. Quell, Estate Steward", bg:"crypt_entrance",
+      choices:[
+        { text:"Perform the Tithing Rite in the crypt.", weighty:true, sub:"A bone-handled knife, and an offering, in the old way.",
+          goto:"g3_ritual", effects:{} },
+        { text:"Sell estate land to the town instead.", weighty:true, sub:"Slower, plainer, and entirely your own doing.",
+          goto:"g3_sellland", effects:{} },
+      ] },
+
+    { type:"scene", id:"g3_ritual", eyebrow:"The Family Crypt", title:"The Tithing Rite",
+      text:"Mr. Quell guides the ceremony with the ease of a man who has done this before, somewhere, for someone. The household's accounts balance again within the month. The knife used in the rite — bone-handled, always faintly warm — remains, afterward, in the family's possession, as if it had decided to.",
+      bg:"crypt_ritual",
+      choices:[ { text:"Continue.", goto:"g3_hub", effects:{ veil:11, wealth:25, taintedWealth:20, addArtifact:"ledgerknife" } } ] },
+
+    { type:"scene", id:"g3_sellland", eyebrow:"The Boundary", title:"A Plainer Solution",
+      text:"The land sells well enough to steady the household, parcel by parcel, to families in the town who ask no questions about the old boundary stones half-buried at its edges. It will be years before anyone discovers what those stones actually mark.",
+      bg:"forbidden_woods_day",
+      choices:[ { text:"Continue.", goto:"g3_hub", effects:{ wealth:18, setFlag:{g3_soldland:true} } } ] },
+
+    { type:"scene", id:"g3_hub", eyebrow:"Generation III", title:"The Forbidden Woods",
+      text:"With the household's immediate crisis behind you, the tree line at the estate's edge — long avoided by staff and family alike — seems, for the first time, worth walking into.",
+      bg:"forbidden_woods_day",
+      choices:[
+        { text:"Walk into the forbidden woods.", goto:"g3_woods" },
+        { text:"Tend to the household instead and let years pass.", goto:"g3_close" },
+      ] },
+
+    { type:"scene", id:"g3_woods", eyebrow:"The Forbidden Woods", title:"What the Trees Remember",
+      text:"Deep in, past where the estate's maps simply stop being drawn, you find a half-collapsed stone marker — older than Josiah's purchase of the land, carved with symbols no one in the household can read. Something about the quality of the silence here makes you want to leave before you've finished looking at it.",
+      bg:"forbidden_woods_deep",
+      choices:[ { text:"Take a rubbing of the marker before you go.", goto:"g3_hub",
+        effects:{ sanity:-8, addEvidence:["ev_boundary_stones"] } } ] },
+
+    { type:"scene", id:"g3_close", eyebrow:"Generation III", title:"A Shorter Life Than Most",
+      text:"Absalom's tenure is brief by the family's standards — twenty-seven years of careful management, a marriage of convenience, two children, and a death by a fall on the cellar stairs that the household staff privately find difficult to discuss without lowering their voices.",
+      bg:"manor_exterior_dusk",
+      choices:[ { text:"Continue to the next generation.", goto:"g3_end" } ] },
+
+    { type:"end", id:"g3_end" },
+  ]
+},
+
+// ============================= GENERATION IV =============================
+{
+  id:4, heirName:"Constance Thorne", siblingName:"Edmund Thorne", years:"1858–1889", dualHeir:true,
+  startNode:"g4_open",
+  nodes: [
+    { type:"scene", id:"g4_open", eyebrow:"Generation IV — 1858", title:"Two Children, One House",
+      text:"Absalom leaves behind two children old enough to inherit jointly, and a household that has, by long habit, begun to expect that only one of them truly will. Constance has always asked questions the family discourages. Edmund has always understood, instinctively, how to make a room agree with him.",
+      bg:"manor_hall_day",
+      choices:[
+        { text:"Choose Constance as the primary heir.", weighty:true, sub:"Investigation-minded. Edmund remains in the house as a sibling.",
+          goto:"g4_constance", effects:{ setFlag:{g4_heir:"constance"} } },
+        { text:"Choose Edmund as the primary heir.", weighty:true, sub:"Power-minded. Constance remains in the house as a sibling.",
+          goto:"g4_edmund", effects:{ setFlag:{g4_heir:"edmund"} } },
+      ] },
+
+    { type:"scene", id:"g4_constance", eyebrow:"Constance's Path", title:"What the Gown Remembers",
+      text:"Constance takes an early interest in the household's oldest, smallest object: a christening gown worn by every Thorne infant for four generations, its embroidery pattern matching nothing in any book of needlework she can find.",
+      bg:"nursery_dim",
+      choices:[
+        { text:"Examine the gown's hem closely.", goto:"g4_gown",
+          requires:{ minOccult: 10 } },
+        { text:"Set the gown aside for now.", goto:"g4_hub" },
+      ] },
+
+    { type:"scene", id:"g4_gown", eyebrow:"The Christening Gown", title:"Thread, Not Ink",
+      text:"Held to firelight at the right angle, the embroidery resolves into handwriting — Mercy Thorne's, unmistakably, continuing an account she clearly never expected to be read so plainly. Constance copies what she can before the light shifts and the pattern goes back to looking like nothing at all.",
+      bg:"nursery_firelight",
+      choices:[ { text:"Continue.", goto:"g4_hub", effects:{ occult:10, addEvidence:["ev_christening_gown_pages"] } } ] },
+
+    { type:"scene", id:"g4_edmund", eyebrow:"Edmund's Path", title:"The Business of Prosperity",
+      text:"Edmund has no patience for old gowns or buried diaries. He has patience for ledgers, for marriages that expand influence, and for a steward's quiet suggestion that the old arrangement could be renewed on considerably better terms than his great-grandfather struck.",
+      bg:"study_candlelight",
+      choices:[
+        { text:"Pursue the Binding Renewal ritual.", weighty:true, sub:"Major Wealth and Influence gains. A significant rise in Veil. The entity will ask for more.",
+          goto:"g4_binding", effects:{} },
+        { text:"Decline, and grow the family's fortune by ordinary means.", goto:"g4_hub", effects:{ wealth:10, influence:8 } },
+      ] },
+
+    { type:"scene", id:"g4_binding", eyebrow:"The Binding Renewal", title:"Better Terms",
+      text:"The ritual is more sophisticated than Absalom's tithing — a formal renewal, conducted with a confidence that should perhaps worry Edmund more than it does. The household's fortunes do not merely stabilize; they surge. Something, somewhere in the house, seems satisfied for the first time in a generation.",
+      bg:"crypt_ritual",
+      choices:[ { text:"Continue.", goto:"g4_hub", effects:{ veil:18, wealth:22, influence:18, taintedWealth:25, setFlag:{g4_bodypaymentpending:true} } } ] },
+
+    { type:"scene", id:"g4_hub", eyebrow:"Generation IV", title:"The Sibling Who Wasn't Chosen",
+      text:"How you treat the sibling who did not inherit will outlast this generation by decades.",
+      bg:"manor_hall_day",
+      choices:[
+        { text:"Bring your sibling fully into the household's confidence.", goto:"g4_sibling_good",
+          effects:{ npcRelation:{sibling: 20} } },
+        { text:"Keep your sibling at a careful distance.", goto:"g4_sibling_distant",
+          effects:{ npcRelation:{sibling: -10} } },
+        { text:"Move toward closing this chapter.", goto:"g4_close" },
+      ] },
+
+    { type:"scene", id:"g4_sibling_good", eyebrow:"Generation IV", title:"A Confidence Kept",
+      text:"Your sibling becomes, over the following decades, the closest thing the family has to a second set of eyes on the household's strange inheritance — sometimes an ally in investigation, sometimes simply someone else who remembers, which turns out to matter just as much.",
+      bg:"manor_hall_day", choices:[ { text:"Continue.", goto:"g4_close" } ] },
+
+    { type:"scene", id:"g4_sibling_distant", eyebrow:"Generation IV", title:"A Distance Kept",
+      text:"Your sibling marries out, mostly, and writes less each year. It will be a long time before the family understands what it cost to let that particular relationship go quiet.",
+      bg:"manor_hall_day", choices:[ { text:"Continue.", goto:"g4_close" } ] },
+
+    { type:"scene", id:"g4_close", eyebrow:"Generation IV", title:"The Turn of the Century Approaches",
+      text:"Three decades pass in the management of a household that is, by any outside measure, thriving. The heir's children are raised inside walls that have started, very quietly, to feel less like a house and more like an arrangement.",
+      bg:"manor_exterior_dusk",
+      choices:[ { text:"Continue to the next generation.", goto:"g4_end" } ] },
+
+    { type:"end", id:"g4_end" },
+  ]
+}
+
+);
+
+</script>
+<script>
+// ===================== GENERATIONS — PART 3 (Gen V & VI) =====================
+
+CONTENT.generations.push(
+
+// ============================= GENERATION V =============================
+{
+  id:5, heirName:"Theodore Thorne", years:"1889–1921",
+  startNode:"g5_open",
+  nodes: [
+    { type:"scene", id:"g5_open", eyebrow:"Generation V — 1889", title:"A Journalist's Questions",
+      text:"Theodore inherits a household more prosperous than at any point in its history, and, for the first time, outside scrutiny — a regional journalist has begun quietly compiling a list of disappearances connected to the estate across a hundred and twenty years.",
+      bg:"manor_exterior_day",
+      choices:[
+        { text:"Meet with the journalist directly.", goto:"g5_journalist" },
+        { text:"Have the matter quietly discouraged.", weighty:true, sub:"Costs Influence and Wealth. Raises future scrutiny risk if it ever surfaces.",
+          goto:"g5_suppress", effects:{ influence:-10, wealth:-10, setFlag:{g5_suppressed:true} } },
+      ] },
+
+    { type:"scene", id:"g5_journalist", eyebrow:"The Journalist", title:"An Uncomfortable Honesty",
+      text:"She is sharper than the family expected, and more careful — she has no interest in scandal for its own sake, only in an honest accounting of names the county has otherwise let go unrecorded. You find yourself, against habit, telling her slightly more truth than is strictly safe.",
+      bg:"study_candlelight",
+      choices:[ { text:"Continue.", goto:"g5_hub", effects:{ addEvidence:["ev_failed_binding_record"], npcRelation:{journalist:15} } } ] },
+
+    { type:"scene", id:"g5_suppress", eyebrow:"Quiet Discouragement", title:"A Story That Doesn't Run",
+      text:"The piece never publishes. The journalist's notes, however, do not simply vanish — they will resurface, later, in hands the family does not get to choose.",
+      bg:"study_candlelight",
+      choices:[ { text:"Continue.", goto:"g5_hub" } ] },
+
+    { type:"scene", id:"g5_hub", eyebrow:"Generation V", title:"An Elder Relative's Illness",
+      text:"Theodore's aging aunt, long a fixture of the household, falls gravely ill in the same season the estate's fortunes begin, inexplicably, to falter. Mr. Quell's successor makes the offer plainly this time: a mercy, instead of a healthy young life, if the family is willing.",
+      bg:"crypt_entrance",
+      choices:[
+        { text:"Accept — offer the dying aunt as the payment.", weighty:true, sub:"Resolves the crisis cheaply. Some who learn of it will not forgive it.",
+          goto:"g5_accept_payment", effects:{} },
+        { text:"Refuse outright.", weighty:true, sub:"A harsher, randomized cost falls on the household instead.",
+          goto:"g5_refuse_payment", effects:{} },
+        { text:"Offer a partial payment of your own health and sanity instead.", weighty:true,
+          sub:"Requires deep Occult Knowledge and the ledger-knife. A costly, cleaner third option.",
+          goto:"g5_partial_payment", requires:{ minOccult:35, artifact:"ledgerknife" }, effects:{} },
+      ] },
+
+    { type:"scene", id:"g5_accept_payment", eyebrow:"The Mercy", title:"A Quiet Mercy",
+      text:"The aunt's passing, when it comes within the week, is gentler than the physicians had promised it would be. The household's fortunes steady immediately. No one in the family speaks of the arrangement aloud, though everyone, by the funeral, understands it without being told.",
+      bg:"crypt_ritual",
+      choices:[ { text:"Continue.", goto:"g5_close", effects:{ veil:6, wealth:12, setFlag:{g5_mercykilling:true} } } ] },
+
+    { type:"scene", id:"g5_refuse_payment", eyebrow:"Refusal", title:"A Different Cost",
+      text:"The aunt recovers, slowly and against every prediction. The cost falls elsewhere instead — a fire in the tenant cottages, a stillbirth in the household two villages over, a string of misfortunes the family can convince itself, if it tries hard enough, have nothing to do with them at all.",
+      bg:"manor_exterior_dusk",
+      choices:[ { text:"Continue.", goto:"g5_close", effects:{ sanity:-15, influence:-10, setFlag:{g5_refused:true} } } ] },
+
+    { type:"scene", id:"g5_partial_payment", eyebrow:"A Cleaner Offer", title:"Paid in Your Own Coin",
+      text:"Using the ledger-knife and a working you barely understand even as you perform it, Theodore offers a portion of his own health and clarity of mind in place of any death at all. It is accepted — strangely, almost gratefully — and the aunt lives. Theodore does not, afterward, ever feel quite as sharp as he once did.",
+      bg:"crypt_ritual",
+      choices:[ { text:"Continue.", goto:"g5_close", effects:{ sanity:-20, occult:10, veil:2, addEvidence:["ev_survived_sacrifice"] } } ] },
+
+    { type:"scene", id:"g5_close", eyebrow:"Generation V", title:"The World Outside Changes Faster Than the House",
+      text:"A war comes and goes in Europe; the household notices it mostly as a shortage of staff. Theodore lives to see the estate enter a new century looking, from the road, almost exactly as it always has.",
+      bg:"manor_exterior_dusk",
+      choices:[ { text:"Continue to the next generation.", goto:"g5_end" } ] },
+
+    { type:"end", id:"g5_end" },
+  ]
+},
+
+// ============================= GENERATION VI =============================
+{
+  id:6, heirName:"Imogen Thorne", years:"1921–1949",
+  startNode:"g6_open",
+  nodes: [
+    { type:"scene", id:"g6_open", eyebrow:"Generation VI — 1921", title:"The Most Informed Heir Yet",
+      text:"Imogen inherits more accumulated evidence than any Thorne before her, purely by the accident of position. She also inherits a household about to be disrupted in ways no ritual could have anticipated.",
+      bg:"manor_hall_day",
+      choices:[ { text:"Continue.", goto:"g6_hester" } ] },
+
+    { type:"scene", id:"g6_hester", eyebrow:"A Visitor", title:"Hester Quamino",
+      text:"A woman arrives at the gate one autumn afternoon, unannounced, asking — politely, firmly — for any record the family might have of a marsh community that her own family's oral history says was 'sold to something' on this land in 1761. She has clearly been looking for a long time.",
+      speaker:"Hester Quamino", bg:"manor_exterior_day",
+      choices:[
+        { text:"Welcome her and share what records you have.", weighty:true, goto:"g6_hester_ally",
+          effects:{ npcRelation:{hester:25}, setFlag:{hester_ally:true} } },
+        { text:"Turn her away politely and say nothing.", weighty:true, goto:"g6_hester_turned",
+          effects:{ npcRelation:{hester:-20} } },
+      ] },
+
+    { type:"scene", id:"g6_hester_ally", eyebrow:"Hester Quamino", title:"A Shared Account",
+      text:"Hester's oral history and the household's own buried documents agree more than either of you expected, and disagree in exactly the places that matter most. Working together, you assemble more of the truth in an afternoon than the family has in a century.",
+      bg:"cellar_archive",
+      choices:[ { text:"Continue.", goto:"g6_hub", effects:{ addEvidence:["ev_marsh_marginalia"], occult:10 } } ] },
+
+    { type:"scene", id:"g6_hester_turned", eyebrow:"Hester Quamino", title:"A Door Closed",
+      text:"She leaves without raising her voice, which is somehow worse than if she had. You suspect this will not be the last the family hears from her — and you suspect, when it isn't, you will not like the terms.",
+      bg:"manor_exterior_day",
+      choices:[ { text:"Continue.", goto:"g6_hub" } ] },
+
+    { type:"scene", id:"g6_hub", eyebrow:"The War Years", title:"Requisitioned",
+      text:"Wartime billeting requires the estate's east wing be inventoried room by room by an officer with no patience for family secrets. His report, filed and forgotten by the army but not by the household, lists a nursery no living Thorne remembers building.",
+      bg:"east_wing_dim",
+      choices:[
+        { text:"Read the billeting officer's full inventory.", goto:"g6_inventory" },
+        { text:"Move to decide what to do with the last original documents.", goto:"g6_documents" },
+      ] },
+
+    { type:"scene", id:"g6_inventory", eyebrow:"The Billeting Inventory", title:"A Room That Shouldn't Exist",
+      text:"A child's name is carved inside a closet door in the nursery the inventory describes. It matches no birth record the family has ever kept.",
+      bg:"east_wing_dim",
+      choices:[ { text:"Continue.", goto:"g6_documents", effects:{ addEvidence:["ev_billeting_inventory"], sanity:-8 } } ] },
+
+    { type:"scene", id:"g6_documents", eyebrow:"The Last Documents", title:"Burn or Keep",
+      text:"What remains of the original cellar ledgers — the closest thing to a complete record of 1761 the family still possesses — sits on the desk in front of you. The parlor fire is lit. No one currently living would ever know what was lost, if it came to that.",
+      bg:"study_candlelight",
+      choices:[
+        { text:"Burn the documents to protect the family name.", weighty:true,
+          sub:"Permanently caps certain Truth Trackers for the rest of this playthrough.",
+          goto:"g6_burn", effects:{ influence:15, setFlag:{documents_burned:true} } },
+        { text:"Preserve them, whatever the risk.", weighty:true,
+          sub:"Keeps every Truth reachable. Slightly raises scrutiny risk this and next generation.",
+          goto:"g6_preserve", effects:{ addEvidence:["ev_mercy_bible_pages"] } },
+      ] },
+
+    { type:"scene", id:"g6_burn", eyebrow:"The Last Documents", title:"Ash",
+      text:"It takes under a minute. The fire does not behave strangely, does not flare green, does not do anything a fire in a parlor should not do. That, somehow, is the part Imogen finds hardest to forgive herself for.",
+      bg:"study_candlelight", choices:[ { text:"Continue.", goto:"g6_close" } ] },
+
+    { type:"scene", id:"g6_preserve", eyebrow:"The Last Documents", title:"Kept",
+      text:"The ledgers go back into the cellar archive, no safer than they were, but no less whole either. Imogen begins, quietly and without telling anyone, drafting an academic-coded paper on 'regional folk practices' that says considerably more than its footnotes admit to.",
+      bg:"cellar_archive", choices:[ { text:"Continue.", goto:"g6_close" } ] },
+
+    { type:"scene", id:"g6_close", eyebrow:"Generation VI", title:"A Century and a Half",
+      text:"Imogen lives to see the war end and the estate's grounds, for the first time in living memory, opened briefly to people who are not family. She dies in her sleep at seventy-one, which the household staff note, quietly, as unusual for a Thorne.",
+      bg:"manor_exterior_dusk",
+      choices:[ { text:"Continue to the next generation.", goto:"g6_end" } ] },
+
+    { type:"end", id:"g6_end" },
+  ]
+}
+
+);
+
+</script>
+<script>
+// ===================== GENERATIONS — PART 4 (Gen VII & VIII) =====================
+
+CONTENT.generations.push(
+
+// ============================= GENERATION VII =============================
+{
+  id:7, heirName:"Marcus Thorne", siblingName:"Vivian Thorne", years:"1949–1978", dualHeir:true,
+  startNode:"g7_open",
+  nodes: [
+    { type:"scene", id:"g7_open", eyebrow:"Generation VII — 1949", title:"An Ordinary Life, Attempted",
+      text:"Twins, this time — Marcus and Vivian, raised in a house their parents tried, with real effort, to make feel like any other mid-century household. It does not entirely work. The good furniture is modern. The whispers in the walls are not.",
+      bg:"manor_hall_day",
+      choices:[
+        { text:"Choose Marcus as the primary heir.", weighty:true, goto:"g7_hub", effects:{ setFlag:{g7_heir:"marcus"} } },
+        { text:"Choose Vivian as the primary heir.", weighty:true, goto:"g7_hub", effects:{ setFlag:{g7_heir:"vivian"} } },
+      ] },
+
+    { type:"scene", id:"g7_hub", eyebrow:"Generation VII", title:"The Question the Family Can No Longer Avoid",
+      text:"Enough has been learned, lost, burned, and survived across six generations that the choice in front of you is no longer whether the supernatural is real. It is what, exactly, you intend to do about it with whatever time and evidence you have left.",
+      bg:"crypt_entrance",
+      choices:[
+        { text:"Attempt the Severance Ritual.", weighty:true,
+          sub:"High risk. Can succeed, fail catastrophically, or partially succeed.",
+          goto:"g7_severance", requires:{ minGenFlag:true } },
+        { text:"Attempt the Renunciation Rite, if you are ready.", weighty:true,
+          sub:"Requires Mercy's complete ledger and three assembled Truths.",
+          goto:"g7_renunciation", requires:{ ritual:"renunciation" } },
+        { text:"Manage the relationship conservatively and ensure survival.", goto:"g7_conservative" },
+      ] },
+
+    { type:"scene", id:"g7_severance", eyebrow:"The Severance Attempt", title:"Cutting Loose by Force",
+      text:"Everything the family has learned, every artifact still in its possession, every page of evidence — all of it goes into a single, desperate working in the crypt at the height of a winter storm that the household will later insist, unconvincingly, was only weather.",
+      bg:"crypt_ritual",
+      choices:[ { text:"See it through.", goto:"g7_severance_resolve" } ] },
+
+    { type:"scene", id:"g7_severance_resolve", eyebrow:"The Severance Attempt", title:"The Outcome",
+      text:"The ritual's outcome resolves based on everything the bloodline has carried into this moment — Veil, Sanity, Occult Knowledge, and how much of the truth was ever actually assembled. The house, for the first time in two hundred years, holds its breath waiting to see what it becomes.",
+      bg:"crypt_ritual",
+      choices:[ { text:"Continue.", goto:"g7_close" } ] },
+
+    { type:"scene", id:"g7_renunciation", eyebrow:"The Renunciation Rite", title:"A Debt Undone by Its Own Lie",
+      text:"With Mercy's ledger whole at last, the family does not bargain, beg, or fight. It simply states, plainly and publicly, what the original arrangement actually was — and a debt extracted under a lie of this magnitude cannot survive being named as one.",
+      bg:"crypt_ritual",
+      choices:[ { text:"Continue.", goto:"g7_close", effects:{ setFlag:{renunciation_performed:true} } } ] },
+
+    { type:"scene", id:"g7_conservative", eyebrow:"Generation VII", title:"Holding the Line",
+      text:"No severance, no renunciation — only careful, ongoing management, the same uneasy arrangement passed down with as much care as anyone can manage. It is not a resolution. It is, the household quietly agrees, at least survival.",
+      bg:"manor_hall_day",
+      choices:[ { text:"Continue.", goto:"g7_close" } ] },
+
+    { type:"scene", id:"g7_close", eyebrow:"Generation VII", title:"One Generation Left",
+      text:"Whatever was decided here, the house passes — as it always has — to whoever comes next, carrying forward everything this generation chose to keep, destroy, or finally understand.",
+      bg:"manor_exterior_dusk",
+      choices:[ { text:"Continue to the final generation.", goto:"g7_end" } ] },
+
+    { type:"end", id:"g7_end" },
+  ]
+},
+
+// ============================= GENERATION VIII =============================
+{
+  id:8, heirName:"The Final Heir", years:"1978–1999", isFinale:true,
+  startNode:"g8_open",
+  nodes: [
+    { type:"scene", id:"g8_open", eyebrow:"Generation VIII — 1978", title:"What's Left",
+      text:"Two hundred and seventeen years after a famine was made worse on purpose, the house belongs to you. Everything before this moment — every ritual performed or refused, every document burned or kept, every relationship honored or let go quiet — has already decided most of what happens next. What remains is only the last choice.",
+      bg:"manor_exterior_dusk",
+      choices:[ { text:"Walk the house one final time.", goto:"g8_resolve" } ] },
+
+    { type:"scene", id:"g8_resolve", eyebrow:"Generation VIII", title:"The Family Archive",
+      text:"This generation does not introduce new mysteries. It only asks what you intend to do with everything you've already found — or failed to find.",
+      bg:"manor_hall_day",
+      choices:[ { text:"Resolve the bloodline's fate.", goto:"g8_end" } ] },
+
+    { type:"end", id:"g8_end" },
+  ]
+}
+
+);
+
+</script>
+<script>
+// ===================== ENDINGS =====================
+
+CONTENT.endings = {
+
+  open_house: {
+    category:"Bad Ending", name:"The Open House",
+    text:[
+      "The Veil does not close again after this. There is no final confrontation, no last desperate ritual that might have turned things — only a slow, almost gentle handover of the rooms, one by one, until the house no longer requires anyone living to maintain its appetite.",
+      "The last Thorne to hold the deed signs paperwork they only half-understand for an estate that, on record, sells quietly to an offshore trust within the year. The mirrors, by then, no longer bother reflecting anyone in particular."
+    ]
+  },
+  bloodline_extinct: {
+    category:"Bad Ending", name:"Bloodline Extinct",
+    text:[
+      "There is no heir. A lawyer's letter goes out, then an auction notice, then nothing — the estate's contents dispersed to buyers who have no idea what they're carrying out the door with them.",
+      "Years later, one of those buyers will mention, in passing, to no one in particular, that the mirror she bought from a county estate sale doesn't quite show her own face in low light. She will not think much of it. That, in its way, is its own kind of ending."
+    ]
+  },
+  hollow_renewal: {
+    category:"Bad Ending", name:"The Hollow Renewal",
+    text:[
+      "The severance does not take. The entity, wounded but not removed, draws the arrangement tighter and stranger than before — a worse bargain than any Thorne has struck since Josiah's, and one nobody alive fully understands the terms of.",
+      "The final heir inherits not freedom but a harder version of the same old question, now with considerably less time and far fewer resources to answer it."
+    ]
+  },
+
+  quiet_refusal: {
+    category:"False Good Ending", name:"Quiet Refusal",
+    text:[
+      "The family, in the end, simply stops paying. No grand ritual, no public reckoning — only a long, consistent refusal of every request the entity makes, generation after generation, until the arrangement seems, from the inside, to have quietly lapsed.",
+      "The final years are warm and unremarkable. The house stands. The family, by any measure visible from inside it, is safe."
+    ],
+    archiveNote:"The Family Archive notes, faintly: somewhere down the coast, in a winter no Thorne ever heard about, another family's fortunes inexplicably improved. The cost was never erased. It was only no longer yours."
+  },
+  burned_estate: {
+    category:"False Good Ending", name:"The Burned Estate",
+    text:[
+      "The manor goes up in a single night — whether by the final heir's own hand or by an accident no insurance investigator can quite explain, the house that held two centuries of arrangement is, by morning, gone.",
+      "It feels, watching the smoke, like an ending. It is shot, played, and scored like one."
+    ],
+    archiveNote:"A small clipping, easy to miss in the Family Archive: a different family, building a new house on unrelated land decades later, reports their first strange dream the week the foundation is poured."
+  },
+  respectable_family: {
+    category:"False Good Ending", name:"The Respectable Family",
+    text:[
+      "By the close of the century, the Thornes are, to every outside eye, simply an old, comfortable family with old, comfortable money. No scandal. No scrutiny. A name that opens doors rather than raising eyebrows.",
+      "It is, by any ordinary measure, the version of this family's story that looks the most like success."
+    ],
+    archiveNote:"The Archive records only this: across two centuries, remarkably few of this family's own children ever learned their own great-grandparents' real names."
+  },
+
+  counter_ledger: {
+    category:"True Ending", name:"The Counter-Ledger",
+    text:[
+      "Mercy Thorne's hidden ledger, assembled at last from a garden, a Bible's binding, and the hem of a christening gown worn by eight generations of infants who never knew what they were wearing, is whole.",
+      "The final heir does not ask the entity for anything. They simply state, plainly, in front of witnesses who can be trusted to remember it accurately, what the original bargain actually was — a famine engineered, thirty-one neighbors sold, a fortune built on a lie its own architect tried to keep even from his wife.",
+      "A debt extracted under a lie of this size cannot survive being correctly named. The Veil does not lift dramatically. It simply, finally, has nothing left to stand on. The house, for the first time in two hundred and seventeen years, is only a house."
+    ]
+  },
+  unmade_debt: {
+    category:"True Ending", name:"The Unmade Debt",
+    text:[
+      "Everything that resolves The Counter-Ledger resolves here too — Mercy's ledger whole, the lie named publicly, the bargain's legitimacy undone by its own fraudulent foundation.",
+      "But this family did one thing more, across its generations: it listened, more than once, to the thing on the other side of the Watching Glass — and heard, beneath the bargaining, something that sounded almost like relief at being asked plainly whether it wanted any of this either.",
+      "When the bargain ends, the bound dead end with it. The Weeping Woman is seen once more, by the last heir, standing at the edge of the gardens rather than the east wing window — and then she is simply gone, the way a held breath finally, fully releases."
+    ]
+  },
+
+  new_tally_keeper: {
+    category:"Pact Ending", name:"The New Tally-Keeper",
+    text:[
+      "The final heir does not break the arrangement. They master it — fluent, at last, in a relationship the family has fumbled through for two centuries, and unwilling to call it anything as simple as a curse anymore.",
+      "The house remains prosperous, strange, and entirely itself. The family that lives in it now understands exactly what that costs, and has decided, with open eyes, that the cost is one they intend to keep paying."
+    ]
+  },
+  long_inheritance: {
+    category:"Pact Ending", name:"The Long Inheritance",
+    text:[
+      "Neither severed nor surrendered to, the arrangement simply continues — managed, stable, unresolved. The final heir, looking at a ledger of accumulated knowledge that still does not add up to a clean answer, makes the only choice left available: to pass the whole unresolved question forward, to a ninth generation no one currently alive will ever meet."
+    ]
+  },
+
+};
+
+CONTENT.endingOrder = [
+  "open_house","bloodline_extinct","hollow_renewal",
+  "counter_ledger","unmade_debt",
+  "new_tally_keeper","long_inheritance",
+  "quiet_refusal","burned_estate","respectable_family",
+];
+
+</script>
+<script>
+// ===================== BLOODLINE VEIL — ENGINE =====================
+// Pure-mechanical layer. Reads CONTENT, mutates STATE, never touches the DOM directly.
+
+const SAVE_KEY = "bloodlineveil_save_v1";
+const ARCHIVE_KEY = "bloodlineveil_archive_v1";
+
+let STATE = null;
+
+function freshState(){
+  return {
+    genIndex: 0,                 // index into CONTENT.generations
+    nodeId: null,                // current scene node id
+    heir: { name:"", sanity:60, influence:30, occult:0, wealth:30, traits:[], age:0 },
+    siblingRelation: 0,
+    npcRelations: {},            // npcId -> number
+    veil: 0,
+    taintedWealth: 0,
+    factionScore: { keeper:0, penitent:0, abolitionist:0 },
+    artifacts: [],
+    evidence: [],                // array of evidence ids discovered
+    truthPoints: { A:0, B:0, C:0, D:0 },
+    flags: {},
+    familyTree: [],              // array of {gen, name, years, fate, traits, cause}
+    journal: [],                 // array of {gen, text}
+    seenNewTabs: { evidence:false, tree:false, journal:false, rituals:false },
+    finished: false,
+    endingId: null,
+    deathHistory: [],
+  };
+}
+
+function loadArchive(){
+  try{
+    const raw = localStorage.getItem(ARCHIVE_KEY);
+    return raw ? JSON.parse(raw) : { playthroughs: [] };
+  }catch(e){ return { playthroughs: [] }; }
+}
+function saveArchive(arch){
+  try{ localStorage.setItem(ARCHIVE_KEY, JSON.stringify(arch)); }catch(e){}
+}
+function recordArchive(state){
+  const arch = loadArchive();
+  arch.playthroughs.push({
+    date: new Date().toISOString(),
+    ending: state.endingId,
+    truths: Object.keys(state.truthPoints).filter(t => truthComplete(state, t)),
+    faction: dominantFaction(state),
+    lostAncestors: state.familyTree.filter(n => n.cause).map(n => ({name:n.name, cause:n.cause})),
+  });
+  saveArchive(arch);
+}
+
+function saveGame(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(STATE)); return true; }catch(e){ return false; }
+}
+function loadGame(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return false;
+    STATE = JSON.parse(raw);
+    return true;
+  }catch(e){ return false; }
+}
+function hasSave(){
+  try{ return !!localStorage.getItem(SAVE_KEY); }catch(e){ return false; }
+}
+function deleteSave(){
+  try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+}
+
+function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
+function currentGen(){ return CONTENT.generations[STATE.genIndex]; }
+function currentNode(){
+  const gen = currentGen();
+  return gen.nodes.find(n => n.id === STATE.nodeId);
+}
+
+function veilBand(v){
+  return CONTENT.veilBands.find(b => v >= b.min && v <= b.max) || CONTENT.veilBands[0];
+}
+
+function truthComplete(state, truthId){
+  const t = CONTENT.truths[truthId];
+  return (state.truthPoints[truthId] || 0) >= t.threshold;
+}
+function truthState(state, truthId){
+  const pts = state.truthPoints[truthId] || 0;
+  const thresh = CONTENT.truths[truthId].threshold;
+  if(pts <= 0) return "Unknown";
+  if(pts >= thresh) return "Assembled";
+  return "Partial";
+}
+
+function dominantFaction(state){
+  const f = state.factionScore;
+  const max = Math.max(f.keeper, f.penitent, f.abolitionist);
+  if(max === 0) return "Unaligned";
+  if(f.keeper === max) return "Keeper";
+  if(f.penitent === max) return "Penitent";
+  return "Abolitionist";
+}
+
+function hasArtifact(id){ return STATE.artifacts.includes(id); }
+function hasEvidence(id){ return STATE.evidence.includes(id); }
+
+// ---------- Applying effects ----------
+function applyEffects(eff){
+  if(!eff) return { toasts: [] };
+  const toasts = [];
+  const h = STATE.heir;
+
+  if(eff.sanity)   { h.sanity   = clamp(h.sanity   + eff.sanity,   0, 100); toasts.push(fmtDelta("Sanity", eff.sanity)); }
+  if(eff.influence){ h.influence= clamp(h.influence+ eff.influence,0, 100); toasts.push(fmtDelta("Influence", eff.influence)); }
+  if(eff.occult)   { h.occult   = clamp(h.occult   + eff.occult,   0, 100); toasts.push(fmtDelta("Occult Knowledge", eff.occult)); }
+  if(eff.wealth)   { h.wealth   = clamp(h.wealth   + eff.wealth,   0, 100); toasts.push(fmtDelta("Wealth", eff.wealth)); }
+  if(eff.veil)     { STATE.veil = clamp(STATE.veil + eff.veil, 0, 100); toasts.push({ text:`The Veil thickens. (+${eff.veil})`, veil:true }); }
+  if(eff.taintedWealth){ STATE.taintedWealth += eff.taintedWealth; }
+
+  if(eff.addEvidence){
+    eff.addEvidence.forEach(id => addEvidence(id, toasts));
+  }
+  if(eff.addArtifact){
+    if(!hasArtifact(eff.addArtifact)){
+      STATE.artifacts.push(eff.addArtifact);
+      toasts.push({ text:`Artifact acquired: ${CONTENT.artifacts[eff.addArtifact].name}` });
+    }
+  }
+  if(eff.removeArtifact){
+    STATE.artifacts = STATE.artifacts.filter(a => a !== eff.removeArtifact);
+  }
+  if(eff.addTrait){
+    addTrait(eff.addTrait.pool, eff.addTrait.id, toasts);
+  }
+  if(eff.setFlag){
+    Object.assign(STATE.flags, eff.setFlag);
+  }
+  if(eff.npcRelation){
+    Object.entries(eff.npcRelation).forEach(([npc, delta])=>{
+      if(npc === "sibling"){ STATE.siblingRelation = clamp((STATE.siblingRelation||0) + delta, -100, 100); }
+      else { STATE.npcRelations[npc] = clamp((STATE.npcRelations[npc]||0) + delta, -100, 100); }
+    });
+  }
+  if(eff.faction){
+    Object.entries(eff.faction).forEach(([f, delta])=>{
+      STATE.factionScore[f] = (STATE.factionScore[f]||0) + delta;
+    });
+  }
+  return { toasts };
+}
+
+function fmtDelta(label, val){
+  const sign = val > 0 ? "+" : "";
+  return { text:`${label} ${sign}${val}` };
+}
+
+function addEvidence(id, toasts){
+  if(hasEvidence(id)) return;
+  const item = CONTENT.evidencePool.find(e => e.id === id);
+  if(!item) return;
+  STATE.evidence.push(id);
+  STATE.truthPoints[item.truthId] = (STATE.truthPoints[item.truthId]||0) + item.points;
+  STATE.seenNewTabs.evidence = true;
+  if(toasts) toasts.push({ text:`Evidence found: ${item.title}` });
+  STATE.journal.push({ gen: currentGen().id, text: `Recovered: ${item.title}` });
+}
+
+function addTrait(pool, id, toasts){
+  const exists = STATE.heir.traits.find(t => t.id === id);
+  if(exists) return;
+  const def = CONTENT.traitPool[pool].find(t => t.id === id);
+  if(!def) return;
+  STATE.heir.traits.push({ id: def.id, name: def.name, pool, cursed: !!def.cursed });
+  if(toasts) toasts.push({ text:`New trait: ${def.name}`, veil: !!def.cursed });
+}
+
+// ---------- Ritual resolution ----------
+function ritualAvailable(ritual){
+  const gen = currentGen();
+  if(gen.id < ritual.minGen) return { ok:false, reason:`Available from Generation ${ritual.minGen} onward.` };
+  if(ritual.requiresArtifact && !hasArtifact(ritual.requiresArtifact)) return { ok:false, reason:`Requires: ${CONTENT.artifacts[ritual.requiresArtifact].name}` };
+  if(ritual.requiresOccult && STATE.heir.occult < ritual.requiresOccult) return { ok:false, reason:`Requires Occult Knowledge ${ritual.requiresOccult}+` };
+  if(ritual.requiresTruths){
+    const missing = ritual.requiresTruths.filter(t => !truthComplete(STATE, t));
+    if(missing.length) return { ok:false, reason:`Requires Truths assembled: ${missing.join(", ")}` };
+  }
+  if(ritual.cost){
+    for(const k in ritual.cost){
+      const need = -ritual.cost[k];
+      if((STATE.heir[k]||0) < need) return { ok:false, reason:`Insufficient ${k}.` };
+    }
+  }
+  return { ok:true };
+}
+
+function performRitual(ritualId){
+  const ritual = CONTENT.rituals.find(r => r.id === ritualId);
+  const avail = ritualAvailable(ritual);
+  if(!avail.ok) return { ok:false, reason: avail.reason };
+
+  const toasts = [];
+  applyEffects({ ...ritual.cost, veil: ritual.veilDelta, taintedWealth: ritual.taintedWealth });
+
+  if(ritual.grantsArtifact && !hasArtifact(ritual.grantsArtifact)){
+    STATE.artifacts.push(ritual.grantsArtifact);
+    toasts.push({ text:`Artifact acquired: ${CONTENT.artifacts[ritual.grantsArtifact].name}` });
+  }
+  if(ritual.grantsEvidence){ ritual.grantsEvidence.forEach(id => addEvidence(id, toasts)); }
+  if(ritual.evidenceOnUse){
+    const candidates = CONTENT.evidencePool.filter(e => e.kind === "testimony" && currentGen().id >= e.minGen && !hasEvidence(e.id));
+    if(candidates.length){
+      const pick = candidates[Math.floor(Math.random()*candidates.length)];
+      addEvidence(pick.id, toasts);
+    } else {
+      toasts.push({ text:"The glass shows nothing new this time." });
+    }
+  }
+  if(ritual.triggersBodyPayment){
+    STATE.flags.bodyPaymentPending = true;
+  }
+  if(ritual.severance){
+    resolveSeverance(toasts);
+  }
+  if(ritual.renunciation){
+    STATE.flags.renunciationPerformed = true;
+    toasts.push({ text:"The Renunciation Rite is performed." });
+  }
+  STATE.factionScore.keeper += (ritual.tier === "Minor" || ritual.tier === "Major") ? 6 : 0;
+  saveGame();
+  return { ok:true, toasts };
+}
+
+function resolveSeverance(toasts){
+  const completeness = Object.keys(CONTENT.truths).filter(t => truthComplete(STATE, t)).length;
+  const successChance = clamp(0.15 + completeness*0.18 - (STATE.veil/100)*0.3 + (STATE.heir.occult/100)*0.25, 0.05, 0.85);
+  const roll = Math.random();
+  if(roll < successChance){
+    STATE.flags.severanceSuccess = true;
+    toasts.push({ text:"The severance holds. Something in the house lets go." });
+    STATE.veil = clamp(STATE.veil - 35, 0, 100);
+  } else if(roll < successChance + 0.35){
+    STATE.flags.severanceFractured = true;
+    toasts.push({ text:"The ritual half-works. The entity is wounded, not removed.", veil:true });
+    STATE.veil = clamp(STATE.veil + 10, 0, 100);
+  } else {
+    STATE.flags.severanceFailed = true;
+    toasts.push({ text:"The severance fails outright.", veil:true });
+    STATE.veil = clamp(STATE.veil + 20, 0, 100);
+  }
+}
+
+// ---------- Ending determination ----------
+function determineEnding(){
+  const s = STATE;
+  if(s.veil >= 100) return "open_house";
+  if(s.flags.noViableHeir) return "bloodline_extinct";
+  if(s.flags.severanceFailed && s.veil >= 80) return "hollow_renewal";
+
+  const truthsComplete = Object.keys(CONTENT.truths).filter(t => truthComplete(s, t));
+  const coreThree = ["A","B","D"].every(t => truthsComplete.includes(t));
+  const renounced = s.flags.renunciationPerformed && hasArtifact("mercysledger");
+  const renouncedSoft = s.flags.renunciationPerformed; // allow even if artifact bookkeeping simplified
+
+  if((coreThree) && (renounced || renouncedSoft)){
+    const sympathetic = hasEvidence("ev_sympathetic_exchange") || (s.truthPoints.C >= CONTENT.truths.C.threshold);
+    if(sympathetic && truthsComplete.includes("C")) return "unmade_debt";
+    return "counter_ledger";
+  }
+
+  const faction = dominantFaction(s);
+  if(s.veil >= 90 && faction === "Keeper" && s.heir.occult >= 50) return "new_tally_keeper";
+  if(s.veil >= 60 && s.veil < 90 && !s.flags.severanceAttempted) return "long_inheritance";
+
+  if(s.flags.g5_refused && truthsComplete.length <= 1) return "quiet_refusal";
+  if(s.flags.estateBurned) return "burned_estate";
+
+  return "respectable_family";
+}
+
+// ---------- Generation transition ----------
+function buildHeirForGen(gen, traitsInherited){
+  return {
+    name: gen.heirName,
+    sanity: 60, influence: clamp(30 + Math.floor(STATE.heir.influence*0.15),0,100),
+    occult: clamp(Math.floor(STATE.heir.occult*0.5),0,100),
+    wealth: clamp(30 + Math.floor(STATE.heir.wealth*0.3),0,100),
+    traits: traitsInherited,
+    age: 0,
+  };
+}
+
+function rollInheritedTraits(){
+  const inherited = [];
+  STATE.heir.traits.forEach(t => {
+    let chance = t.cursed ? 0.4 : 0.55;
+    if(Math.random() < chance) inherited.push({ id:t.id, name:t.name, pool:t.pool, cursed:t.cursed });
+  });
+  // small independent chance of a fresh cursed trait at high veil
+  if(STATE.veil > 60 && Math.random() < 0.25){
+    const pool = CONTENT.traitPool.cursed;
+    const pick = pool[Math.floor(Math.random()*pool.length)];
+    if(!inherited.find(t=>t.id===pick.id)) inherited.push({ id:pick.id, name:pick.name, pool:"cursed", cursed:true });
+  }
+  return inherited;
+}
+
+function archiveCurrentHeir(causeText){
+  const gen = currentGen();
+  STATE.familyTree.push({
+    gen: gen.id, name: STATE.heir.name, years: gen.years,
+    traits: STATE.heir.traits.map(t=>t.name),
+    cause: causeText || null,
+    fate: causeText ? "deceased" : "deceased",
+  });
+}
+
+function advanceGeneration(causeText){
+  archiveCurrentHeir(causeText);
+  const nextIndex = STATE.genIndex + 1;
+  if(nextIndex >= CONTENT.generations.length){
+    finishGame();
+    return;
+  }
+  const nextGen = CONTENT.generations[nextIndex];
+  const traits = rollInheritedTraits();
+  STATE.genIndex = nextIndex;
+  STATE.heir = buildHeirForGen(nextGen, traits);
+  STATE.nodeId = nextGen.startNode;
+  STATE.siblingRelation = 0;
+  saveGame();
+}
+
+function finishGame(){
+  STATE.finished = true;
+  STATE.endingId = determineEnding();
+  recordArchive(STATE);
+  saveGame();
+}
+
+</script>
+<script>
+// ===================== BLOODLINE VEIL — AUDIO SYSTEM =====================
+// Fully procedural: no external audio files. Uses Web Audio API oscillators,
+// noise buffers, and convolution-free reverb-ish delay to create a gothic
+// ambient bed plus short SFX stingers. Designed to be inexpensive and to
+// degrade gracefully if AudioContext is unavailable or blocked pre-gesture.
+
+const AUDIO = {
+  ctx: null,
+  master: null,
+  musicGain: null,
+  sfxGain: null,
+  droneNodes: [],
+  musicEnabled: true,
+  sfxEnabled: true,
+  started: false,
+  currentBand: -1,
+};
+
+function audioInit(){
+  if(AUDIO.ctx) return;
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    AUDIO.ctx = new Ctx();
+    AUDIO.master = AUDIO.ctx.createGain();
+    AUDIO.master.gain.value = 0.85;
+    AUDIO.master.connect(AUDIO.ctx.destination);
+
+    AUDIO.musicGain = AUDIO.ctx.createGain();
+    AUDIO.musicGain.gain.value = 0.35;
+    AUDIO.musicGain.connect(AUDIO.master);
+
+    AUDIO.sfxGain = AUDIO.ctx.createGain();
+    AUDIO.sfxGain.gain.value = 0.55;
+    AUDIO.sfxGain.connect(AUDIO.master);
+  }catch(e){
+    AUDIO.ctx = null;
+  }
+}
+
+function audioResume(){
+  audioInit();
+  if(AUDIO.ctx && AUDIO.ctx.state === "suspended"){
+    AUDIO.ctx.resume().catch(()=>{});
+  }
+}
+
+// ---------- Noise buffer (for wind / hiss / impact textures) ----------
+function makeNoiseBuffer(duration){
+  const ctx = AUDIO.ctx;
+  const len = Math.floor(ctx.sampleRate * duration);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<len;i++){ data[i] = (Math.random()*2 - 1); }
+  return buf;
+}
+
+// ---------- Ambient drone bed ----------
+// Builds a slowly shifting drone using detuned oscillators through a lowpass
+// filter, with intensity/dissonance scaling with the Veil band index (0-4).
+function buildDrone(bandIdx){
+  stopDrone();
+  if(!AUDIO.ctx || !AUDIO.musicEnabled) return;
+  const ctx = AUDIO.ctx;
+  const baseFreqs = [
+    [98, 147, 196],       // Dormant — calm low fifths
+    [98, 145, 220],       // Stirring — slightly detuned
+    [92, 140, 233, 311],  // Watching — added dissonant 4th voice
+    [87, 135, 247, 330],  // Hungry — lower, tenser
+    [82, 130, 251, 346, 466], // Open — widest, most dissonant spread
+  ];
+  const freqs = baseFreqs[clamp(bandIdx,0,4)];
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = bandIdx >= 3 ? 900 : 650;
+  filter.Q.value = 0.7;
+  filter.connect(AUDIO.musicGain);
+
+  freqs.forEach((f, i) => {
+    const osc = ctx.createOscillator();
+    osc.type = i % 2 === 0 ? "sine" : "triangle";
+    osc.frequency.value = f;
+    const detune = ctx.createOscillator();
+    detune.type = "sine";
+    detune.frequency.value = f * 1.004 + (bandIdx*0.6);
+    const g = ctx.createGain();
+    g.gain.value = 0.16 / Math.sqrt(freqs.length);
+    osc.connect(g); detune.connect(g);
+    g.connect(filter);
+    osc.start(); detune.start();
+    AUDIO.droneNodes.push(osc, detune, g);
+
+    // slow LFO on gain for breathing/swelling quality
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.04 + Math.random()*0.05;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.05;
+    lfo.connect(lfoGain);
+    lfoGain.connect(g.gain);
+    lfo.start();
+    AUDIO.droneNodes.push(lfo, lfoGain);
+  });
+
+  // Sparse high "glass" texture that gets more frequent as Veil rises
+  const glassInterval = setInterval(()=>{
+    if(!AUDIO.musicEnabled || !AUDIO.ctx) return;
+    if(Math.random() < 0.15 + bandIdx*0.08){
+      playGlassTone();
+    }
+  }, 2600);
+  AUDIO.droneNodes.push({ stop: ()=> clearInterval(glassInterval) });
+
+  AUDIO.droneNodes.push(filter);
+  AUDIO.currentBand = bandIdx;
+}
+
+function stopDrone(){
+  AUDIO.droneNodes.forEach(n=>{
+    try{
+      if(n.stop && typeof n.stop === "function" && n.frequency===undefined && n.gain===undefined){ n.stop(); }
+      else if(n.stop) { n.stop(); }
+      if(n.disconnect) n.disconnect();
+    }catch(e){}
+  });
+  AUDIO.droneNodes = [];
+}
+
+function setMusicBand(bandIdx){
+  if(bandIdx === AUDIO.currentBand) return;
+  if(!AUDIO.musicEnabled){ AUDIO.currentBand = bandIdx; return; }
+  buildDrone(bandIdx);
+}
+
+function playGlassTone(){
+  if(!AUDIO.ctx || !AUDIO.musicEnabled) return;
+  const ctx = AUDIO.ctx;
+  const osc = ctx.createOscillator();
+  osc.type = "sine";
+  const freqs = [880, 990, 1175, 1320, 1568];
+  osc.frequency.value = freqs[Math.floor(Math.random()*freqs.length)];
+  const g = ctx.createGain();
+  g.gain.value = 0;
+  osc.connect(g); g.connect(AUDIO.musicGain);
+  const now = ctx.currentTime;
+  g.gain.linearRampToValueAtTime(0.05, now+0.4);
+  g.gain.exponentialRampToValueAtTime(0.0001, now+3.2);
+  osc.start(now); osc.stop(now+3.3);
+}
+
+// ---------- SFX ----------
+function sfx(name){
+  if(!AUDIO.ctx || !AUDIO.sfxEnabled) return;
+  const ctx = AUDIO.ctx;
+  const now = ctx.currentTime;
+
+  if(name === "choice"){
+    const osc = ctx.createOscillator();
+    osc.type = "triangle"; osc.frequency.value = 220;
+    const g = ctx.createGain(); g.gain.value = 0.0001;
+    osc.connect(g); g.connect(AUDIO.sfxGain);
+    g.gain.exponentialRampToValueAtTime(0.18, now+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+0.18);
+    osc.frequency.exponentialRampToValueAtTime(165, now+0.16);
+    osc.start(now); osc.stop(now+0.2);
+
+  } else if(name === "page"){
+    const buf = makeNoiseBuffer(0.25);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "highpass"; filter.frequency.value = 2200;
+    const g = ctx.createGain(); g.gain.value = 0.0001;
+    src.connect(filter); filter.connect(g); g.connect(AUDIO.sfxGain);
+    g.gain.exponentialRampToValueAtTime(0.12, now+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+0.22);
+    src.start(now);
+
+  } else if(name === "veilrise"){
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth"; osc.frequency.value = 60;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass"; filter.frequency.value = 300;
+    const g = ctx.createGain(); g.gain.value = 0.0001;
+    osc.connect(filter); filter.connect(g); g.connect(AUDIO.sfxGain);
+    g.gain.exponentialRampToValueAtTime(0.22, now+0.05);
+    osc.frequency.exponentialRampToValueAtTime(38, now+1.1);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+1.3);
+    osc.start(now); osc.stop(now+1.35);
+
+  } else if(name === "ritual"){
+    [196, 233, 277].forEach((f, i)=>{
+      const osc = ctx.createOscillator();
+      osc.type = "sine"; osc.frequency.value = f;
+      const g = ctx.createGain(); g.gain.value = 0.0001;
+      osc.connect(g); g.connect(AUDIO.sfxGain);
+      const start = now + i*0.12;
+      g.gain.exponentialRampToValueAtTime(0.14, start+0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, start+1.8);
+      osc.start(start); osc.stop(start+1.9);
+    });
+    const buf = makeNoiseBuffer(2.0);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass"; filter.frequency.value = 400; filter.Q.value = 0.6;
+    const g = ctx.createGain(); g.gain.value = 0.0001;
+    src.connect(filter); filter.connect(g); g.connect(AUDIO.sfxGain);
+    g.gain.linearRampToValueAtTime(0.05, now+0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+2.0);
+    src.start(now);
+
+  } else if(name === "evidence"){
+    [523, 659].forEach((f,i)=>{
+      const osc = ctx.createOscillator();
+      osc.type = "sine"; osc.frequency.value = f;
+      const g = ctx.createGain(); g.gain.value = 0.0001;
+      osc.connect(g); g.connect(AUDIO.sfxGain);
+      const start = now + i*0.09;
+      g.gain.exponentialRampToValueAtTime(0.12, start+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, start+0.5);
+      osc.start(start); osc.stop(start+0.55);
+    });
+
+  } else if(name === "transition"){
+    const osc = ctx.createOscillator();
+    osc.type = "sine"; osc.frequency.value = 440;
+    const g = ctx.createGain(); g.gain.value = 0.0001;
+    osc.connect(g); g.connect(AUDIO.sfxGain);
+    g.gain.exponentialRampToValueAtTime(0.1, now+0.4);
+    osc.frequency.exponentialRampToValueAtTime(220, now+2.5);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+2.6);
+    osc.start(now); osc.stop(now+2.7);
+
+  } else if(name === "ending_good"){
+    [330, 415, 494, 659].forEach((f,i)=>{
+      const osc = ctx.createOscillator();
+      osc.type = "sine"; osc.frequency.value = f;
+      const g = ctx.createGain(); g.gain.value = 0.0001;
+      osc.connect(g); g.connect(AUDIO.sfxGain);
+      const start = now + i*0.22;
+      g.gain.exponentialRampToValueAtTime(0.13, start+0.06);
+      g.gain.exponentialRampToValueAtTime(0.0001, start+2.2);
+      osc.start(start); osc.stop(start+2.3);
+    });
+
+  } else if(name === "ending_bad"){
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth"; osc.frequency.value = 180;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass"; filter.frequency.value = 500;
+    const g = ctx.createGain(); g.gain.value = 0.0001;
+    osc.connect(filter); filter.connect(g); g.connect(AUDIO.sfxGain);
+    g.gain.exponentialRampToValueAtTime(0.2, now+0.1);
+    osc.frequency.exponentialRampToValueAtTime(45, now+3.0);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+3.2);
+    osc.start(now); osc.stop(now+3.3);
+
+  } else if(name === "panel"){
+    const osc = ctx.createOscillator();
+    osc.type = "square"; osc.frequency.value = 340;
+    const g = ctx.createGain(); g.gain.value = 0.0001;
+    osc.connect(g); g.connect(AUDIO.sfxGain);
+    g.gain.exponentialRampToValueAtTime(0.05, now+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+0.09);
+    osc.start(now); osc.stop(now+0.1);
+  }
+}
+
+function toggleMusic(on){
+  AUDIO.musicEnabled = on;
+  if(!on) stopDrone();
+  else if(AUDIO.currentBand >= 0){ const b = AUDIO.currentBand; AUDIO.currentBand = -1; buildDrone(b); }
+}
+function toggleSfx(on){ AUDIO.sfxEnabled = on; }
+
+</script>
+<script>
+// ===================== BLOODLINE VEIL — UI LAYER =====================
+
+const SCENE_BG_LABELS = {
+  manor_exterior_dusk:"radial-gradient(ellipse at 50% 20%, #2a2018 0%, #0f0c0a 75%)",
+  manor_exterior_day:"radial-gradient(ellipse at 50% 10%, #3a3024 0%, #15110d 75%)",
+  manor_foundation_night:"radial-gradient(ellipse at 50% 80%, #1c140f 0%, #070504 80%)",
+  study_candlelight:"radial-gradient(ellipse at 60% 40%, #3a2a14 0%, #100b06 75%)",
+  manor_hall_day:"radial-gradient(ellipse at 50% 15%, #332a1c 0%, #110d09 75%)",
+  east_wing_dim:"radial-gradient(ellipse at 40% 30%, #261c2a 0%, #0c090d 78%)",
+  east_wing_portrait:"radial-gradient(ellipse at 50% 35%, #2e1c22 0%, #0c0709 78%)",
+  gardens_overgrown:"radial-gradient(ellipse at 50% 60%, #1f2a18 0%, #0a0d08 78%)",
+  crypt_entrance:"radial-gradient(ellipse at 50% 70%, #1a1414 0%, #060505 82%)",
+  crypt_ritual:"radial-gradient(ellipse at 50% 60%, #3a1018 0%, #0a0405 80%)",
+  forbidden_woods_day:"radial-gradient(ellipse at 50% 20%, #1c2414 0%, #090b06 80%)",
+  forbidden_woods_deep:"radial-gradient(ellipse at 50% 40%, #141c10 0%, #050604 85%)",
+  nursery_dim:"radial-gradient(ellipse at 50% 30%, #2a2420 0%, #0d0a08 78%)",
+  nursery_firelight:"radial-gradient(ellipse at 55% 45%, #3a2410 0%, #0d0805 78%)",
+  cellar_archive:"radial-gradient(ellipse at 50% 50%, #20180f 0%, #080503 80%)",
+  default:"radial-gradient(ellipse at 50% 20%, #241c16 0%, #0a0807 78%)",
+};
+
+let activePanel = null;
+
+function $(sel){ return document.querySelector(sel); }
+function $all(sel){ return document.querySelectorAll(sel); }
+function el(tag, cls, html){ const e = document.createElement(tag); if(cls) e.className = cls; if(html!=null) e.innerHTML = html; return e; }
+
+// ---------------------- TOP BAR ----------------------
+function renderTopBar(){
+  if(!STATE) return;
+  const h = STATE.heir;
+  $("#heirPortraitInitial").textContent = (h.name||"?").charAt(0);
+  $("#heirName").textContent = h.name;
+  const gen = currentGen();
+  $("#heirAge").textContent = gen.isPrologue ? gen.years : `${gen.years}`;
+
+  setRes("sanity", h.sanity);
+  setRes("influence", h.influence);
+  setRes("occult", h.occult);
+  setRes("wealth", h.wealth);
+
+  const band = veilBand(STATE.veil);
+  $("#veilFill").style.width = STATE.veil + "%";
+  $("#veilBandName").textContent = `${band.name} (${STATE.veil})`;
+
+  const bandIdx = CONTENT.veilBands.indexOf(band);
+  setMusicBand(bandIdx);
+
+  document.body.style.setProperty("--current-veil", STATE.veil);
+  const veilOverlay = $(".veil-overlay");
+  veilOverlay.style.opacity = clamp((STATE.veil-15)/100, 0, 0.85);
+}
+function setRes(key, val){
+  $(`#res-${key}-fill`).style.width = val + "%";
+  $(`#res-${key}-val`).textContent = val;
+}
+
+// ---------------------- TOASTS ----------------------
+function showToasts(toasts){
+  if(!toasts || !toasts.length) return;
+  const wrap = $("#toastWrap");
+  toasts.forEach((t, i) => {
+    setTimeout(()=>{
+      const d = el("div", "toast" + (t.veil ? " veil" : ""), t.text);
+      wrap.appendChild(d);
+      if(t.text && t.text.indexOf("Evidence found") === 0) sfx("evidence");
+      setTimeout(()=> d.remove(), 3700);
+    }, i*180);
+  });
+}
+
+// ---------------------- SCENE RENDERING ----------------------
+function renderScene(){
+  const node = currentNode();
+  const stageBg = $("#sceneBg");
+  const bgKey = node.bg || currentGen().bg || "default";
+  stageBg.style.background = SCENE_BG_LABELS[bgKey] || SCENE_BG_LABELS.default;
+
+  $("#sceneEyebrow").textContent = node.eyebrow || "";
+  $("#sceneTitle").textContent = node.title || "";
+
+  const textWrap = $("#sceneText");
+  textWrap.innerHTML = "";
+  if(node.speaker){
+    const sp = el("span", "speaker-name", node.speaker);
+    textWrap.appendChild(sp);
+  }
+  const p = el("p", "scene-text" + (node.speaker ? " speaker" : ""), node.text);
+  textWrap.appendChild(p);
+
+  renderChoices(node);
+  renderTopBar();
+  saveGame();
+}
+
+function choiceRequirementsMet(choice){
+  if(!choice.requires) return { ok:true };
+  const r = choice.requires;
+  if(r.minOccult && STATE.heir.occult < r.minOccult) return { ok:false, reason:`Requires Occult Knowledge ${r.minOccult}+` };
+  if(r.artifact && !hasArtifact(r.artifact)) return { ok:false, reason:`Requires: ${CONTENT.artifacts[r.artifact].name}` };
+  if(r.ritual){
+    const rit = CONTENT.rituals.find(x=>x.id===r.ritual);
+    const avail = ritualAvailable(rit);
+    if(!avail.ok) return { ok:false, reason: avail.reason };
+  }
+  if(r.minGenFlag){
+    if(STATE.flags.severanceAttempted) return { ok:false, reason:"Already attempted this generation." };
+  }
+  return { ok:true };
+}
+
+function renderChoices(node){
+  const panel = $("#choicePanel");
+  panel.innerHTML = "";
+  if(!node.choices || !node.choices.length){
+    $("#continueRow").classList.remove("hidden");
+    return;
+  }
+  $("#continueRow").classList.add("hidden");
+  node.choices.forEach(choice => {
+    const check = choiceRequirementsMet(choice);
+    const card = el("button", "choice-card" + (choice.weighty ? " weighty" : "") + (!check.ok ? " locked" : ""));
+    const main = el("span", null, choice.text);
+    card.appendChild(main);
+    if(choice.sub || !check.ok){
+      card.appendChild(el("span", "choice-sub", !check.ok ? check.reason : choice.sub));
+    }
+    if(!check.ok){
+      card.disabled = true;
+    } else {
+      card.addEventListener("click", () => onChoiceSelected(choice));
+    }
+    panel.appendChild(card);
+  });
+}
+
+function onChoiceSelected(choice){
+  sfx("choice");
+  const veilBefore = STATE.veil;
+  const result = applyEffects(choice.effects);
+  if(STATE.veil - veilBefore >= 8) sfx("veilrise");
+  showToasts(result.toasts);
+  STATE.nodeId = choice.goto;
+  const node = currentNode();
+  if(node.type === "end"){
+    handleGenerationEnd();
+  } else {
+    renderScene();
+    refreshNavDots();
+  }
+}
+
+function handleGenerationEnd(){
+  sfx("transition");
+  const gen = currentGen();
+  if(gen.isFinale){
+    finishGame();
+    showEndingScreen();
+    return;
+  }
+  showTransitionScreen();
+}
+
+// ---------------------- TRANSITION SCREEN ----------------------
+function showTransitionScreen(){
+  const gen = currentGen();
+  const scr = $("#transitionScreen");
+  scr.classList.add("active");
+  $("#transitionName").textContent = STATE.heir.name;
+  $("#transitionYears").textContent = gen.years;
+
+  const obits = [
+    "Their part in the family's long ledger is closed, for whatever that proves worth.",
+    "The house remembers them, whether or not it wished to.",
+    "What they found, refused, or fed is no longer theirs to carry alone.",
+  ];
+  $("#transitionObit").textContent = obits[Math.floor(Math.random()*obits.length)];
+
+  const list = $("#inheritList");
+  list.innerHTML = "";
+  list.appendChild(el("div","inherit-item", `Veil stands at ${STATE.veil} (${veilBand(STATE.veil).name})`));
+  list.appendChild(el("div","inherit-item", `Tainted Wealth accumulated: ${STATE.taintedWealth}`));
+  if(STATE.artifacts.length){
+    list.appendChild(el("div","inherit-item", `Artifacts retained: ${STATE.artifacts.map(a=>CONTENT.artifacts[a].name).join(", ")}`));
+  }
+  const truthSummary = Object.values(CONTENT.truths).map(t => `${t.name}: ${truthState(STATE, t.id)}`).join(" · ");
+  list.appendChild(el("div","inherit-item", truthSummary));
+
+  const nextIdx = STATE.genIndex + 1;
+  const nextGen = CONTENT.generations[nextIdx];
+  const heirRow = $("#heirChoiceRow");
+  heirRow.innerHTML = "";
+  if(nextGen.dualHeir){
+    [nextGen.heirName, nextGen.siblingName].forEach((name, i) => {
+      const card = el("div", "heir-choice-card");
+      card.appendChild(el("div","hc-name", name));
+      card.appendChild(el("div","hc-sub", i===0 ? "Primary path A" : "Primary path B"));
+      card.addEventListener("click", ()=>{
+        if(i===1){ nextGen.heirName = nextGen.siblingName; }
+        confirmTransition();
+      });
+      heirRow.appendChild(card);
+    });
+    $("#btnConfirmTransition").classList.add("hidden");
+  } else {
+    $("#btnConfirmTransition").classList.remove("hidden");
+  }
+}
+
+function confirmTransition(){
+  $("#transitionScreen").classList.remove("active");
+  advanceGeneration(null);
+  renderScene();
+  refreshNavDots();
+}
+
+// ---------------------- ENDING SCREEN ----------------------
+function showEndingScreen(){
+  const ending = CONTENT.endings[STATE.endingId];
+  const scr = $("#endingScreen");
+  scr.classList.add("active");
+  const goodCats = ["True Ending"];
+  sfx(goodCats.includes(ending.category) ? "ending_good" : "ending_bad");
+  $("#endingCategory").textContent = ending.category;
+  $("#endingName").textContent = ending.name;
+  const body = $("#endingText");
+  body.innerHTML = "";
+  ending.text.forEach(t => body.appendChild(el("p","ending-text", t)));
+  if(ending.archiveNote){
+    body.appendChild(el("p","ending-text", ending.archiveNote, ));
+    body.lastChild.style.color = "var(--crimson-bright)";
+    body.lastChild.style.fontStyle = "italic";
+  }
+
+  const box = $("#archiveBox");
+  box.innerHTML = "";
+  box.appendChild(el("h4", null, "Family Archive — This Playthrough"));
+  const truthsFound = Object.values(CONTENT.truths).map(t => `${t.name}: ${truthState(STATE,t.id)}`);
+  truthsFound.forEach(t => box.appendChild(el("div","archive-item", t)));
+  box.appendChild(el("div","archive-item", `Dominant faction: ${dominantFaction(STATE)}`));
+  box.appendChild(el("div","archive-item", `Generations survived: ${STATE.genIndex+1} of 8`));
+  const lost = STATE.familyTree.filter(n=>n.cause);
+  box.appendChild(el("div","archive-item", `Ancestors lost to the Veil directly: ${lost.length}`));
+}
+
+// ---------------------- NAV / RAIL ----------------------
+function setActivePanel(name){
+  activePanel = name;
+  $all(".panel-overlay").forEach(p => p.classList.remove("active"));
+  $all(".rail-btn").forEach(b => b.classList.remove("active"));
+  if(name){
+    sfx("panel");
+    $(`#panel-${name}`).classList.add("active");
+    $(`#rail-${name}`).classList.add("active");
+    renderPanel(name);
+    STATE.seenNewTabs[name] = false;
+    refreshNavDots();
+  }
+}
+
+function refreshNavDots(){
+  ["evidence","tree","journal","rituals"].forEach(name=>{
+    const btn = $(`#rail-${name}`);
+    if(STATE.seenNewTabs[name]) btn.classList.add("has-new"); else btn.classList.remove("has-new");
+  });
+}
+
+function renderPanel(name){
+  if(name === "evidence") renderEvidencePanel();
+  if(name === "tree") renderTreePanel();
+  if(name === "journal") renderJournalPanel();
+  if(name === "rituals") renderRitualsPanel();
+}
+
+// ---------------------- EVIDENCE PANEL ----------------------
+function renderEvidencePanel(){
+  const trackers = $("#truthTrackers");
+  trackers.innerHTML = "";
+  Object.values(CONTENT.truths).forEach(t => {
+    const pts = STATE.truthPoints[t.id] || 0;
+    const pct = clamp((pts / t.threshold) * 100, 0, 100);
+    const card = el("div","truth-tracker");
+    card.appendChild(el("div","tt-name", t.name));
+    const bar = el("div","tt-bar"); const fill = el("div","tt-fill"); fill.style.width = pct+"%"; bar.appendChild(fill);
+    card.appendChild(bar);
+    card.appendChild(el("div","tt-state", truthState(STATE, t.id)));
+    trackers.appendChild(card);
+  });
+
+  const grid = $("#evidenceGrid");
+  grid.innerHTML = "";
+  const found = CONTENT.evidencePool.filter(e => hasEvidence(e.id));
+  if(!found.length){
+    grid.appendChild(el("div","evidence-empty","No evidence recovered yet. Explore the estate to begin building the case file."));
+    return;
+  }
+  found.forEach(item => {
+    const card = el("div", `evidence-card ${item.kind}${item.ghost?" ghost":""}`);
+    card.appendChild(el("div","ev-kind", item.kind === "testimony" ? (item.ghost ? "Testimony — Spectral" : "Testimony") : "Document"));
+    card.appendChild(el("div","ev-title", item.title));
+    card.appendChild(el("div","ev-text", item.text));
+    grid.appendChild(card);
+  });
+}
+
+// ---------------------- FAMILY TREE PANEL ----------------------
+function renderTreePanel(){
+  const wrap = $("#treeWrap");
+  wrap.innerHTML = "";
+  STATE.familyTree.forEach(node => {
+    wrap.appendChild(buildTreeNode(node.name, `Gen ${node.gen} · ${node.years||""}`, "deceased", node.traits, node.cause));
+  });
+  const h = STATE.heir;
+  const cur = buildTreeNode(h.name, `Gen ${currentGen().id} · ${currentGen().years} · Currently living`, "current-alive", h.traits.map(t=>t.name), null);
+  cur.classList.add("current");
+  wrap.appendChild(cur);
+}
+function buildTreeNode(name, sub, fateClass, traits, cause){
+  const node = el("div","tree-node" + (fateClass==="deceased" ? " deceased" : ""));
+  node.appendChild(el("div","tree-portrait", name.charAt(0)));
+  const info = el("div","tree-info");
+  info.appendChild(el("div","tree-name", name));
+  info.appendChild(el("div","tree-sub", sub + (cause ? ` — ${cause}` : "")));
+  if(traits && traits.length){
+    const tw = el("div","tree-traits");
+    traits.forEach(tn => tw.appendChild(el("span","trait-badge", tn)));
+    info.appendChild(tw);
+  }
+  node.appendChild(info);
+  const fate = el("span", "tree-fate " + (fateClass==="current-alive" ? "fate-alive" : "fate-deceased"), fateClass==="current-alive" ? "Living" : "Deceased");
+  node.appendChild(fate);
+  return node;
+}
+
+// ---------------------- JOURNAL PANEL ----------------------
+function renderJournalPanel(){
+  const wrap = $("#journalWrap");
+  wrap.innerHTML = "";
+  if(!STATE.journal.length){
+    wrap.appendChild(el("div","evidence-empty","The journal is empty so far."));
+    return;
+  }
+  [...STATE.journal].reverse().forEach(entry => {
+    const e = el("div","journal-entry");
+    e.appendChild(el("div","journal-gen", `Generation ${entry.gen}`));
+    e.appendChild(el("div","journal-text", entry.text));
+    wrap.appendChild(e);
+  });
+}
+
+// ---------------------- RITUALS PANEL ----------------------
+function renderRitualsPanel(){
+  const grid = $("#ritualGrid");
+  grid.innerHTML = "";
+  CONTENT.rituals.forEach(r => {
+    const avail = ritualAvailable(r);
+    const card = el("div","ritual-card" + (avail.ok ? "" : " unavailable"));
+    const top = el("div","ritual-top");
+    top.appendChild(el("span","ritual-name", r.name));
+    top.appendChild(el("span","ritual-tier", r.tier));
+    card.appendChild(top);
+    card.appendChild(el("div","ritual-desc", r.desc));
+    const meta = el("div","ritual-meta");
+    if(r.cost && Object.keys(r.cost).length){
+      meta.appendChild(el("span", null, "Cost: " + Object.entries(r.cost).map(([k,v])=>`${k} ${v}`).join(", ")));
+    }
+    if(r.veilDelta) meta.appendChild(el("span", null, `Veil +${r.veilDelta}`));
+    card.appendChild(meta);
+    const btn = el("button","ritual-btn", avail.ok ? "Perform" : avail.reason);
+    btn.disabled = !avail.ok;
+    btn.addEventListener("click", () => {
+      sfx("ritual");
+      const res = performRitual(r.id);
+      if(res.ok){ showToasts(res.toasts); renderTopBar(); renderRitualsPanel(); }
+    });
+    card.appendChild(btn);
+    grid.appendChild(card);
+  });
+}
+
+// ---------------------- BOOTSTRAP / TITLE SCREEN ----------------------
+function showTitleScreen(){
+  $("#titleScreen").classList.add("active");
+  $("#btnContinueGame").disabled = !hasSave();
+}
+
+function startNewGame(){
+  audioResume();
+  STATE = freshState();
+  const gen0 = CONTENT.generations[0];
+  STATE.heir = { name: gen0.heirName, sanity:60, influence:30, occult:0, wealth:30, traits:[], age:0 };
+  STATE.nodeId = gen0.startNode;
+  saveGame();
+  $("#titleScreen").classList.remove("active");
+  $("#endingScreen").classList.remove("active");
+  showTutorial();
+}
+
+function continueGame(){
+  audioResume();
+  if(!loadGame()) return;
+  $("#titleScreen").classList.remove("active");
+  renderScene();
+  refreshNavDots();
+}
+
+function backToTitle(){
+  setActivePanel(null);
+  $("#endingScreen").classList.remove("active");
+  stopDrone();
+  AUDIO.currentBand = -1;
+  showTitleScreen();
+}
+
+// ---------------------- TUTORIAL ----------------------
+const TUTORIAL_STEPS = [
+  {
+    title:"Eight Generations, One House",
+    body:"You will guide the Thorne family across two centuries — one heir per generation, eight in total. Each generation makes a handful of choices, some small, some irreversible, before passing everything forward to whoever inherits next."
+  },
+  {
+    title:"Four Resources",
+    body:"Sanity, Influence, Occult Knowledge, and Wealth track your heir's personal state. They rise and fall with your choices, gate certain options, and partially carry forward — diminished — to the next generation."
+  },
+  {
+    title:"The Veil",
+    body:"The crimson meter in the top right tracks the estate's corruption, from Dormant to fully Open. It only ever ratchets upward from risky choices and rituals. How high it climbs by the finale shapes which endings are even reachable."
+  },
+  {
+    title:"Evidence, Family Tree, Journal, Rituals",
+    body:"The four icons on the left rail open: the Evidence Board, where discovered documents and testimonies assemble four hidden Truths about the family's past; the Family Tree, recording every heir who came before; the Journal, a running record of what you've found; and Rituals, where artifacts and ritual options become available as the story progresses."
+  },
+  {
+    title:"Choices Marked with a Diamond",
+    body:"Choices marked ◆ are weighty — they meaningfully shift resources, the Veil, or the story's direction, and usually can't be undone. Plain choices are lower-stakes and safe to explore."
+  },
+];
+let tutorialIndex = 0;
+
+function showTutorial(){
+  tutorialIndex = 0;
+  renderTutorialStep();
+  $("#tutorialScreen").classList.add("active");
+}
+function renderTutorialStep(){
+  const step = TUTORIAL_STEPS[tutorialIndex];
+  $("#tutorialTitle").textContent = step.title;
+  $("#tutorialBody").textContent = step.body;
+  $("#tutorialStepLabel").textContent = `${tutorialIndex+1} / ${TUTORIAL_STEPS.length}`;
+  $("#btnTutorialBack").disabled = tutorialIndex === 0;
+  $("#btnTutorialNext").textContent = tutorialIndex === TUTORIAL_STEPS.length-1 ? "Begin" : "Next";
+}
+function tutorialNext(){
+  sfx("panel");
+  if(tutorialIndex < TUTORIAL_STEPS.length-1){
+    tutorialIndex++;
+    renderTutorialStep();
+  } else {
+    closeTutorial();
+  }
+}
+function tutorialBack(){
+  if(tutorialIndex > 0){
+    sfx("panel");
+    tutorialIndex--;
+    renderTutorialStep();
+  }
+}
+function closeTutorial(){
+  $("#tutorialScreen").classList.remove("active");
+  renderScene();
+  refreshNavDots();
+}
+
+// ---------------------- AUDIO CONTROLS ----------------------
+function initAudioControls(){
+  const musicBtn = $("#btnToggleMusic");
+  const sfxBtn = $("#btnToggleSfx");
+  musicBtn.addEventListener("click", ()=>{
+    AUDIO.musicEnabled = !AUDIO.musicEnabled;
+    toggleMusic(AUDIO.musicEnabled);
+    musicBtn.textContent = AUDIO.musicEnabled ? "♪ Music On" : "♪ Music Off";
+    musicBtn.classList.toggle("muted", !AUDIO.musicEnabled);
+  });
+  sfxBtn.addEventListener("click", ()=>{
+    AUDIO.sfxEnabled = !AUDIO.sfxEnabled;
+    toggleSfx(AUDIO.sfxEnabled);
+    sfxBtn.textContent = AUDIO.sfxEnabled ? "🔔 SFX On" : "🔔 SFX Off";
+    sfxBtn.classList.toggle("muted", !AUDIO.sfxEnabled);
+  });
+}
+
+// ---------------------- WIRE UP ----------------------
+function initUI(){
+  $("#btnNewGame").addEventListener("click", startNewGame);
+  $("#btnContinueGame").addEventListener("click", continueGame);
+  $("#btnConfirmTransition").addEventListener("click", ()=>{ sfx("choice"); confirmTransition(); });
+  $("#btnEndingNewGame").addEventListener("click", startNewGame);
+  $("#btnEndingTitle").addEventListener("click", backToTitle);
+  $("#btnTutorialNext").addEventListener("click", tutorialNext);
+  $("#btnTutorialBack").addEventListener("click", tutorialBack);
+  $("#btnTutorialSkip").addEventListener("click", closeTutorial);
+  $("#btnShowHelp").addEventListener("click", ()=>{ audioResume(); showTutorial(); });
+
+  $all(".rail-btn[data-panel]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const name = btn.dataset.panel;
+      setActivePanel(activePanel === name ? null : name);
+    });
+  });
+  $all(".panel-close").forEach(btn => btn.addEventListener("click", () => setActivePanel(null)));
+
+  initAudioControls();
+  // Resume audio context on first interaction anywhere, in case autoplay policy blocked it.
+  document.addEventListener("pointerdown", audioResume, { once:true });
+
+  showTitleScreen();
+}
+
+document.addEventListener("DOMContentLoaded", initUI);
+
+</script>
+</body>
+</html>
