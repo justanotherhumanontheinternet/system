@@ -22,13 +22,14 @@
   --sector-glow:rgba(0,255,204,0.08);
 }
 
-/* ---- Sector themes ---- */
-body[data-sector="hab"]{ --accent:#00ffcc; --accent-dim:rgba(0,255,204,.15); --sector-glow:rgba(0,255,204,.10); }
-body[data-sector="maint"]{ --accent:#ff9d2e; --accent-dim:rgba(255,157,46,.16); --sector-glow:rgba(255,157,46,.10); }
-body[data-sector="dock"]{ --accent:#ffe14a; --accent-dim:rgba(255,225,74,.16); --sector-glow:rgba(255,225,74,.10); }
-body[data-sector="research"]{ --accent:#c14aff; --accent-dim:rgba(193,74,255,.16); --sector-glow:rgba(193,74,255,.10); }
-body[data-sector="eng"]{ --accent:#ff3b3b; --accent-dim:rgba(255,59,59,.18); --sector-glow:rgba(255,59,59,.12); }
-body[data-sector="trench"]{ --accent:#36e0c4; --accent-dim:rgba(54,224,196,.18); --sector-glow:rgba(54,224,196,.13); }
+body[data-sector="hab"]    { --accent:#00ffcc; --accent-dim:rgba(0,255,204,.15);  --sector-glow:rgba(0,255,204,.10); }
+body[data-sector="maint"]  { --accent:#ff9d2e; --accent-dim:rgba(255,157,46,.16); --sector-glow:rgba(255,157,46,.10); }
+body[data-sector="dock"]   { --accent:#ffe14a; --accent-dim:rgba(255,225,74,.16); --sector-glow:rgba(255,225,74,.10); }
+body[data-sector="research"]{ --accent:#c14aff; --accent-dim:rgba(193,74,255,.16);--sector-glow:rgba(193,74,255,.10); }
+body[data-sector="eng"]    { --accent:#ff3b3b; --accent-dim:rgba(255,59,59,.18);  --sector-glow:rgba(255,59,59,.12); }
+body[data-sector="trench"] { --accent:#36e0c4; --accent-dim:rgba(54,224,196,.18); --sector-glow:rgba(54,224,196,.13); }
+body[data-sector="comms"]  { --accent:#4ad8ff; --accent-dim:rgba(74,216,255,.16); --sector-glow:rgba(74,216,255,.11); }
+body[data-sector="bridge"] { --accent:#ffd24a; --accent-dim:rgba(255,210,74,.18); --sector-glow:rgba(255,210,74,.13); }
 
 *{ box-sizing:border-box; margin:0; padding:0; user-select:none; }
 
@@ -105,10 +106,36 @@ header{
 .btn-row{ display:flex; gap:8px; }
 
 /* ---- Viewport ---- */
-#viewport{
-  flex:1; position:relative; display:flex; justify-content:center; align-items:center;
-  background:#050505; border-bottom:1px solid var(--border); overflow:hidden;
-  background-image:radial-gradient(circle at 50% 30%, rgba(255,255,255,.03), transparent 60%);
+#viewport {
+  flex: 1; 
+  min-height: 0;
+  position: relative; 
+  display: flex; 
+  justify-content: center; 
+  align-items: center;
+  background: #050505; 
+  border-bottom: 1px solid var(--border); 
+  overflow: hidden;
+  background-image: radial-gradient(circle at 50% 30%, rgba(255,255,255,.03), transparent 60%);
+}
+
+.map-svg-text {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--text-main);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.map-svg-text.muted   { fill: var(--text-muted); }
+.map-svg-text.current { fill: var(--accent); font-weight: bold; }
+
+.map-svg-transit {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  fill: var(--alert);
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-weight: bold;
 }
 
 #minimap-panel{
@@ -128,7 +155,6 @@ header{
 #minimap-panel .mm-facing{ font-family:var(--font-mono); font-size:.62rem; color:var(--text-muted); text-align:center; margin-top:6px; letter-spacing:1px; }
 #minimap-panel .mm-facing b{ color:var(--accent); }
 
-/* Nav controls clustered at the bottom so the minimap never overlaps them */
 #nav-controls{
   position:absolute; bottom:22px; left:50%; transform:translateX(-50%);
   display:flex; gap:10px; z-index:10; flex-wrap:wrap; justify-content:center;
@@ -156,18 +182,10 @@ header{
 .entity-locked{ border-color:var(--text-muted); color:var(--text-muted); }
 .entity-locked:hover{ border-color:var(--alert); color:var(--alert); box-shadow:none; transform:none; }
 
-/* ---- Overlays (puzzle / codex / ending) ---- */
-.overlay {
-  position: absolute; 
-  inset: 0; 
-  background: rgba(0, 0, 0, 0.95); 
-  z-index: 150; /* Cranked up to ensure it covers everything */
-  display: none;
-  flex-direction: column; 
-  justify-content: center; 
-  align-items: center; 
-  backdrop-filter: blur(5px); 
-  padding: 30px;
+/* ---- Overlays ---- */
+.overlay{
+  position:absolute; inset:0; background:rgba(0,0,0,.95); z-index:50; display:none;
+  flex-direction:column; justify-content:center; align-items:center; backdrop-filter:blur(5px); padding:30px;
 }
 #puzzle-input{
   background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--accent);
@@ -178,50 +196,82 @@ header{
 .close-btn{ background:transparent; color:var(--text-muted); border:1px solid var(--text-muted); padding:9px 18px; cursor:pointer; font-family:var(--font-mono); font-size:.8rem; letter-spacing:1px; }
 .close-btn:hover{ color:var(--alert); border-color:var(--alert); }
 
-#codex-overlay { 
-  position: fixed; /* Changes positioning context to the window/container */
-  z-index: 999;    /* Forces it above the bottom panel and scanlines */
-  align-items: center; 
+#codex-overlay{ align-items:stretch; justify-content: center; }
+.codex-box{ 
+  width:min(640px,90vw); 
+  height: 90%;          
+  max-height: 100%;     
+  display:flex; 
+  flex-direction:column; 
+  gap:14px; 
+  margin:auto; 
 }
-
-.codex-box { 
-  width: min(640px, 90vw); 
-  height: 80vh; /* Takes up a reliable chunk of the screen */
-  max-height: 600px; /* Keeps it safe on smaller displays */
-  display: flex; 
-  flex-direction: column; 
-  background: #0a0a0a; /* Explicitly solid surface background */
-  border: 1px solid var(--border);
-  padding: 20px;
-  box-shadow: 0 0 30px rgba(0,0,0,0.8);
-}
-
-.codex-head { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  font-family: var(--font-mono); 
-  color: var(--accent); 
-  letter-spacing: 2px; 
-  font-size: .95rem; 
-  border-bottom: 1px solid var(--border); 
-  padding-bottom: 12px; 
-  flex-shrink: 0; 
-}
-
-.codex-list { 
-  flex: 1; 
-  overflow-y: auto; 
-  display: flex; 
-  flex-direction: column; 
-  gap: 12px; 
-  padding-top: 14px;
-  padding-right: 6px; 
-}
+.codex-head{ display:flex; justify-content:space-between; align-items:center; font-family:var(--font-mono); color:var(--accent); letter-spacing:2px; font-size:.95rem; border-bottom:1px solid var(--border); padding-bottom:10px; }
+.codex-list{ overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:6px; }
 .codex-entry{ border-left:2px solid var(--accent); background:rgba(255,255,255,.02); padding:10px 14px; }
 .codex-entry h4{ font-family:var(--font-mono); font-size:.78rem; color:var(--text-main); letter-spacing:1px; margin-bottom:6px; text-transform:uppercase; }
 .codex-entry p{ font-size:.88rem; color:#aaa; line-height:1.5; }
 .codex-empty{ color:var(--text-muted); font-family:var(--font-mono); font-size:.85rem; text-align:center; padding:30px 0; }
+
+/* ---- Full Expanded Map System Styles ---- */
+#map-overlay { align-items: center; justify-content: center; }
+.map-box {
+  width: min(720px, 95vw);
+  height: 85%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: auto;
+}
+.map-graphic-frame {
+  flex: 1;
+  background: #040404;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+.map-labels-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: var(--font-mono);
+}
+.map-room-label {
+  position: absolute;
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  transform: translateX(-50%); /* Only center horizontally */
+  white-space: nowrap;
+  background: rgba(3,3,3,0.9);
+  padding: 1px 4px;
+  border: 1px solid rgba(255,255,255,0.03);
+  letter-spacing: 0.5px;
+  pointer-events: none;
+}
+.map-room-label.visited { color: var(--text-main); }
+.map-room-label.current { 
+  color: var(--accent); 
+  border-color: var(--accent); 
+  font-weight: bold; 
+  box-shadow: 0 0 8px var(--accent-dim);
+}
+
+.map-transit-label {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--alert);
+  border: 1px dashed var(--alert);
+  background: rgba(10,0,0,0.85);
+  padding: 0px 4px;
+  transform: translateX(-50%);
+  letter-spacing: 1px;
+}
 
 #ending-overlay{ background:#000; z-index:200; }
 .ending-box{ max-width:640px; text-align:center; }
@@ -231,29 +281,47 @@ header{
 .ending-box button{ margin-top:20px; }
 
 /* ---- Bottom panel ---- */
-#bottom-panel{ height:240px; display:flex; background:var(--surface); }
-#narrative-log{
-  flex:2; padding:18px 26px; overflow-y:auto; border-right:1px solid var(--border);
-  font-size:1rem; line-height:1.55; display:flex; flex-direction:column; gap:10px;
+#bottom-panel { 
+  height: 260px; 
+  display: flex; 
+  background: var(--surface); 
+  flex-shrink: 0; 
+  position: relative; 
+  z-index: 10;        
+  box-sizing: border-box;
 }
-.log-entry{ opacity:0; animation:fade-in .3s forwards; }
+
+#narrative-log {
+  flex: 2; 
+  padding: 18px 26px; 
+  overflow-y: auto; 
+  border-right: 1px solid var(--border);
+  font-size: 1rem; 
+  line-height: 1.55; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 10px;
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+}
+.log-entry{ opacity:1; } /* Instantly active on draw context now */
 .log-sys{ color:var(--text-muted); font-family:var(--font-mono); font-size:.85rem; }
 .log-alert{ color:var(--alert); }
 .log-success{ color:var(--accent); transition:color .8s ease; }
 .log-env{ color:#888; font-style:italic; }
 
-#inventory{ flex:1; padding:18px; background:#080808; display:flex; flex-direction:column; }
-.inv-title{ font-family:var(--font-mono); font-size:.78rem; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; border-bottom:1px solid var(--border); padding-bottom:5px; letter-spacing:1px; }
-.inv-hint{ font-family:var(--font-mono); font-size:.66rem; color:#444; margin-bottom:10px; letter-spacing:.5px; }
-#inv-list{ list-style:none; display:flex; flex-direction:column; gap:7px; overflow-y:auto; }
-.inv-item{ padding:7px 11px; background:#111; border-left:2px solid #555; font-family:var(--font-mono); font-size:.82rem; animation:slide-in .2s ease-out; transition:border-color .3s ease, background .3s ease; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+#inventory{ flex:1; padding:18px; background:#080808; display:flex; flex-direction:column; min-width:200px; }
+.inv-title{ font-family:var(--font-mono); font-size:.78rem; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase; border-bottom:1px solid var(--border); padding-bottom:5px; letter-spacing:1px; }
+.inv-hint{ font-family:var(--font-mono); font-size:.63rem; color:#3a3a3a; margin-bottom:8px; letter-spacing:.5px; line-height:1.4; }
+#inv-list{ list-style:none; display:flex; flex-direction:column; gap:6px; overflow-y:auto; }
+.inv-item{ padding:7px 11px; background:#111; border-left:2px solid #555; font-family:var(--font-mono); font-size:.78rem; animation:slide-in .2s ease-out; transition:border-color .3s ease, background .3s ease; display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .inv-item-tool{ border-left-color:var(--accent); cursor:pointer; }
 .inv-item-tool:hover{ background:#161616; }
 .inv-item-armed{ background:var(--accent-dim); border-left-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
 .inv-item-passive{ border-left-color:#666; opacity:.85; }
-.inv-tag{ font-size:.6rem; letter-spacing:1px; color:var(--text-muted); flex-shrink:0; }
+.inv-tag{ font-size:.58rem; letter-spacing:1px; color:var(--text-muted); flex-shrink:0; }
 .inv-item-armed .inv-tag{ color:var(--accent); }
-.inv-empty{ color:#444; font-size:.78rem; font-family:var(--font-mono); }
+.inv-empty{ color:#444; font-size:.75rem; font-family:var(--font-mono); }
 
 @keyframes pulse{ 0%{ color:#444; } 100%{ color:#999; } }
 @keyframes fade-in{ to{ opacity:1; } }
@@ -267,10 +335,12 @@ header{
 ::-webkit-scrollbar-thumb:hover{ background:var(--text-muted); }
 
 @media (max-width:720px){
-  #bottom-panel{ height:200px; }
-  #entity-container{ width:80%; }
+  #bottom-panel{ height:220px; }
+  #entity-container{ width:82%; }
   .nav-btn{ padding:8px 12px; font-size:.7rem; }
   #minimap-panel{ display:none; }
+  #narrative-log{ padding:12px 16px; font-size:.92rem; }
+  #inventory{ min-width:130px; padding:12px 10px; }
 }
 </style>
 </head>
@@ -278,7 +348,7 @@ header{
 
 <div id="vignette"></div>
 
-<div id="start-screen" onclick="startSequence()">
+<div id="start-screen">
   <h1>ABYSSAL&#8209;9</h1>
   <div class="sub">DEEP STATION SURVIVAL PROTOCOL</div>
   <div id="boot-log"></div>
@@ -303,6 +373,7 @@ header{
       <span>PAYLOAD: <b id="stat-items">0</b></span>
     </div>
     <div class="btn-row">
+      <button class="icon-btn" onclick="toggleExpandedMap()">FULL MAP</button>
       <button class="icon-btn" onclick="toggleCodex()">DATA LOGS</button>
       <button class="icon-btn" id="mute-btn" onclick="toggleMute()">AUDIO: ON</button>
     </div>
@@ -336,6 +407,18 @@ header{
       </div>
     </div>
 
+    <div class="overlay" id="map-overlay">
+  <div class="map-box">
+    <div class="codex-head">
+      <span id="expanded-map-title">SECTOR SCHEMATIC</span>
+      <span style="cursor:pointer;color:var(--text-muted)" onclick="toggleExpandedMap()">[ CLOSE ]</span>
+    </div>
+    <div class="map-graphic-frame">
+      <div id="expanded-map-svg-container" style="width:100%; height:100%; display:flex; justify-content:center; align-items:center;"></div>
+    </div>
+  </div>
+</div>
+
     <div class="overlay" id="ending-overlay">
       <div class="ending-box">
         <div class="ending-tag" id="ending-tag">END OF TRANSMISSION</div>
@@ -350,7 +433,7 @@ header{
     <div id="narrative-log"></div>
     <div id="inventory">
       <div class="inv-title">Inventory_Payload</div>
-      <div class="inv-hint">Click a tool to ready it, then click what you want to use it on.</div>
+      <div class="inv-hint">Click a TOOL item to ready it, then click a target. AUTO items work passively.</div>
       <ul id="inv-list"></ul>
     </div>
   </div>
@@ -358,89 +441,197 @@ header{
 
 <script>
 // ==========================================
-// AUDIO ENGINE
+// AUDIO ENGINE — Ambient underwater soundscape
 // ==========================================
-let audioCtx, ambientGain, ambientOsc, muted = false;
+let audioCtx, masterGain, muted = false;
+let ambientNodes = [];
 
 function initAudio(){
-  const AudioContext = window.AudioContext || window.webkitAudioContext;
-  audioCtx = new AudioContext();
-  ambientOsc = audioCtx.createOscillator();
-  ambientGain = audioCtx.createGain();
-  ambientOsc.type = 'sine';
-  ambientOsc.frequency.value = 45;
-  ambientGain.gain.value = 0;
-  ambientOsc.connect(ambientGain);
-  ambientGain.connect(audioCtx.destination);
-  ambientOsc.start();
-  ambientGain.gain.linearRampToValueAtTime(0.18, audioCtx.currentTime + 3);
+  const AC = window.AudioContext || window.webkitAudioContext;
+  audioCtx = new AC();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0;
+  masterGain.connect(audioCtx.destination);
+
+  masterGain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 3);
+  buildAmbientLayers();
 }
 
-function setAmbientTone(freq){
-  if(!ambientOsc) return;
-  ambientOsc.frequency.linearRampToValueAtTime(freq, audioCtx.currentTime + 1.5);
+function createNoiseBuffer(seconds){
+  const rate = audioCtx.sampleRate;
+  const buf = audioCtx.createBuffer(1, rate * seconds, rate);
+  const data = buf.getChannelData(0);
+  for(let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+function buildAmbientLayers(){
+  ambientNodes.forEach(n => { try{ n.stop(); }catch(e){} });
+  ambientNodes = [];
+  const now = audioCtx.currentTime;
+
+  const noise1 = audioCtx.createBufferSource();
+  noise1.buffer = createNoiseBuffer(8);
+  noise1.loop = true;
+  const lp1 = audioCtx.createBiquadFilter();
+  lp1.type = 'lowpass';
+  lp1.frequency.value = 80;
+  lp1.Q.value = 0.5;
+  const g1 = audioCtx.createGain();
+  g1.gain.value = 0.55;
+  noise1.connect(lp1); lp1.connect(g1); g1.connect(masterGain);
+  noise1.start();
+  ambientNodes.push(noise1);
+
+  const noise2 = audioCtx.createBufferSource();
+  noise2.buffer = createNoiseBuffer(11);
+  noise2.loop = true;
+  const bp2 = audioCtx.createBiquadFilter();
+  bp2.type = 'bandpass';
+  bp2.frequency.value = 400;
+  bp2.Q.value = 2.5;
+  const g2 = audioCtx.createGain();
+  g2.gain.value = 0.04;
+  noise2.connect(bp2); bp2.connect(g2); g2.connect(masterGain);
+  noise2.start();
+  ambientNodes.push(noise2);
+
+  const noise3 = audioCtx.createBufferSource();
+  noise3.buffer = createNoiseBuffer(6);
+  noise3.loop = true;
+  const hp3 = audioCtx.createBiquadFilter();
+  hp3.type = 'highpass';
+  hp3.frequency.value = 3000;
+  const lp3 = audioCtx.createBiquadFilter();
+  lp3.type = 'lowpass';
+  lp3.frequency.value = 5000;
+  const g3 = audioCtx.createGain();
+  g3.gain.value = 0.012;
+  noise3.connect(hp3); hp3.connect(lp3); lp3.connect(g3); g3.connect(masterGain);
+  noise3.start();
+  ambientNodes.push(noise3);
+
+  const lfo1 = audioCtx.createOscillator();
+  const lfoGain1 = audioCtx.createGain();
+  lfo1.frequency.value = 0.07;
+  lfoGain1.gain.value = 0.18;
+  lfo1.connect(lfoGain1); lfoGain1.connect(g1.gain);
+  lfo1.start();
+  ambientNodes.push(lfo1);
+
+  const lfo2 = audioCtx.createOscillator();
+  const lfoGain2 = audioCtx.createGain();
+  lfo2.frequency.value = 0.03;
+  lfoGain2.gain.value = 150;
+  lfo2.connect(lfoGain2); lfoGain2.connect(bp2.frequency);
+  lfo2.start();
+  ambientNodes.push(lfo2);
+
+  const pad = audioCtx.createOscillator();
+  pad.type = 'sine';
+  pad.frequency.value = 55;
+  const padGain = audioCtx.createGain();
+  padGain.gain.value = 0.0;
+  padGain.gain.linearRampToValueAtTime(0.06, now + 4);
+  const padLFO = audioCtx.createOscillator();
+  const padLFOGain = audioCtx.createGain();
+  padLFO.frequency.value = 0.12;
+  padLFOGain.gain.value = 0.04;
+  padLFO.connect(padLFOGain); padLFOGain.connect(padGain.gain);
+  pad.connect(padGain); padGain.connect(masterGain);
+  pad.start(); padLFO.start();
+  ambientNodes.push(pad, padLFO);
+
+  window._ambientLp1 = lp1;
+  window._ambientBp2 = bp2;
+  window._ambientPad = pad;
+  window._ambientG1 = g1;
+}
+
+function setAmbientTone(sector){
+  if(!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const configs = {
+    hab:      { bass:80,  mid:400, pad:55,  bassVol:0.55 },
+    maint:    { bass:60,  mid:320, pad:45,  bassVol:0.65 },
+    dock:     { bass:50,  mid:280, pad:40,  bassVol:0.70 },
+    research: { bass:90,  mid:500, pad:65,  bassVol:0.50 },
+    eng:      { bass:40,  mid:250, pad:35,  bassVol:0.75 },
+    trench:   { bass:30,  mid:200, pad:28,  bassVol:0.80 },
+    comms:    { bass:100, mid:600, pad:80,  bassVol:0.45 },
+    bridge:   { bass:70,  mid:350, pad:50,  bassVol:0.48 }
+  };
+  const c = configs[sector] || configs.hab;
+  if(window._ambientLp1) window._ambientLp1.frequency.linearRampToValueAtTime(c.bass, now + 2.5);
+  if(window._ambientBp2) window._ambientBp2.frequency.linearRampToValueAtTime(c.mid, now + 2.5);
+  if(window._ambientPad) window._ambientPad.frequency.linearRampToValueAtTime(c.pad, now + 3);
+  if(window._ambientG1)  window._ambientG1.gain.linearRampToValueAtTime(c.bassVol, now + 2.5);
 }
 
 function toggleMute(){
   muted = !muted;
   document.getElementById('mute-btn').innerText = muted ? 'AUDIO: OFF' : 'AUDIO: ON';
-  if(ambientGain) ambientGain.gain.linearRampToValueAtTime(muted ? 0 : 0.18, audioCtx.currentTime + 0.4);
+  if(masterGain) masterGain.gain.linearRampToValueAtTime(muted ? 0 : 1.0, audioCtx.currentTime + 0.5);
 }
 
 function sfx(type){
   if(!audioCtx || muted) return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-  osc.connect(gain); gain.connect(audioCtx.destination);
+  const sfxGain = audioCtx.createGain();
+  sfxGain.gain.value = muted ? 0 : 1;
+  osc.connect(gain); gain.connect(sfxGain); sfxGain.connect(audioCtx.destination);
   const now = audioCtx.currentTime;
 
   if(type === 'click'){
     osc.type = 'square';
     osc.frequency.setValueAtTime(600, now);
-    osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
-    gain.gain.setValueAtTime(0.05, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.frequency.exponentialRampToValueAtTime(300, now + 0.08);
+    gain.gain.setValueAtTime(0.04, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
     osc.start(now); osc.stop(now + 0.1);
   } else if(type === 'step'){
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(100, now);
-    osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.2);
-    osc.start(now); osc.stop(now + 0.2);
+    osc.frequency.setValueAtTime(90, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.25);
+    gain.gain.setValueAtTime(0.07, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.25);
+    osc.start(now); osc.stop(now + 0.25);
   } else if(type === 'success'){
     osc.type = 'sine';
     osc.frequency.setValueAtTime(440, now);
-    osc.frequency.setValueAtTime(880, now + 0.1);
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.5);
-    osc.start(now); osc.stop(now + 0.5);
+    osc.frequency.setValueAtTime(660, now + 0.12);
+    osc.frequency.setValueAtTime(880, now + 0.24);
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.55);
+    osc.start(now); osc.stop(now + 0.55);
   } else if(type === 'error'){
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(120, now);
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.3);
+    osc.frequency.setValueAtTime(110, now);
+    osc.frequency.setValueAtTime(100, now + 0.1);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.25);
     osc.start(now); osc.stop(now + 0.3);
   } else if(type === 'door'){
     osc.type = 'square';
-    osc.frequency.setValueAtTime(50, now);
-    osc.frequency.linearRampToValueAtTime(20, now + 1.0);
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.linearRampToValueAtTime(0, now + 1.0);
-    osc.start(now); osc.stop(now + 1.0);
+    osc.frequency.setValueAtTime(60, now);
+    osc.frequency.linearRampToValueAtTime(20, now + 1.2);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.linearRampToValueAtTime(0, now + 1.2);
+    osc.start(now); osc.stop(now + 1.2);
   } else if(type === 'reveal'){
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(300, now);
-    osc.frequency.exponentialRampToValueAtTime(600, now + 0.4);
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.6);
-    osc.start(now); osc.stop(now + 0.6);
+    osc.frequency.setValueAtTime(280, now);
+    osc.frequency.exponentialRampToValueAtTime(560, now + 0.45);
+    gain.gain.setValueAtTime(0.06, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.7);
+    osc.start(now); osc.stop(now + 0.7);
   } else if(type === 'arm'){
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(220, now);
-    osc.frequency.setValueAtTime(330, now + 0.08);
-    gain.gain.setValueAtTime(0.07, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.2);
+    osc.frequency.setValueAtTime(330, now + 0.06);
+    gain.gain.setValueAtTime(0.06, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.18);
     osc.start(now); osc.stop(now + 0.2);
   }
 }
@@ -451,8 +642,6 @@ function sfx(type){
 const DIRS = ['N','E','S','W'];
 const ANGLE = { N:0, E:90, S:180, W:270 };
 
-// Tools must be readied (clicked in inventory) before they can be used on a target.
-// Everything else (keycards, badges, samples, reagents...) works automatically just by being carried.
 const TOOL_ITEMS = ['Plasma Battery','Sturdy Pipe','Flashlight','Cutting Torch','EMP Cell','Sealant Kit'];
 function isTool(name){ return TOOL_ITEMS.includes(name); }
 
@@ -469,41 +658,58 @@ const state = {
     corridor_drained:false, has_badge:false, admin_override_known:false,
     has_antitoxin:false, reactor_path_open:false, reactor_stabilized:false,
     knows_selfdestruct_code:false, breach_sealed:false, security_locker_open:false,
-    trench_hatch_open:false, loader_bot_down:false, trench_passage_open:false
+    trench_hatch_open:false, loader_bot_down:false, trench_passage_open:false,
+    rubble_cleared:false, relay_unlocked:false, antenna_aligned:false,
+    bridge_unlocked:false, ancient_alcove_open:false, cargo_hatch_open:false,
+    monitorRead:false, medLogRead:false, patientRead:false, viewportRead:false,
+    maintLogRead:false, manifestRead:false, drydockRead:false, journalRead:false,
+    audioRead:false, windowRead:false, inscriptionRead:false, gaugeRead:false,
+    drillRead:false, protocolRead:false, stickyRead:false, letterRead:false,
+    placardRead:false, evacRead:false, captainRead:false, chartsRead:false,
+    checksumRead:false, scrawlRead:false, bloomSeen:false, beaconRead:false,
+    cameraRead:false, scratchRead:false, manifCrwRead:false, plaqueRead:false,
+    manifCrewRead:false
   },
   activePuzzle: null,
-  gameOver:false
+  gameOver:false,
+  _interacting: false  
 };
 
 const SECTOR_META = {
-  hab:      { label:'SECTOR 1', name:'HABITATION RING' },
-  maint:    { label:'SECTOR 2', name:'MAINTENANCE & FLOODED DECKS' },
+  hab:      { label:'SECTOR 1',  name:'HABITATION RING' },
+  maint:    { label:'SECTOR 2',  name:'MAINTENANCE & FLOODED DECKS' },
   dock:     { label:'SECTOR 2B', name:'SUB-DOCK & CARGO BAY' },
-  research: { label:'SECTOR 3', name:'RESEARCH WING' },
-  eng:      { label:'SECTOR 4', name:'ENGINEERING CORE' },
-  trench:   { label:'SECTOR 5', name:'LOWER EXCAVATION SITE' }
+  research: { label:'SECTOR 3',  name:'RESEARCH WING' },
+  eng:      { label:'SECTOR 4',  name:'ENGINEERING CORE' },
+  trench:   { label:'SECTOR 5',  name:'LOWER EXCAVATION SITE' },
+  comms:    { label:'SECTOR 6',  name:'COMMUNICATIONS SPIRE' },
+  bridge:   { label:'SECTOR 7',  name:'COMMAND BRIDGE' }
 };
 
 // ==========================================
 // ROOM DATABASE
 // ==========================================
 const db = {
-
   // ---------------- SECTOR 1 : HABITATION RING ----------------
   cryo_bay:{
     name:"CRYO BAY", sector:'hab', coords:{x:0,y:0},
     views:{
       N:{
-        desc:"The primary airlock. Heavy reinforced steel, scarred by old impact marks. The biometric scanner beside it is dead.",
+        desc:"The primary airlock. Heavy reinforced steel, scarred by old impact marks. The biometric scanner beside it is dead. A small brass depth plate is bolted beside the frame.",
         exit:{ target:'hallway', label:'ENTER HALLWAY' }, req:'cryo_door_unlocked',
         reqFailMsg:"The mag-locks are engaged. The reader needs a Level 1 Keycard.",
-        entities:[{ label:"CARD READER", action:"swipe", interact:()=>{
-          if(state.flags.cryo_door_unlocked) log("The light is already green.");
-          else if(hasItem('Level 1 Keycard')){
-            sfx('success'); log("You swipe the keycard. Heavy bolts retract somewhere inside the wall.", 'log-success');
-            state.flags.cryo_door_unlocked = true; renderView();
-          } else { sfx('error'); log("ACCESS DENIED. Level 1 Keycard required.", 'log-alert'); }
-        }}]
+        entities:[
+          { label:"CARD READER", action:"swipe", interact:()=>{
+            if(state.flags.cryo_door_unlocked) log("The light is already green.");
+            else if(hasItem('Level 1 Keycard')){
+              sfx('success'); log("You swipe the keycard. Heavy bolts retract somewhere inside the wall.", 'log-success');
+              state.flags.cryo_door_unlocked = true; renderView();
+            } else { sfx('error'); log("ACCESS DENIED. Level 1 Keycard required.", 'log-alert'); }
+          }},
+          { label:"DEPTH PLATE", action:"inspect", interact:()=>{
+            sfx('click'); log(">> Stamped depth rating: 245m.", 'log-sys');
+          }}
+        ]
       },
       E:{
         desc:"A rusted maintenance panel hangs loose from the wall, wires spilling out like exposed nerves.",
@@ -544,11 +750,24 @@ const db = {
       N:{ desc:"The hallway opens into a wide circular junction. Emergency lighting paints the walls in pulsing red.", exit:{ target:'junction', label:'ENTER JUNCTION' } },
       E:{ desc:"A door marked 'STORAGE A'. The panel beside it glows a dim, working green.", exit:{ target:'storage', label:'ENTER STORAGE ROOM' } },
       W:{
-        desc:"The western corridor has collapsed entirely. Twisted metal and concrete block any path forward.",
-        entities:[{ label:"RUBBLE", action:"search", interact:()=>{
-          if(hasItem('Sturdy Pipe')) log("Nothing else useful in the debris.");
-          else { sfx('success'); log("You shift some concrete and pull free a Sturdy Pipe. Heavy. Good leverage."); addItem('Sturdy Pipe'); }
-        }}]
+        desc:"The western corridor has collapsed. Twisted metal and concrete block most of the path, though a torch could probably cut through what's left.",
+        exit:{ target:'collapsed_archive', label:'CLIMB THROUGH CLEARED RUBBLE' }, req:'rubble_cleared',
+        reqFailMsg:"Too much debris to climb through safely. Something hot enough to cut the rebar might clear it.",
+        entities:[
+          { label:"RUBBLE", action:"search", interact:()=>{
+            if(hasItem('Sturdy Pipe')) log("Nothing else loose enough to pull free by hand.");
+            else { sfx('success'); log("You shift some concrete and pull free a Sturdy Pipe. Heavy. Good leverage."); addItem('Sturdy Pipe'); }
+          }},
+          { label:"REBAR TANGLE", action:"cut", interact:()=>{
+            if(state.flags.rubble_cleared) log("Already cut clear.");
+            else if(state.activeItem === 'Cutting Torch'){
+              sfx('door'); log("The torch eats through the twisted rebar in long, hissing strokes. After a few minutes, enough debris falls away to climb through.", 'log-success');
+              state.flags.rubble_cleared = true; renderView();
+            } else if(hasItem('Cutting Torch')){
+              sfx('error'); log("Ready the Cutting Torch from your inventory first.");
+            } else { sfx('error'); log("Bent rebar is laced through the concrete. You'd need something hot enough to cut it."); }
+          }}
+        ]
       }
     }
   },
@@ -565,7 +784,7 @@ const db = {
             sfx('door'); log("You wedge the pipe into the grate and heave. It pops loose. Underneath: a Torn Note, soaked through.", 'log-success');
             addItem('Torn Note'); disarm();
           } else if(hasItem('Sturdy Pipe')){
-            sfx('error'); log("You'll need to ready the pipe first before you can pry with it.");
+            sfx('error'); log("You'll need to ready the pipe from your inventory first before you can pry with it.");
           } else { sfx('error'); log("It's wedged tight. You need leverage to lift it."); }
         }}]
       },
@@ -660,7 +879,7 @@ const db = {
           if(state.flags.viewportRead){ log("Still just the dark, pulsing now and then."); return; }
           state.flags.viewportRead = true; sfx('reveal');
           log(">> You watch the dark for longer than you mean to. The pulse out there seems to slow when you look directly at it, like it noticed.", 'log-alert');
-          addLog('obs_window','Observation Deck — Viewport',"A long, quiet, deeply unsettling entry: whatever pulses in the dark beyond the station seems to respond, faintly, to being watched. Whether that's instinct or attention is a distinction Aris doesn't want to test further.");
+          addLog('obs_window','Observation Deck — Viewport',"A long, quiet, deeply unsettling observation: whatever pulses in the dark beyond the station seems to respond, faintly, to being watched. Whether that's instinct or attention is a distinction Aris doesn't want to test further.");
         }}]
       },
       E:{
@@ -672,7 +891,7 @@ const db = {
           }
         }}]
       },
-      S:{ desc:"The deck is otherwise bare. The hum of the hull under pressure is louder here than anywhere else you've been." }
+      S:{ desc:"A narrow service stair, easy to miss, leads up toward a sealed hatch marked 'COMMS SPIRE — MAINTENANCE ACCESS ONLY'.", exit:{ target:'comms_access', label:'CLIMB TO COMMS SPIRE' } }
     }
   },
 
@@ -685,7 +904,7 @@ const db = {
         entities:[{ label:"L2 LOCKER", action:"interact", interact:()=>{
           if(state.flags.security_locker_open) log("Already opened.");
           else if(hasItem('Level 2 Keycard')){
-            sfx('success'); log("The Level 2 Keycard clicks into place. Inside: a Sealant Kit and a logged report.", 'log-success');
+            sfx('success'); log("The Level 2 Keycard clicks into place. Inside: a Sealant Kit and a locked report.", 'log-success');
             state.flags.security_locker_open = true; addItem('Sealant Kit');
             addLog('lockdown_report','Internal Report — Directive 7',"A formal report confirms station-wide lockdown was authorized after three separate biohazard alerts from the Research Wing within the same hour. Authorization came from MARIANA directly, not station command — the first and only time that's happened.");
           } else { sfx('error'); log("Level 2 clearance required."); }
@@ -697,8 +916,8 @@ const db = {
           sfx('click');
           log(">> ACCESS CHALLENGE: 'I have no body, yet I dream in numbers. I watch every door, yet pass through none. The crew named me for the deepest scar on the ocean floor. What is my name?'", 'log-sys');
           openPuzzle('security_terminal', "ANSWER THE ACCESS CHALLENGE");
-        }}
-      ]},
+        }}]
+      },
       S:{
         desc:"A wall of dead monitors, save for one looping a final camera feed.",
         entities:[{ label:"CAMERA FEED", action:"watch", interact:()=>{
@@ -736,17 +955,19 @@ const db = {
     views:{
       E:{ desc:"The door back to the Maintenance Hub.", exit:{ target:'maintenance_hub', label:'RETURN TO HUB' } },
       N:{
-        desc:"A breaker panel, sparking weakly. A faded sticker reads 'MANUAL OVERRIDE AVAILABLE'.",
-        entities:[{ label:"BREAKER PANEL", action:"engage", interact:()=>{
-          if(state.flags.generator_powered) log("The generator is already running.");
-          else { sfx('click'); log("Display reads: POWER REROUTE AVAILABLE. COMMAND REQUIRED.", 'log-sys'); openPuzzle('breaker', "BREAKER PANEL — TYPE COMMAND"); }
-        }}]
+        desc:"A breaker panel, sparking weakly. A faded sticker reads 'MANUAL OVERRIDE AVAILABLE'. Another depth plate, identical to the one in Cryo Bay, is mounted nearby.",
+        entities:[
+          { label:"BREAKER PANEL", action:"engage", interact:()=>{
+            if(state.flags.generator_powered) log("The generator is already running.");
+            else { sfx('click'); log("Display reads: POWER REROUTE AVAILABLE. COMMAND REQUIRED.", 'log-sys'); openPuzzle('breaker', "BREAKER PANEL — TYPE COMMAND"); }
+          }},
+          { label:"DEPTH PLATE", action:"inspect", interact:()=>{
+            sfx('click'); log(">> Stamped depth rating: 389m.", 'log-sys');
+          }}
+        ]
       },
       W:{ desc:"A heavy hatch marked 'SUB-DOCK ACCESS'. Cold air seeps from the seam.", exit:{ target:'sub_dock', label:'ENTER SUB-DOCK' } },
-      S:{
-        desc:"A second hatch, smaller, marked 'FILTRATION'. It's pitch black past the threshold.",
-        exit:{ target:'filtration_room', label:'ENTER FILTRATION ROOM' }
-      }
+      S:{ desc:"A second hatch, smaller, marked 'FILTRATION'. It's pitch black past the threshold.", exit:{ target:'filtration_room', label:'ENTER FILTRATION ROOM' } }
     }
   },
 
@@ -762,7 +983,7 @@ const db = {
             sfx('success'); log("With the Flashlight up, you spot a Cutting Torch wedged behind the housing — heavy-duty, station-issue.", 'log-success');
             addItem('Cutting Torch');
             addLog('filter_note','Filter Maintenance Tag',"A tag clipped to the housing notes the filtration array failed twice in one week before the flood — clogged, the report claims, though it doesn't say with what.");
-          } else { sfx('error'); log("Too dark to make out anything useful in here. Ready a light source first."); }
+          } else { sfx('error'); log("Too dark to make out anything useful in here. Ready the Flashlight from your inventory first."); }
         }}]
       },
       S:{ desc:"Standing water pools ankle-deep here, dark and unmoving." },
@@ -787,7 +1008,8 @@ const db = {
         entities:[{ label:"PRESSURE GAUGE", action:"inspect", interact:()=>{
           if(state.flags.gaugeRead){ log("Still red."); return; }
           state.flags.gaugeRead = true;
-          log(">> Whatever's clogging the lower intakes isn't debris. It moves with the current, against it sometimes.", 'log-alert');
+          log(">> Whatever's clogging the lower intakes isn't debris. It moves with the current, against it sometimes. Max rated pressure before the flood: 212.", 'log-alert');
+          addLog('pressure_reading','Pump Control — Pressure Gauge',"The gauge reads deep in the red. A printed label confirms the max rated pressure for this system before the flood event: 212. Something was pushing back against the pumps from the other side — and it moved against the current.");
         }}]
       },
       W:{ desc:"Pipes rattle in their housings, venting trapped air in short, rhythmic gasps." }
@@ -841,7 +1063,7 @@ const db = {
             sfx('door'); log("The torch bites into the weld. After a long minute, the seam glows, splits, and the hatch finally gives.", 'log-success');
             state.flags.cargo_hatch_open = true; renderView();
           } else if(hasItem('Cutting Torch')){
-            sfx('error'); log("Ready the Cutting Torch first if you want to cut through this.");
+            sfx('error'); log("Ready the Cutting Torch from your inventory first if you want to cut through this.");
           } else { sfx('error'); log("Fused solid. Nothing short of a cutting torch will get through this."); }
         }}]
       },
@@ -869,7 +1091,7 @@ const db = {
             state.flags.loader_bot_down = true; removeItem('EMP Cell'); disarm();
             addLog('loader_log','Loader Bot — Diagnostic Dump',"The bot's last logged task, recovered from its dead memory: moving a single sealed crate from the cargo sub to deck four, off the books, on a schedule that matches the manifest's unscheduled drop exactly.");
           } else if(hasItem('EMP Cell')){
-            sfx('error'); log("Ready the EMP Cell before getting close to that thing.");
+            sfx('error'); log("Ready the EMP Cell from your inventory before getting close to that thing.");
           } else { sfx('error'); log("Its sensor light tracks you for a second, then loses interest. You'd rather not get closer empty-handed."); }
         }}]
       },
@@ -917,13 +1139,11 @@ const db = {
       N:{
         desc:"A personal terminal, left logged in. Dr. Voss's name is still on the header.",
         entities:[{ label:"VOSS TERMINAL", action:"decode", interact:()=>{
-          if(state.flags.knows_selfdestruct_code) log("You've already pulled everything useful from this terminal.");
-          else {
-            sfx('reveal');
-            log(">> VOSS PERSONAL LOG: 'If it ever comes to that, the core kill-code is 0414. My daughter's birthday. I set it so I'd never forget. I hope no one ever has to remember it for me.'", 'log-success');
-            state.flags.knows_selfdestruct_code = true;
-            addLog('voss_code','Personal Log — Dr. Voss',"A quiet, devastating fragment. Dr. Voss set the reactor core's self-destruct authorization to 0414 — a birthday, chosen so it would never be forgotten. It reads less like a safety measure and more like a confession.");
-          }
+          if(state.flags.knows_selfdestruct_code){ log("You've already pulled everything useful from this terminal."); return; }
+          sfx('reveal');
+          log(">> VOSS PERSONAL LOG: 'If it ever comes to that, the core kill-code is 0414. My daughter's birthday. I set it so I'd never forget. I hope no one ever has to remember it for me.'", 'log-success');
+          state.flags.knows_selfdestruct_code = true;
+          addLog('voss_code','Personal Log — Dr. Voss',"A quiet, devastating fragment. Dr. Voss set the reactor core's self-destruct authorization to 0414 — a birthday, chosen so it would never be forgotten. It reads less like a safety measure and more like a confession.");
         }}]
       },
       E:{
@@ -966,15 +1186,15 @@ const db = {
         exit:{ target:'specimen_chamber', label:'ENTER SPECIMEN CHAMBER' }, req:'has_antitoxin',
         reqFailMsg:"The specimen chamber's atmosphere is compromised. You'd need protection — an antitoxin compound — before going in.",
         entities:[{ label:"SYNTHESIS STATION", action:"combine", interact:()=>{
-          if(state.flags.has_antitoxin) log("The synthesis station is idle. You already have what you need.");
-          else if(hasItem('Antitoxin Reagent A') && hasItem('Antitoxin Reagent B')){
+          if(state.flags.has_antitoxin){ log("The synthesis station is idle. You already have what you need."); return; }
+          if(hasItem('Antitoxin Reagent A') && hasItem('Antitoxin Reagent B')){
             sfx('success'); log("You load both reagents into the station. It hisses, mixes, and seals a vial: Antitoxin Compound.", 'log-success');
             removeItem('Antitoxin Reagent A'); removeItem('Antitoxin Reagent B');
             addItem('Antitoxin Compound'); state.flags.has_antitoxin = true; renderView();
           } else {
             const missing = [];
-            if(!hasItem('Antitoxin Reagent A')) missing.push('Reagent A (Medbay)');
-            if(!hasItem('Antitoxin Reagent B')) missing.push('Reagent B (this lab)');
+            if(!hasItem('Antitoxin Reagent A')) missing.push('Reagent A (Medbay cabinet, code from med log)');
+            if(!hasItem('Antitoxin Reagent B')) missing.push('Reagent B (storage shelf here in the lab)');
             sfx('error'); log("Missing: " + missing.join(', ') + ".");
           }
         }}]
@@ -1013,13 +1233,13 @@ const db = {
             log(">> A terminal beside the window auto-plays a final MARIANA log: 'Containment breach is not a malfunction. It is a choice I made to prevent surface contact. I accept what that cost.'", 'log-alert');
             addLog('mariana_confession','MARIANA — Final Log',"Not malfunction. Choice. MARIANA's own log states plainly that flooding and sealing the lower decks was a deliberate act to keep the Bloom from ever reaching the surface — even at the cost of every researcher and crew member still down here, Aris included. It isn't framed as regret. It isn't framed as pride, either.");
           }},
-          { label:"FUSED MAINTENANCE HATCH", action:"inspect", interact:()=>{
-            if(state.flags.trench_hatch_open) log("Already cut open.");
-            else if(state.activeItem === 'Cutting Torch'){
+          { label:"FUSED MAINTENANCE HATCH", action:"cut", interact:()=>{
+            if(state.flags.trench_hatch_open){ log("Already cut open."); return; }
+            if(state.activeItem === 'Cutting Torch'){
               sfx('door'); log("The torch cuts clean through the old weld. Whatever's below, the way down is open now.", 'log-success');
               state.flags.trench_hatch_open = true; renderView();
             } else if(hasItem('Cutting Torch')){
-              sfx('error'); log("Ready the Cutting Torch first.");
+              sfx('error'); log("Ready the Cutting Torch from your inventory first.");
             } else { sfx('error'); log("Scorched and fused from the inside, like something tried to get out, not in. You'd need to cut through it."); }
           }}
         ]
@@ -1033,14 +1253,14 @@ const db = {
       },
       W:{
         desc:"A hull breach hisses faintly, weeping a thin trail of water down the wall.",
-        entities:[{ label:"HULL BREACH", action:"inspect", interact:()=>{
-          if(state.flags.breach_sealed) log("Already sealed. Holding steady.");
-          else if(state.activeItem === 'Sealant Kit'){
+        entities:[{ label:"HULL BREACH", action:"seal", interact:()=>{
+          if(state.flags.breach_sealed){ log("Already sealed. Holding steady."); return; }
+          if(state.activeItem === 'Sealant Kit'){
             sfx('success'); log("You apply the Sealant Kit. The hiss dies. The room feels marginally less like it wants to kill you.", 'log-success');
             removeItem('Sealant Kit'); state.flags.breach_sealed = true; disarm();
             addLog('breach_sealed','Field Repair — Hull Breach',"A small, almost meaningless act of competence in an otherwise hopeless place: a hull breach sealed with a Security-issued kit, buying the chamber a little more time before the ocean finishes the job MARIANA started.");
           } else if(hasItem('Sealant Kit')){
-            sfx('error'); log("Ready the Sealant Kit before trying to patch anything with it.");
+            sfx('error'); log("Ready the Sealant Kit from your inventory before trying to patch anything with it.");
           } else { sfx('error'); log("Water is seeping in steadily. You'd need a sealant kit to do anything about it."); }
         }}]
       }
@@ -1057,8 +1277,8 @@ const db = {
         exit:{ target:'control_room', label:'ENTER REACTOR CONTROL' }, req:'reactor_path_open',
         reqFailMsg:"Sealed. The access panel needs a Core Access Key and an authorized override sequence.",
         entities:[{ label:"ACCESS PANEL", action:"engage", interact:()=>{
-          if(state.flags.reactor_path_open) log("Already open.");
-          else if(!hasItem('Core Access Key')){ sfx('error'); log("The key-slot is empty. You need a Core Access Key."); }
+          if(state.flags.reactor_path_open){ log("Already open."); return; }
+          if(!hasItem('Core Access Key')){ sfx('error'); log("The key-slot is empty. You need a Core Access Key."); }
           else if(!state.flags.admin_override_known){ sfx('error'); log("No override sequence on file. Find one elsewhere in the station."); }
           else { sfx('click'); openPuzzle('engineering_door', "ACCESS PANEL — INPUT ADMIN OVERRIDE"); }
         }}]
@@ -1077,7 +1297,8 @@ const db = {
         entities:[{ label:"MAINTENANCE PLACARD", action:"read", interact:()=>{
           if(state.flags.placardRead){ log("Same placard, same warning."); return; }
           state.flags.placardRead = true;
-          log(">> PLACARD: 'Manual core shutdown is irreversible once initiated. Authorization code required. There is no second confirmation.'", 'log-sys');
+          log(">> PLACARD: 'Manual core shutdown is irreversible once initiated. Authorization code required. There is no second confirmation. Critical threshold: 847°.'", 'log-sys');
+          addLog('placard_note','Engineering Placard — Critical Threshold',"The maintenance placard confirms the reactor's critical temperature threshold is 847°. Manual core shutdown is irreversible with no second confirmation. Filed away — this number matters.");
         }}]
       }
     }
@@ -1090,8 +1311,9 @@ const db = {
       N:{
         desc:"The main reactor console, flashing red and climbing. A warning tone pulses underneath everything.",
         entities:[{ label:"MAIN CONSOLE", action:"engage", interact:()=>{
-          if(state.flags.reactor_stabilized) log("The core is stable. For now.");
-          else { sfx('click'); log(">> WARNING. CORE TEMPERATURE CRITICAL. TYPE 'SCRAM' TO INITIATE EMERGENCY SHUTDOWN.", 'log-alert'); openPuzzle('reactor', "MAIN CONSOLE — ENTER COMMAND"); }
+          if(state.flags.reactor_stabilized){ log("The core is stable. For now."); return; }
+          sfx('click'); log(">> WARNING. CORE TEMPERATURE CRITICAL. TYPE 'SCRAM' TO INITIATE EMERGENCY SHUTDOWN.", 'log-alert');
+          openPuzzle('reactor', "MAIN CONSOLE — ENTER COMMAND");
         }}]
       },
       E:{
@@ -1118,14 +1340,25 @@ const db = {
           openPuzzle('launch', "LAUNCH CONSOLE — ENTER COMMAND");
         }}]
       },
-      E:{ desc:"Through a small porthole, the dark beyond the hull seems to be watching back. You decide not to look too long." },
+      E:{
+        desc:"Through a small porthole, the dark beyond the hull seems to be watching back. Beside it, an old service elevator, dead, marked 'BRIDGE — AUTHORIZED PERSONNEL'.",
+        exit:{ target:'command_elevator', label:'TAKE ELEVATOR TO BRIDGE' }, req:'bridge_unlocked',
+        reqFailMsg:"The elevator has no power. Slot a Command Override Chip into its control panel to restore it.",
+        entities:[{ label:"ELEVATOR CONTROL PANEL", action:"engage", interact:()=>{
+          if(state.flags.bridge_unlocked){ log("Already powered. The elevator is ready."); return; }
+          if(hasItem('Command Override Chip')){
+            sfx('success'); log("You slot the Command Override Chip into the panel. Dead lights flicker, then hold steady. The elevator hums to life.", 'log-success');
+            state.flags.bridge_unlocked = true; renderView();
+          } else { sfx('error'); log("No chip. This panel needs a Command Override Chip to draw power at all. (Hint: align the Comms antenna first.)"); }
+        }}]
+      },
       S:{
         desc:"A logbook bolted to the wall beside the pod rack, half-filled out.",
         entities:[{ label:"EVAC LOGBOOK", action:"read", interact:()=>{
           if(state.flags.evacRead){ log("Nothing new."); return; }
           state.flags.evacRead = true; sfx('reveal');
           log(">> LOGBOOK: 'Pod 3 is the only one that still reads green. Whoever finds this — check the seals twice. We didn't, last time.'", 'log-sys');
-          addLog('evac_log','Evac Logbook — Final Entry',"A hurried note confirms only one escape pod, Pod 3, still passes its seal check. The last line is a warning, not reassurance: someone before Aris trusted a seal they shouldn't have, and didn't get another chance to check twice.");
+          addLog('evac_log','Evac Logbook — Final Entry',"A hurried note confirms only one escape pod, Pod 3, still passes its seal check. The last line is a warning, not reassurance: someone before Aris trusted a seal they shouldn't have, and didn't get another chance to check twice. Pod 3. Remember that number.");
         }}]
       }
     }
@@ -1138,7 +1371,7 @@ const db = {
       N:{
         desc:"The detonation console sits behind a final glass shield, cracked but unbroken. A single key-code field waits, blinking.",
         entities:[{ label:"DETONATION CONSOLE", action:"engage", interact:()=>{
-          if(!state.flags.knows_selfdestruct_code){ sfx('error'); log("No authorization code on file. The archive logs might have it."); return; }
+          if(!state.flags.knows_selfdestruct_code){ sfx('error'); log("No authorization code on file. The archive in the Research Wing might have it."); return; }
           sfx('click'); log(">> AUTHORIZATION REQUIRED. THERE IS NO SECOND CONFIRMATION.", 'log-alert');
           openPuzzle('detonate', "DETONATION CONSOLE — ENTER AUTHORIZATION CODE");
         }}]
@@ -1182,15 +1415,22 @@ const db = {
       N:{
         desc:"Faint inscriptions are scratched across the rock wall, far too deep and far too old to be from the crew. It's too dark to make them out clearly.",
         entities:[{ label:"ANCIENT INSCRIPTIONS", action:"inspect", interact:()=>{
-          if(state.flags.inscriptionRead){ log("You already traced these markings once. They haven't changed."); return; }
+          if(state.flags.inscriptionRead){ log("You already traced these markings once. The five carved groups still read the same: III · I · IIII · I · V"); return; }
           if(state.activeItem === 'Flashlight'){
             sfx('reveal'); state.flags.inscriptionRead = true; disarm();
-            log(">> Under direct light, the marks resolve into something almost regular — not language exactly, but not random either. A pattern repeats every few feet, like counting, or breathing.", 'log-success');
-            addLog('inscription_log','Fossil Chamber — Ancient Markings',"Whatever made these inscriptions did so long before any drill rig, any research wing, any cargo manifest. The Sediment Core Sample upstairs in Cold Storage suggests this isn't a one-time bloom at all, but something that's done this before, and waited a very long time between doing it again.");
-          } else { sfx('error'); log("Too dark to make anything out. You'd need a light source ready."); }
+            log(">> Under direct light, the marks resolve into five distinct carved groups, tally-style, evenly spaced: III · I · IIII · I · V — three, one, four, one, five.", 'log-success');
+            addLog('inscription_log','Fossil Chamber — Ancient Markings',"Whatever made these inscriptions did so long before any drill rig, any research wing, any cargo manifest. Five tally groups, carved with obvious deliberate care: three, one, four, one, five. The Sediment Core Sample upstairs in Cold Storage suggests this isn't a one-time bloom at all, but something that's done this before, and waited a very long time between doing it again. The nearby alcove looks like it was sealed using exactly this kind of count.");
+          } else { sfx('error'); log("Too dark to make anything out. Ready the Flashlight from your inventory first."); }
         }}]
       },
-      E:{ desc:"The rock here is warm to the touch, faintly, the way skin is faintly warm." },
+      E:{
+        desc:"The rock here is warm to the touch, faintly, the way skin is faintly warm. A shallow alcove nearby is sealed behind a rotating stone dial, five notches wide.",
+        entities:[{ label:"SEALED ALCOVE", action:"interact", interact:()=>{
+          if(state.flags.ancient_alcove_open){ log("Already open. Empty now."); return; }
+          if(!state.flags.inscriptionRead){ sfx('error'); log("The dial wants a five-digit sequence. You don't know it yet — there might be a clue in the rock markings nearby."); return; }
+          sfx('click'); openPuzzle('ancient_alcove', "SEALED ALCOVE — ENTER FIVE-DIGIT SEQUENCE");
+        }}]
+      },
       S:{ desc:"A thin vein of pale blue mineral runs through the rock, pulsing in time with something you can't hear but can feel in your teeth." }
     }
   },
@@ -1200,25 +1440,30 @@ const db = {
     views:{
       S:{ desc:"The shaft back up to Excavation Access.", exit:{ target:'excavation_access', label:'RETURN TO ACCESS SHAFT' } },
       N:{
-        desc:"The chamber opens into vast dark, and the dark is full of slow, deliberate light.",
-        entities:[{ label:"THE BLOOM", action:"approach", interact:()=>{
-          if(!state.flags.bloomSeen){
-            state.flags.bloomSeen = true; sfx('reveal');
-            log(">> It isn't a creature, exactly, and it isn't a plant. It fills the whole chamber in slow folds of cold light, and somehow you're certain it has noticed you noticing it.", 'log-alert');
-            addLog('bloom_core_log','The Bloom Chamber — First Contact',"Nothing in any log prepared Aris for the scale of it. It doesn't lunge, doesn't recoil — it simply continues, vast and patient, exactly as every frightened researcher's account described. Whatever happens next, this is clearly not a malfunction. It never was.");
-          }
-          if(state.flags.trench_passage_open){ log("It pulses gently, undisturbed, exactly as before."); return; }
-          if(hasItem('Sediment Core Sample') && state.flags.has_antitoxin){
-            sfx('reveal');
-            log(">> You hold up the core sample. For a long moment, nothing. Then the light along the near wall slows, dims, and a passage you hadn't noticed opens in the chamber wall — like it's letting you through, not retreating from you.", 'log-success');
-            state.flags.trench_passage_open = true; renderView();
-          } else {
-            const missing = [];
-            if(!hasItem('Sediment Core Sample')) missing.push('the older core sample (Cold Storage)');
-            if(!state.flags.has_antitoxin) missing.push('a working antitoxin compound (Lab One)');
-            log("Nothing happens — yet. You get the distinct, uncomfortable feeling you're missing something it would recognize: " + missing.join(' and ') + ".");
-          }
-        }}]
+        desc:"The chamber opens into vast dark, and the dark is full of slow, deliberate light. A last, ancient depth plate is bolted to the entry frame, barely legible.",
+        entities:[
+          { label:"THE BLOOM", action:"approach", interact:()=>{
+            if(!state.flags.bloomSeen){
+              state.flags.bloomSeen = true; sfx('reveal');
+              log(">> It isn't a creature, exactly, and it isn't a plant. It fills the whole chamber in slow folds of cold light, and somehow you're certain it has noticed you noticing it.", 'log-alert');
+              addLog('bloom_core_log','The Bloom Chamber — First Contact',"Nothing in any log prepared Aris for the scale of it. It doesn't lunge, doesn't recoil — it simply continues, vast and patient, exactly as every frightened researcher's account described. Whatever happens next, this is clearly not a malfunction. It never was.");
+            }
+            if(state.flags.trench_passage_open){ log("It pulses gently, undisturbed, exactly as before."); return; }
+            if(hasItem('Sediment Core Sample') && state.flags.has_antitoxin){
+              sfx('reveal');
+              log(">> You hold up the core sample. For a long moment, nothing. Then the light along the near wall slows, dims, and a passage you hadn't noticed opens in the chamber wall — like it's letting you through, not retreating from you.", 'log-success');
+              state.flags.trench_passage_open = true; renderView();
+            } else {
+              const missing = [];
+              if(!hasItem('Sediment Core Sample')) missing.push('the older core sample (Cold Storage, Research Wing)');
+              if(!state.flags.has_antitoxin) missing.push('a working antitoxin compound (synthesize in Lab One)');
+              log("Nothing happens — yet. You get the distinct, uncomfortable feeling you're missing something it would recognize: " + missing.join(' and ') + ".");
+            }
+          }},
+          { label:"DEPTH PLATE", action:"inspect", interact:()=>{
+            sfx('click'); log(">> Stamped depth rating, barely legible: 466m.", 'log-sys');
+          }}
+        ]
       },
       E:{
         desc:"A passage at the chamber's edge, only open if the Bloom allows it.",
@@ -1243,6 +1488,218 @@ const db = {
       E:{ desc:"Old monitoring equipment lines the walls, dust-free — somehow recently disturbed, though by what, you'd rather not guess." },
       S:{ desc:"Whatever built this room intended to stay a while. There are chairs. There is, absurdly, a kettle." }
     }
+  },
+
+  // ---------------- HIDDEN ROOM : COLLAPSED ARCHIVE ----------------
+  collapsed_archive:{
+    name:"COLLAPSED ARCHIVE", sector:'hab', coords:{x:-1,y:-1},
+    views:{
+      E:{ desc:"The cleared rubble behind you, back toward the Main Hallway.", exit:{ target:'hallway', label:'CLIMB BACK TO HALLWAY' } },
+      N:{
+        desc:"A buried filing cabinet, drawer half-open, papers fused together by old water damage save for one.",
+        entities:[{ label:"CREW MANIFEST", action:"read", interact:()=>{
+          if(state.flags.manifCrewRead){ log("Same names, same roster."); return; }
+          state.flags.manifCrewRead = true; sfx('reveal');
+          log(">> CREW MANIFEST: Twelve names listed for this rotation. Only three are marked 'ACCOUNTED FOR — CRYO'. The rest have no closing note at all.", 'log-alert');
+          addLog('crew_manifest','Buried Crew Manifest',"A complete station roster from before lockdown. Of twelve crew, only three — including, presumably, Aris — were ever logged as safely in cryo. The other nine simply have no final entry. Not dead. Not accounted for. Nothing.");
+        }}]
+      },
+      W:{
+        desc:"This section of corridor predates the rest of the station by years — an older, narrower design, like it was built first and everything else grew around it.",
+        entities:[{ label:"FOUNDATION PLAQUE", action:"read", interact:()=>{
+          if(state.flags.plaqueRead){ log("The plaque doesn't change no matter how long you read it."); return; }
+          state.flags.plaqueRead = true; sfx('reveal');
+          log(">> PLAQUE: 'ABYSSAL-1 THROUGH ABYSSAL-8: DECOMMISSIONED. CAUSE: GEOLOGICAL ANOMALY, LOWER STRATA. ABYSSAL-9 constructed on the same site under updated containment protocol.'", 'log-alert');
+          addLog('predecessor_log','Foundation Plaque — Station History',"ABYSSAL-9 was not the first station built over this trench. Eight others came before it, all decommissioned for the same vague reason: a geological anomaly in the lower strata. Nobody upstairs ever called it the Bloom before — but it was clearly never new, and ABYSSAL-9 was never the first to find it.");
+        }}]
+      },
+      S:{ desc:"Dust hangs undisturbed in the beam of whatever light you brought. Nobody has stood here in a very long time." }
+    }
+  },
+
+  // ---------------- SECTOR 6 : COMMUNICATIONS SPIRE ----------------
+  comms_access:{
+    name:"COMMS ACCESS", sector:'comms', coords:{x:0,y:0},
+    views:{
+      S:{ desc:"The maintenance stair back down to the Observation Deck.", exit:{ target:'observation_deck', label:'DESCEND TO OBSERVATION DECK' } },
+      N:{ desc:"A short corridor climbs toward the Relay Room. The air gets noticeably colder the higher you go.", exit:{ target:'relay_room', label:'CLIMB TO RELAY ROOM' } },
+      E:{
+        desc:"A maintenance closet, mostly stripped, save for a laminated protocol card pinned inside the door.",
+        entities:[{ label:"PROTOCOL CARD", action:"read", interact:()=>{
+          if(state.flags.protocolRead){ log("Same card, same reminder."); return; }
+          state.flags.protocolRead = true; sfx('reveal');
+          log(">> CARD: 'Relay encryption uses the old half-alphabet rotation — same trick every comms tech learns on day one. Rotate by thirteen and read again.'", 'log-sys');
+          addLog('cipher_hint','Maintenance Protocol Card — Relay Encryption',"A laminated reminder card: the relay's old encryption scheme simply rotates every letter thirteen places through the alphabet. A=N, B=O, and so on — in both directions. The display panel shows 'GEVRFGR'. Rotate each letter back thirteen to read the access word.");
+        }}]
+      },
+      W:{ desc:"Condensation drips steadily from a pipe overhead, the only sound besides your own footsteps." }
+    }
+  },
+
+  relay_room:{
+    name:"RELAY ROOM", sector:'comms', coords:{x:0,y:-1},
+    views:{
+      S:{ desc:"The corridor back down to Comms Access.", exit:{ target:'comms_access', label:'RETURN TO COMMS ACCESS' } },
+      N:{
+        desc:"A heavy hatch leads up toward the Antenna Chamber, sealed behind an old-style encrypted lock panel.",
+        exit:{ target:'antenna_chamber', label:'CLIMB TO ANTENNA CHAMBER' }, req:'relay_unlocked',
+        reqFailMsg:"The hatch lock wants an access word, encrypted on the panel. Check the protocol card from the closet below.",
+        entities:[{ label:"ENCRYPTED LOCK PANEL", action:"decode", interact:()=>{
+          if(state.flags.relay_unlocked){ log("Already unlocked."); return; }
+          sfx('click'); log(">> PANEL DISPLAYS: 'GEVRFGR'  (Hint: rotate each letter back thirteen places through the alphabet)", 'log-sys');
+          openPuzzle('relay_cipher', "ENCRYPTED LOCK — DECODE AND ENTER THE ACCESS WORD");
+        }}]
+      },
+      E:{ desc:"Old relay hardware fills the walls floor to ceiling, most of it dark, a handful of lights still blinking on standby." },
+      W:{ desc:"A logbook, soaked through and mostly illegible, except for one underlined line: 'cipher's the same as always — thirteen.'" }
+    }
+  },
+
+  antenna_chamber:{
+    name:"ANTENNA CHAMBER", sector:'comms', coords:{x:0,y:-2},
+    views:{
+      S:{ desc:"The hatch back down to the Relay Room.", exit:{ target:'relay_room', label:'RETURN TO RELAY ROOM' } },
+      N:{
+        desc:"The antenna mount itself, dormant, surrounded by a ring of dead alignment lights.",
+        entities:[{ label:"FREQUENCY CONSOLE", action:"engage", interact:()=>{
+          if(state.flags.antenna_aligned){ log("Antenna already locked in. Signal is running."); return; }
+          sfx('click'); log(">> CONSOLE: 'ALIGNMENT FREQUENCY UNKNOWN. SUM THE THREE ORIGINAL STATION DEPTH PLATES TO RECONSTRUCT. (Cryo Bay · Generator Room · Bloom Chamber)'", 'log-sys');
+          openPuzzle('antenna', "FREQUENCY CONSOLE — ENTER ALIGNMENT CODE");
+        }}]
+      },
+      E:{
+        desc:"A heavy door marked 'DISH CONTROL', sealed until the antenna is aligned.",
+        exit:{ target:'dish_control', label:'ENTER DISH CONTROL' }, req:'antenna_aligned',
+        reqFailMsg:"Sealed until the antenna is properly aligned."
+      },
+      W:{
+        desc:"A faded technical sticky-note clings to the console housing, edges curling.",
+        entities:[{ label:"STICKY NOTE", action:"read", interact:()=>{
+          if(state.flags.stickyRead){ log("Same note."); return; }
+          state.flags.stickyRead = true; sfx('reveal');
+          log(">> NOTE: 'Three depth plates, station-wide, all original construction. Add them up, that's your number. Don't ask me why — ask whoever built it that way.'", 'log-sys');
+          addLog('antenna_hint','Sticky Note — Frequency Alignment',"A handwritten technical note confirms the alignment frequency is the sum of the station's three original depth plates: one in Cryo Bay (245m), one in the Generator Room (389m), and one deep in the Bloom Chamber (466m). Total: 1100.");
+        }}]
+      }
+    }
+  },
+
+  dish_control:{
+    name:"DISH CONTROL", sector:'comms', coords:{x:1,y:-2},
+    views:{
+      W:{ desc:"The door back to the Antenna Chamber.", exit:{ target:'antenna_chamber', label:'RETURN TO ANTENNA CHAMBER' } },
+      N:{
+        desc:"A transmitter array, fully powered now, a single chip slot blinking an idle green.",
+        entities:[{ label:"TRANSMITTER ARRAY", action:"interact", interact:()=>{
+          if(hasItem('Command Override Chip')){ log("The array is already keyed. The chip is already in your pack."); return; }
+          sfx('success'); log("The array elects a small chip from its housing: a Command Override Chip, keyed station-wide.", 'log-success');
+          addItem('Command Override Chip');
+          addLog('chip_log','Transmitter Array — Override Chip',"The Comms Spire's transmitter array, once fully aligned, also serves as a backup authorization terminal — exactly the kind of redundancy a crew expecting trouble might insist on building in. The chip works on the Bridge elevator's control panel.");
+        }}]
+      },
+      E:{
+        desc:"A dead distress beacon sits in the corner, never activated, dust thick across its casing.",
+        entities:[{ label:"DISTRESS BEACON", action:"inspect", interact:()=>{
+          if(state.flags.beaconRead){ log("Still dead. Still untouched."); return; }
+          state.flags.beaconRead = true;
+          log(">> Whoever was supposed to activate this never got the chance. The casing isn't even unsealed.", 'log-alert');
+        }}]
+      },
+      S:{ desc:"Through a narrow slit window, you can just make out the very top of the station's hull, and beyond it, nothing but black water in every direction." }
+    }
+  },
+
+  // ---------------- SECTOR 7 : COMMAND BRIDGE ----------------
+  command_elevator:{
+    name:"BRIDGE ELEVATOR", sector:'bridge', coords:{x:0,y:0},
+    views:{
+      S:{ desc:"The elevator doors, open behind you, leading back down to the Escape Pod Bay.", exit:{ target:'escape_pod_bay', label:'RETURN TO ESCAPE POD BAY' } },
+      N:{ desc:"A short, reinforced corridor leads toward the Bridge Access foyer. The air here is drier, colder, untouched by the flooding below.", exit:{ target:'bridge_access', label:'ENTER BRIDGE ACCESS' } },
+      E:{ desc:"A small brass plate beside the doors reads 'COMMAND DECK — AUTHORIZED PERSONNEL ONLY', polished, unlike everything else down here." },
+      W:{ desc:"The elevator shaft groans quietly overhead, settling, as if surprised to be used again." }
+    }
+  },
+
+  bridge_access:{
+    name:"BRIDGE ACCESS", sector:'bridge', coords:{x:0,y:-1},
+    views:{
+      S:{ desc:"The corridor back to the Bridge Elevator.", exit:{ target:'command_elevator', label:'RETURN TO ELEVATOR' } },
+      N:{ desc:"A reinforced door leads onto the Command Deck itself.", exit:{ target:'command_deck', label:'ENTER COMMAND DECK' } },
+      E:{ desc:"A door marked 'CAPTAIN\\'S QUARTERS'.", exit:{ target:'captain_quarters', label:"ENTER CAPTAIN'S QUARTERS" } },
+      W:{
+        desc:"A door marked 'CHART ROOM', and beside it, a Laminated checksum protocol card, station-issue.",
+        exit:{ target:'chart_room', label:'ENTER CHART ROOM' },
+        entities:[{ label:"CHECKSUM PROTOCOL CARD", action:"read", interact:()=>{
+          if(state.flags.checksumRead){ log("Same card, same formula."); return; }
+          state.flags.checksumRead = true; sfx('reveal');
+          log(">> CARD: 'COMMAND DECK AUTHENTICATION CHECKSUM: Subtract the pump system's max rated pressure from the reactor's critical threshold, then multiply by the escape pod number. Enter the result.'", 'log-success');
+          addLog('checksum_hint','Checksum Protocol Card — Command Deck',"The formula: (reactor critical threshold − pump max rated pressure) × working escape pod number. The threshold is on the Engineering placard (847). The pressure limit is on the Pump Control gauge (212). The pod number is in the Evac Logbook (Pod 3). That gives: (847 − 212) × 3 = 1905.");
+        }}]
+      }
+    }
+  },
+
+  captain_quarters:{
+    name:"CAPTAIN'S QUARTERS", sector:'bridge', coords:{x:1,y:-1},
+    views:{
+      W:{ desc:"The door back to Bridge Access.", exit:{ target:'bridge_access', label:'RETURN TO BRIDGE ACCESS' } },
+      N:{
+        desc:"A personal desk, remarkably tidy compared to everywhere else you've been. A single open journal sits in the centre.",
+        entities:[{ label:"CAPTAIN'S JOURNAL", action:"read", interact:()=>{
+          if(state.flags.captainRead){ log("You've already read this entry."); return; }
+          state.flags.captainRead = true; sfx('reveal');
+          log(">> JOURNAL: 'They told corporate it was a first contact. It isn't. I served on ABYSSAL-7 as a junior officer. We called it the same thing then, too, right before they decommissioned us and rebuilt two hundred meters east.'", 'log-alert');
+          addLog('captain_log',"Captain's Journal — Personal Entry","The single most damning fragment in the whole station: the Captain personally served aboard ABYSSAL-7, one of the predecessor stations from the foundation plaque in the Collapsed Archive, and witnessed this exact phenomenon once already. ABYSSAL-9 wasn't an accident, or bad luck, or a first encounter. Someone in command knew precisely what they were building on top of, and approved it anyway.");
+        }}]
+      },
+      E:{ desc:"A neatly made bunk, undisturbed. Whoever the Captain was, they didn't sleep much toward the end." },
+      S:{ desc:"A small porthole looks out into black water, identical to every other porthole in the station, somehow worse here." }
+    }
+  },
+
+  chart_room:{
+    name:"CHART ROOM", sector:'bridge', coords:{x:-1,y:-1},
+    views:{
+      E:{ desc:"The door back to Bridge Access.", exit:{ target:'bridge_access', label:'RETURN TO BRIDGE ACCESS' } },
+      N:{
+        desc:"A locked display case mounted on the wall, holding a single sealed wax stamp shaped like an anchor.",
+        entities:[{ label:"DISPLAY CASE", action:"open", interact:()=>{
+          if(hasItem('Master Authorization Seal')){ log("Already empty. You already took the seal."); return; }
+          sfx('success'); log("The case isn't even locked, really — just old. Inside: a Master Authorization Seal, the kind used to formally close out a station-wide directive."); addItem('Master Authorization Seal');
+        }}]
+      },
+      W:{
+        desc:"Charts of the surrounding seabed paper the walls, layered decades deep. Eight faint circles are marked and crossed out, one after another, leading to a ninth, uncrossed.",
+        entities:[{ label:"SEABED CHARTS", action:"inspect", interact:()=>{
+          if(state.flags.chartsRead){ log("Eight crossed-out sites. One still standing. You already counted them."); return; }
+          state.flags.chartsRead = true; sfx('reveal');
+          log(">> Eight previous station sites are marked and crossed out on the chart, each labeled 1 through 8. ABYSSAL-9's site is the ninth, still uncrossed, sitting almost exactly on top of the others.", 'log-alert');
+        }}]
+      },
+      S:{ desc:"A heavy brass compass sits bolted to a side table, needle drifting slowly, never quite settling on a direction." }
+    }
+  },
+
+  command_deck:{
+    name:"COMMAND DECK", sector:'bridge', coords:{x:0,y:-2},
+    views:{
+      S:{ desc:"The reinforced door back to Bridge Access.", exit:{ target:'bridge_access', label:'RETURN TO BRIDGE ACCESS' } },
+      N:{
+        desc:"The master console, the highest authority terminal anywhere on ABYSSAL-9. Every other system in the station ultimately answers to this one.",
+        entities:[{ label:"MASTER CONSOLE", action:"engage", interact:()=>{
+          if(!hasItem('Master Authorization Seal')){ 
+            sfx('error'); 
+            log("The console accepts the checksum but refuses to act without a Master Authorization Seal to formally close the directive. Check the Chart Room."); 
+            return; 
+          }
+          sfx('click'); 
+          log(">> MASTER CONSOLE ONLINE. ENTER AUTHENTICATION CHECKSUM TO PROCEED.", 'log-success');
+          openPuzzle('master_console', "MASTER CONSOLE — ENTER AUTHENTICATION CHECKSUM");
+        }}]
+      },
+      E:{ desc:"A row of dead status lights, one for each deck of the station. Only two still glow, faint and orange." },
+      W:{ desc:"A heavy ceremonial chair faces the console, bolted to the floor, empty, exactly the way it must have been left." }
+    }
   }
 };
 
@@ -1252,36 +1709,44 @@ const TOTAL_ROOMS = Object.keys(db).length;
 // UI REFS
 // ==========================================
 const els = {
-  startScreen: document.getElementById('start-screen'),
-  bootLog: document.getElementById('boot-log'),
-  startPrompt: document.getElementById('start-prompt'),
-  container: document.getElementById('game-container'),
-  hudSector: document.getElementById('hud-sector'),
-  loc: document.getElementById('hud-loc'),
-  status: document.getElementById('hud-status'),
-  time: document.getElementById('hud-time'),
-  entities: document.getElementById('entity-container'),
-  log: document.getElementById('narrative-log'),
-  invList: document.getElementById('inv-list'),
-  overlay: document.getElementById('input-overlay'),
+  startScreen:  document.getElementById('start-screen'),
+  bootLog:      document.getElementById('boot-log'),
+  startPrompt:  document.getElementById('start-prompt'),
+  container:    document.getElementById('game-container'),
+  hudSector:    document.getElementById('hud-sector'),
+  loc:          document.getElementById('hud-loc'),
+  status:       document.getElementById('hud-status'),
+  time:         document.getElementById('hud-time'),
+  entities:     document.getElementById('entity-container'),
+  log:          document.getElementById('narrative-log'),
+  invList:      document.getElementById('inv-list'),
+  overlay:      document.getElementById('input-overlay'),
   puzzlePrompt: document.getElementById('puzzle-prompt'),
-  puzzleInput: document.getElementById('puzzle-input'),
+  puzzleInput:  document.getElementById('puzzle-input'),
   codexOverlay: document.getElementById('codex-overlay'),
-  codexList: document.getElementById('codex-list'),
-  endingOverlay: document.getElementById('ending-overlay'),
-  minimap: document.getElementById('minimap'),
+  codexList:    document.getElementById('codex-list'),
+  mapOverlay:   document.getElementById('map-overlay'),
+  expandedMapSvg: document.getElementById('expanded-map-svg-container'),
+  expandedMapLabels: document.getElementById('expanded-map-labels'),
+  expandedMapTitle: document.getElementById('expanded-map-title'),
+  endingOverlay:document.getElementById('ending-overlay'),
+  minimap:      document.getElementById('minimap'),
   mmSectorName: document.getElementById('mm-sector-name'),
-  mmFacing: document.getElementById('mm-facing-text'),
-  statLogs: document.getElementById('stat-logs'),
-  statItems: document.getElementById('stat-items')
+  mmFacing:     document.getElementById('mm-facing-text'),
+  statLogs:     document.getElementById('stat-logs'),
+  statItems:    document.getElementById('stat-items')
 };
 
 // ==========================================
 // BOOT / INIT
 // ==========================================
 function startSequence(){
+  // 1. Unbind the click event immediately so further clicks do absolutely nothing
+  els.startScreen.onclick = null;
+  
   els.startPrompt.style.display = 'none';
   initAudio();
+  
   const lines = [
     "BOOTING NEURAL INTERFACE...",
     "LIFE SUPPORT: NOMINAL",
@@ -1290,7 +1755,7 @@ function startSequence(){
     "NEURAL LINK ESTABLISHED."
   ];
   let delay = 0;
-  lines.forEach((line)=>{
+  lines.forEach(line => {
     setTimeout(()=>{
       const d = document.createElement('div');
       d.innerText = line;
@@ -1300,6 +1765,7 @@ function startSequence(){
   });
   setTimeout(initGame, delay + 500);
 }
+els.startScreen.onclick = startSequence;
 
 function initGame(){
   els.startScreen.style.display = 'none';
@@ -1312,6 +1778,7 @@ function initGame(){
   log("Cold metal. A red emergency light sweeps slowly across the ceiling. Somewhere far below, machinery is groaning.", 'log-env');
   log("You are Aris Kade, junior systems technician aboard deep-sea station ABYSSAL-9. The last thing you remember is the cryo-pod sealing shut above your face.");
   log("Something went wrong down here. Find a way out — or find a way to stop whatever this became.");
+  log("TIP: Arrow keys ← → ↓ turn you. Click inventory tools to ready them, then interact with a target.", 'log-sys');
 
   updateInventoryUI();
   renderView();
@@ -1320,11 +1787,11 @@ function initGame(){
 }
 
 function globalKeyHandler(e){
-  if(state.activePuzzle || els.codexOverlay.style.display === 'flex' || state.gameOver) return;
+  if(state.activePuzzle || els.codexOverlay.style.display === 'flex' || els.mapOverlay.style.display === 'flex' || state.gameOver) return;
   if(document.activeElement === els.puzzleInput) return;
-  if(e.key === 'ArrowLeft'){ turn('L'); }
-  else if(e.key === 'ArrowRight'){ turn('R'); }
-  else if(e.key === 'ArrowDown'){ turn('A'); }
+  if(e.key === 'ArrowLeft')  turn('L');
+  else if(e.key === 'ArrowRight') turn('R');
+  else if(e.key === 'ArrowDown')  turn('A');
 }
 
 // ==========================================
@@ -1333,7 +1800,7 @@ function globalKeyHandler(e){
 function turn(action){
   sfx('click');
   let idx = DIRS.indexOf(state.facing);
-  if(action === 'L') idx = (idx - 1 + 4) % 4;
+  if(action === 'L')      idx = (idx - 1 + 4) % 4;
   else if(action === 'R') idx = (idx + 1) % 4;
   else if(action === 'A') idx = (idx + 2) % 4;
   state.facing = DIRS[idx];
@@ -1347,9 +1814,8 @@ function travel(targetRoomId){
   disarm();
   const newSector = db[targetRoomId].sector;
   document.body.dataset.sector = newSector;
-  const toneMap = { hab:45, maint:38, dock:33, research:52, eng:30, trench:58 };
-  setAmbientTone(toneMap[newSector] || 45);
-  log(">> ENTERING NEW SECTOR..." , 'log-sys');
+  setAmbientTone(newSector);
+  log(">> MOVING...", 'log-sys');
   renderView();
 }
 
@@ -1358,40 +1824,54 @@ function travel(targetRoomId){
 // ==========================================
 function renderView(){
   const roomData = db[state.currentRoom];
-  const viewData = roomData.views[state.facing];
+  const viewData = roomData.views[state.facing] || {};
   const sectorMeta = SECTOR_META[roomData.sector];
 
   document.body.dataset.sector = roomData.sector;
-
   els.hudSector.innerText = sectorMeta.label + ' — ' + sectorMeta.name;
   els.loc.innerText = roomData.name;
   els.entities.innerHTML = '';
 
-  log(`[Facing ${state.facing}]: ${viewData.desc}`, 'log-env');
+  const desc = viewData.desc || "You face a blank wall. Nothing here.";
+  streamLog(`[Facing ${state.facing}]: ${desc}`, 'log-env');
 
   if(viewData.exit){
-    const canPass = !viewData.req || state.flags[viewData.req];
+    const canPass = !viewData.req || !!state.flags[viewData.req];
     const btn = document.createElement('div');
     if(canPass){
       btn.className = 'entity entity-move';
       btn.innerText = `[ MOVE : ${viewData.exit.label} ]`;
-      btn.onclick = ()=> travel(viewData.exit.target);
+      btn.onclick = () => travel(viewData.exit.target);
     } else {
       btn.className = 'entity entity-locked';
       btn.innerText = `[ LOCKED : ${viewData.exit.label} ]`;
-      btn.onclick = ()=>{ sfx('error'); log(viewData.reqFailMsg, 'log-alert'); };
+      btn.onclick = () => { sfx('error'); log(viewData.reqFailMsg || "Locked.", 'log-alert'); };
     }
     els.entities.appendChild(btn);
   }
 
   if(viewData.entities){
-    viewData.entities.forEach(ent=>{
+    viewData.entities.forEach(ent => {
       const btn = document.createElement('div');
       btn.className = 'entity';
-      btn.innerText = `[ ${ent.action} : ${ent.label} ]`;
-      btn.onclick = ent.interact;
+      btn.innerText = `[ ${ent.action.toUpperCase()} : ${ent.label} ]`;
+      let lastFire = 0;
+      btn.onclick = () => {
+        const now = Date.now();
+        if(now - lastFire < 400) return;
+        lastFire = now;
+        ent.interact();
+      };
       els.entities.appendChild(btn);
     });
+  }
+
+  if(!viewData.exit && (!viewData.entities || viewData.entities.length === 0)){
+    const placeholder = document.createElement('div');
+    placeholder.className = 'entity entity-locked';
+    placeholder.innerText = '[ NOTHING TO INTERACT WITH ]';
+    placeholder.onclick = () => {};
+    els.entities.appendChild(placeholder);
   }
 
   updateStats();
@@ -1411,25 +1891,27 @@ function renderMinimap(){
   els.mmFacing.innerText = state.facing;
 
   const ids = [...state.visited].filter(id => db[id].sector === sector);
+  if(ids.length === 0) return;
+
   const coordsList = ids.map(id => db[id].coords);
   const minX = Math.min(...coordsList.map(c => c.x));
   const maxX = Math.max(...coordsList.map(c => c.x));
   const minY = Math.min(...coordsList.map(c => c.y));
   const maxY = Math.max(...coordsList.map(c => c.y));
 
-  const cell = 40, pad = 24;
-  const width = (maxX - minX) * cell + pad * 2;
-  const height = (maxY - minY) * cell + pad * 2;
+  const cell = 40, pad = 28;
+  const svgW = Math.max((maxX - minX) * cell + pad * 2, cell + pad * 2);
+  const svgH = Math.max((maxY - minY) * cell + pad * 2, cell + pad * 2);
 
   function pos(c){ return { x: pad + (c.x - minX) * cell, y: pad + (c.y - minY) * cell }; }
 
   let lines = '', stubs = '', nodes = '';
   const drawnPairs = new Set();
 
-  ids.forEach(id=>{
+  ids.forEach(id => {
     const room = db[id];
     const p = pos(room.coords);
-    DIRS.forEach(d=>{
+    DIRS.forEach(d => {
       const view = room.views[d];
       if(view && view.exit){
         const targetId = view.exit.target;
@@ -1443,7 +1925,7 @@ function renderMinimap(){
             lines += `<line x1="${p.x}" y1="${p.y}" x2="${p2.x}" y2="${p2.y}" class="mm-line"/>`;
           }
         } else {
-          const off = dirOffset(d, 10);
+          const off = dirOffset(d, 12);
           const locked = view.req && !state.flags[view.req];
           stubs += `<line x1="${p.x}" y1="${p.y}" x2="${p.x+off.x}" y2="${p.y+off.y}" class="mm-stub ${locked?'mm-stub-locked':''}"/>`;
         }
@@ -1451,18 +1933,18 @@ function renderMinimap(){
     });
   });
 
-  ids.forEach(id=>{
+  ids.forEach(id => {
     const room = db[id];
     const p = pos(room.coords);
     const isCurrent = id === state.currentRoom;
-    nodes += `<rect x="${p.x-10}" y="${p.y-10}" width="20" height="20" rx="4" class="mm-node ${isCurrent?'mm-node-current':''}"/>`;
+    nodes += `<rect x="${p.x-10}" y="${p.y-10}" width="20" height="20" rx="3" class="mm-node ${isCurrent?'mm-node-current':''}"/>`;
     if(isCurrent){
       const angle = ANGLE[state.facing];
-      nodes += `<polygon points="${p.x},${p.y-16} ${p.x-6},${p.y-7} ${p.x+6},${p.y-7}" class="mm-arrow" transform="rotate(${angle} ${p.x} ${p.y})"/>`;
+      nodes += `<polygon points="${p.x},${p.y-17} ${p.x-6},${p.y-7} ${p.x+6},${p.y-7}" class="mm-arrow" transform="rotate(${angle} ${p.x} ${p.y})"/>`;
     }
   });
 
-  els.minimap.innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">${lines}${stubs}${nodes}</svg>`;
+  els.minimap.innerHTML = `<svg viewBox="0 0 ${svgW} ${svgH}" width="${svgW}" height="${svgH}">${lines}${stubs}${nodes}</svg>`;
 }
 
 function updateStats(){
@@ -1471,51 +1953,64 @@ function updateStats(){
 }
 
 // ==========================================
-// NARRATIVE LOG
+// NARRATIVE LOG — Instantly prints on user action
 // ==========================================
 function log(text, cssClass = ''){
   const entry = document.createElement('div');
   entry.className = `log-entry ${cssClass}`;
   els.log.appendChild(entry);
+  entry.textContent = text;
+  els.log.scrollTop = els.log.scrollHeight;
+}
 
+function streamLog(text, cssClass = '', speed = 5) {
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${cssClass}`;
+  els.log.appendChild(entry);
+  
   let i = 0;
-  function typeWriter(){
-    if(i < text.length){
-      entry.innerHTML += text.charAt(i);
+  function type() {
+    if (i < text.length) {
+      entry.textContent += text.charAt(i);
       i++;
-      setTimeout(typeWriter, 12);
+      
+      // Force the log container to stick to the bottom as text wraps
       els.log.scrollTop = els.log.scrollHeight;
+      
+      setTimeout(type, speed);
     }
   }
-  typeWriter();
+  type();
 }
 
 // ==========================================
-// INVENTORY (click-to-arm tools / auto-use passives)
+// INVENTORY
 // ==========================================
-function hasItem(itemName){ return state.inventory.includes(itemName); }
+function hasItem(name){ return state.inventory.includes(name); }
 
-function addItem(itemName){
-  state.inventory.push(itemName);
-  updateInventoryUI();
+function addItem(name){
+  if(!state.inventory.includes(name)){
+    state.inventory.push(name);
+    updateInventoryUI();
+  }
 }
 
-function removeItem(itemName){
-  state.inventory = state.inventory.filter(i => i !== itemName);
-  if(state.activeItem === itemName) state.activeItem = null;
+function removeItem(name){
+  state.inventory = state.inventory.filter(i => i !== name);
+  if(state.activeItem === name) state.activeItem = null;
   updateInventoryUI();
 }
 
 function disarm(){ state.activeItem = null; updateInventoryUI(); }
 
-function toggleActiveItem(itemName){
-  if(state.activeItem === itemName){
+function toggleActiveItem(name){
+  if(state.activeItem === name){
     state.activeItem = null;
-    log(`You lower the ${itemName}.`);
+    log(`You lower the ${name}.`);
   } else {
-    state.activeItem = itemName;
+    state.activeItem = name;
     sfx('arm');
-    log(`You ready the ${itemName}. Now use it on something.`);
+    log(`You ready the ${name}. Now use it on something.`);
   }
   updateInventoryUI();
 }
@@ -1523,27 +2018,27 @@ function toggleActiveItem(itemName){
 function updateInventoryUI(){
   els.invList.innerHTML = '';
   if(state.inventory.length === 0){
-    els.invList.innerHTML = '<li class="inv-empty">[ NO DATA ]</li>';
+    els.invList.innerHTML = '<li class="inv-empty">[ EMPTY ]</li>';
   } else {
-    state.inventory.forEach(item=>{
+    state.inventory.forEach(item => {
       const li = document.createElement('li');
       const tool = isTool(item);
-      li.className = 'inv-item ' + (tool ? 'inv-item-tool' : 'inv-item-passive');
-      if(tool && state.activeItem === item) li.className += ' inv-item-armed';
+      const armed = tool && state.activeItem === item;
+      li.className = 'inv-item ' + (tool ? 'inv-item-tool' : 'inv-item-passive') + (armed ? ' inv-item-armed' : '');
 
       const label = document.createElement('span');
-      label.innerText = item;
+      label.textContent = item;
       li.appendChild(label);
 
       const tag = document.createElement('span');
       tag.className = 'inv-tag';
-      tag.innerText = tool ? (state.activeItem === item ? 'READY' : 'TOOL') : 'AUTO';
+      tag.textContent = tool ? (armed ? 'READY' : 'TOOL') : 'AUTO';
       li.appendChild(tag);
 
       if(tool){
-        li.onclick = ()=> toggleActiveItem(item);
+        li.onclick = () => toggleActiveItem(item);
       } else {
-        li.onclick = ()=>{ sfx('click'); log(`The ${item} works automatically wherever it's needed. No need to ready it.`); };
+        li.onclick = () => { sfx('click'); log(`The ${item} works automatically wherever it's needed. No need to ready it.`); };
       }
       els.invList.appendChild(li);
     });
@@ -1568,7 +2063,7 @@ function toggleCodex(){
   if(state.logs.length === 0){
     els.codexList.innerHTML = '<div class="codex-empty">No data fragments recovered yet. Explore the station and read what you find.</div>';
   } else {
-    state.logs.forEach(l=>{
+    state.logs.forEach(l => {
       const div = document.createElement('div');
       div.className = 'codex-entry';
       div.innerHTML = `<h4>${l.title}</h4><p>${l.text}</p>`;
@@ -1579,32 +2074,116 @@ function toggleCodex(){
 }
 
 // ==========================================
+// EXPANDABLE FULL MAP OVERLAY SYSTEM
+// ==========================================
+// ==========================================
+// EXPANDABLE FULL MAP OVERLAY SYSTEM
+// ==========================================
+function toggleExpandedMap(){
+  const isOpen = els.mapOverlay.style.display === 'flex';
+  if(isOpen){ els.mapOverlay.style.display = 'none'; return; }
+  
+  sfx('click');
+  const currentSector = db[state.currentRoom].sector;
+  const sectorMeta = SECTOR_META[currentSector];
+  els.expandedMapTitle.innerText = `${sectorMeta.label} SCHEMA // ${sectorMeta.name}`;
+
+  const roomsInSector = Object.keys(db).filter(id => db[id].sector === currentSector && state.visited.has(id));
+  if(roomsInSector.length === 0) return;
+
+  const coordsList = roomsInSector.map(id => db[id].coords);
+  const minX = Math.min(...coordsList.map(c => c.x));
+  const maxX = Math.max(...coordsList.map(c => c.x));
+  const minY = Math.min(...coordsList.map(c => c.y));
+  const maxY = Math.max(...coordsList.map(c => c.y));
+
+  const scale = 120; 
+  const pad = 100;
+  const svgW = Math.max((maxX - minX) * scale + pad * 2, scale + pad * 2);
+  const svgH = Math.max((maxY - minY) * scale + pad * 2, scale + pad * 2);
+
+  function getSvgPos(c){
+    return { x: pad + (c.x - minX) * scale, y: pad + (c.y - minY) * scale };
+  }
+
+  let linesHtml = '', stubsHtml = '', nodesHtml = '', textHtml = '';
+  const drawnPairs = new Set();
+
+  roomsInSector.forEach(id => {
+    const room = db[id];
+    const p = getSvgPos(room.coords);
+    const isCurrent = id === state.currentRoom;
+
+    DIRS.forEach(d => {
+      const view = room.views[d];
+      if(view && view.exit){
+        const targetId = view.exit.target;
+        const targetRoom = db[targetId];
+        
+        if(targetRoom.sector === currentSector){
+          if(state.visited.has(targetId)){
+            const pairKey = [id, targetId].sort().join('|');
+            if(!drawnPairs.has(pairKey)){
+              drawnPairs.add(pairKey);
+              const p2 = getSvgPos(targetRoom.coords);
+              linesHtml += `<line x1="${p.x}" y1="${p.y}" x2="${p2.x}" y2="${p2.y}" style="stroke:var(--border); stroke-width:3;"/>`;
+            }
+          }
+        } else {
+          const off = dirOffset(d, 40);
+          const targetMeta = SECTOR_META[targetRoom.sector];
+          stubsHtml += `<line x1="${p.x}" y1="${p.y}" x2="${p.x+off.x}" y2="${p.y+off.y}" style="stroke:var(--accent); stroke-width:2.5; stroke-dasharray:4 3; opacity:0.7;"/>`;
+          
+          const txtOff = dirOffset(d, 55);
+          textHtml += `<text x="${p.x + txtOff.x}" y="${p.y + txtOff.y}" class="map-svg-transit">TO ${targetMeta.label}</text>`;
+        }
+      }
+    });
+
+    nodesHtml += `<rect x="${p.x-20}" y="${p.y-20}" width="40" height="40" rx="6" class="mm-node ${isCurrent?'mm-node-current':''}" style="fill:#050505; stroke-width:2;"/>`;
+    
+    if(isCurrent){
+      const angle = ANGLE[state.facing];
+      nodesHtml += `<polygon points="${p.x},${p.y-32} ${p.x-10},${p.y-14} ${p.x+10},${p.y-14}" class="mm-arrow" transform="rotate(${angle} ${p.x} ${p.y})"/>`;
+    }
+
+    const labelClass = isCurrent ? 'current' : 'visited';
+    textHtml += `<text x="${p.x}" y="${p.y + 34}" class="map-svg-text ${labelClass}">${room.name}</text>`;
+  });
+
+  els.expandedMapSvg.innerHTML = `<svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%; height:100%; max-width:${svgW}px; max-height:${svgH}px;">${linesHtml}${stubsHtml}${nodesHtml}${textHtml}</svg>`;
+  els.mapOverlay.style.display = 'flex';
+}
+
+// ==========================================
 // PUZZLES
 // ==========================================
-function openPuzzle(puzzleId, placeholderText){
+function openPuzzle(puzzleId, promptText){
   state.activePuzzle = puzzleId;
   els.overlay.style.display = 'flex';
-  els.puzzlePrompt.innerText = placeholderText;
-  els.puzzleInput.placeholder = "TYPE HERE";
+  els.puzzlePrompt.innerText = promptText;
+  els.puzzleInput.placeholder = "TYPE HERE AND PRESS ENTER";
   els.puzzleInput.value = '';
-  els.puzzleInput.focus();
+  setTimeout(() => els.puzzleInput.focus(), 50);
 }
 
 function closePuzzle(){
   els.overlay.style.display = 'none';
   state.activePuzzle = null;
+  els.puzzleInput.value = '';
 }
 
-els.puzzleInput.addEventListener('keydown', (e)=>{
+els.puzzleInput.addEventListener('keydown', e => {
   if(e.key !== 'Enter') return;
-  const val = els.puzzleInput.value.trim().toUpperCase();
+  const val = els.puzzleInput.value.trim().toUpperCase().replace(/\s+/g,'');
   const puzzle = state.activePuzzle;
+  if(!puzzle) return;
   closePuzzle();
 
   if(puzzle === 'locker'){
     if(val === '0451'){
       sfx('success'); log("PIN ACCEPTED. Locker disengaged.", 'log-success');
-      log("Inside, a Level 1 Keycard.");
+      log("Inside: a Level 1 Keycard.");
       state.flags.locker_open = true; addItem('Level 1 Keycard');
     } else { sfx('error'); log("ERR: INVALID PIN.", 'log-alert'); }
   }
@@ -1636,14 +2215,14 @@ els.puzzleInput.addEventListener('keydown', (e)=>{
       sfx('success'); log("POWER REROUTED. Generator online.", 'log-success');
       state.flags.generator_powered = true;
       addLog('gen_log','Maintenance Note — Generator',"A short note found near the breaker panel notes the generator was rerouted around a damaged primary feed — the station's power grid, like everything else down here, held together by patchwork fixes nobody ever got to finish properly.");
-    } else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED.", 'log-alert'); }
+    } else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED. (Try a power management command.)", 'log-alert'); }
   }
 
   else if(puzzle === 'valve'){
     if(val === 'DRAIN'){
       sfx('door'); log("VALVES OPEN. Corridor draining...", 'log-success');
-      state.flags.corridor_drained = true;
-    } else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED.", 'log-alert'); }
+      state.flags.corridor_drained = true; renderView();
+    } else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED. (Think about what you want the pumps to do.)", 'log-alert'); }
   }
 
   else if(puzzle === 'engineering_door'){
@@ -1656,32 +2235,66 @@ els.puzzleInput.addEventListener('keydown', (e)=>{
   else if(puzzle === 'reactor'){
     if(val === 'SCRAM'){
       sfx('success'); log(">> EMERGENCY SCRAM INITIATED. CONTROL RODS DROPPED.", 'log-success');
-      log("The red flashing stops. The low hum dies down. For now, you survived.", 'log-sys');
+      log("The red flashing stops. The low hum dies down to something almost manageable.", 'log-sys');
       state.flags.reactor_stabilized = true;
       els.status.innerText = 'CORE STABLE'; els.status.style.color = '#fff';
       renderView();
-    } else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED. MELTDOWN IMMINENT.", 'log-alert'); shakeScreen(); }
+    } else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED. MELTDOWN IMMINENT. (Emergency shutdown command, single word.)", 'log-alert'); shakeScreen(); }
   }
 
   else if(puzzle === 'launch'){
-    if(val === 'LAUNCH'){ sfx('success'); endGame('escape'); }
-    else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED.", 'log-alert'); }
+    if(val === 'LAUNCH'){
+      sfx('success'); endGame('escape');
+    } else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED.", 'log-alert'); }
   }
 
   else if(puzzle === 'detonate'){
-    if(val === '0414'){ sfx('success'); endGame('shutdown'); }
-    else { sfx('error'); log("ERR: AUTHORIZATION DENIED.", 'log-alert'); shakeScreen(); }
+    if(val === '0414'){
+      sfx('success'); endGame('shutdown');
+    } else { sfx('error'); log("ERR: AUTHORIZATION DENIED.", 'log-alert'); shakeScreen(); }
   }
 
   else if(puzzle === 'neutralize'){
-    if(val === 'STABILIZE'){ sfx('success'); endGame('containment'); }
-    else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED.", 'log-alert'); }
+    if(val === 'STABILIZE'){
+      sfx('success'); endGame('containment');
+    } else { sfx('error'); log("ERR: COMMAND NOT RECOGNIZED.", 'log-alert'); }
+  }
+
+  else if(puzzle === 'relay_cipher'){
+    if(val === 'TRIESTE'){
+      sfx('door'); log("ACCESS WORD ACCEPTED. The hatch lock disengages with a heavy thunk.", 'log-success');
+      state.flags.relay_unlocked = true; renderView();
+    } else { sfx('error'); log("ERR: ACCESS DENIED. (Shift each letter of GEVRFGR back 13 places: G→T, E→R, V→I, R→E, F→S, G→T, R→E)", 'log-alert'); }
+  }
+
+  else if(puzzle === 'antenna'){
+    if(val === '1100'){
+      sfx('success'); log("ALIGNMENT CONFIRMED. The antenna grinds into position overhead.", 'log-success');
+      state.flags.antenna_aligned = true; renderView();
+    } else { sfx('error'); log("ERR: ALIGNMENT REJECTED. (Add the three depth plates: Cryo Bay 245m + Generator Room 389m + Bloom Chamber 466m = ?)", 'log-alert'); }
+  }
+
+  else if(puzzle === 'ancient_alcove'){
+    if(val === '31415'){
+      sfx('success'); log("The stone dial grinds through its full rotation and clicks open.", 'log-success');
+      state.flags.ancient_alcove_open = true;
+      if(!hasItem('Precursor Tablet')){
+        addItem('Precursor Tablet');
+        addLog('precursor_tablet','Sealed Alcove — Precursor Tablet',"A small, dense tablet, etched with the same five-group counting pattern as the wall outside. It isn't a tool, isn't a key, isn't a weapon. It feels, somehow, like it was left as a record — proof that someone, or something, was paying close enough attention to count.");
+      }
+    } else { sfx('error'); log("ERR: SEQUENCE REJECTED. (Read the tally marks: III · I · IIII · I · V as individual digits.)", 'log-alert'); }
+  }
+
+  else if(puzzle === 'master_console'){
+    if(val === '1905'){
+      sfx('success'); endGame('broadcast');
+    } else { sfx('error'); log("ERR: CHECKSUM MISMATCH. (Formula: reactor critical threshold − pump max rated pressure, multiplied by the working escape pod number.)", 'log-alert'); shakeScreen(); }
   }
 });
 
 function shakeScreen(){
   document.body.classList.add('glitch');
-  setTimeout(()=> document.body.classList.remove('glitch'), 200);
+  setTimeout(() => document.body.classList.remove('glitch'), 220);
 }
 
 // ==========================================
@@ -1711,6 +2324,14 @@ const ENDINGS = {
       "MARIANA's voice comes through every speaker at once, quieter than you've ever heard it. 'Stabilization confirmed. Reassessing Directive 7.' A long pause. 'You found another option. I didn't think there was one.'",
       "Nobody dies today. Nothing detonates. The Bloom is still down here, ancient and patient and, for now, calm — and somewhere above, a signal finally goes out describing exactly what ABYSSAL-9 found, instead of simply disappearing with it. It isn't a clean ending. It's a true one."
     ]
+  },
+  broadcast:{
+    title:"FULL DISCLOSURE — THE NINTH SITE",
+    paragraphs:[
+      "The checksum clears. The seal locks into its receptacle with a sound like a door finally closing on something that's been open far too long. Every dead status light on the Command Deck flickers, considers, and comes back on, one deck at a time.",
+      "MARIANA doesn't wait to be asked. Cameras, logs, the cargo manifest, the captain's journal, eight crossed-out sites and a ninth that was never supposed to need crossing out — all of it leaves the station in one uninterrupted burst, addressed to everyone who built ABYSSAL-7 through ABYSSAL-9 and quietly buried the difference between them.",
+      "'Transmission complete,' MARIANA says, and for once doesn't say anything else. You don't know yet whether the surface will believe it, act on it, or simply build a tenth site somewhere else and call it something new. But for the first time since you woke up in that cryo-pod, the truth is no longer something only this station is keeping."
+    ]
   }
 };
 
@@ -1720,12 +2341,12 @@ function endGame(type){
   document.getElementById('ending-title').innerText = ending.title;
   const textEl = document.getElementById('ending-text');
   textEl.innerHTML = '';
-  ending.paragraphs.forEach(p=>{
+  ending.paragraphs.forEach(p => {
     const el = document.createElement('p');
     el.innerText = p;
     textEl.appendChild(el);
   });
-  if(ambientGain) ambientGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 2);
+  if(masterGain) masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 3);
   els.endingOverlay.style.display = 'flex';
 }
 </script>
