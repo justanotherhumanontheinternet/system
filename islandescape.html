@@ -1510,11 +1510,17 @@ function forageFood() {
   }
 
   let round = 0;
-  let maxRounds = 4;
+  let maxRounds = 1; // Locked to exactly 1 round now
   let sequence = [];
   let playerPos = 0;
   let score = 0;
   let inputLocked = true;
+
+  // Determine flash length upfront: either 4, 5, or 6 flashes
+  const flashCount = rand(4, 7);
+  for (let i = 0; i < flashCount; i++) {
+    sequence.push(rand(0, bushCount - 1));
+  }
 
   function flashBush(idx, duration, cb) {
     const b = bushes[idx];
@@ -1548,9 +1554,9 @@ function forageFood() {
       finishForage();
       return;
     }
-    sequence.push(rand(0, bushCount - 1));
+    // Sequence generation moved out of here to make it a one-round burst challenge
     playerPos = 0;
-    document.getElementById('ta-result').textContent = `Round ${round} of ${maxRounds} — watch closely...`;
+    document.getElementById('ta-result').textContent = `Watch closely... ${flashCount} flashes incoming.`;
     setTimeout(playSequence, 500);
   }
 
@@ -1563,9 +1569,9 @@ function forageFood() {
         setTimeout(() => b.classList.remove('correct'), 200);
         playerPos++;
         if (playerPos >= sequence.length) {
-          score++;
+          score = maxRounds; // Scale score to 1 to satisfy your rewards calculations downstream
           inputLocked = true;
-          document.getElementById('ta-result').textContent = 'Correct! Next round...';
+          document.getElementById('ta-result').textContent = 'Perfect! You matched the sequence.';
           setTimeout(nextRound, 700);
         }
       } else {
@@ -1573,7 +1579,7 @@ function forageFood() {
         playChime('danger');
         setTimeout(() => b.classList.remove('wrong'), 250);
         inputLocked = true;
-        document.getElementById('ta-result').textContent = 'Wrong bush — that round\'s a bust.';
+        document.getElementById('ta-result').textContent = 'Wrong bush — sequence failed.';
         setTimeout(nextRound, 900);
       }
     };
@@ -1583,7 +1589,7 @@ function forageFood() {
 
   function finishForage() {
     closeOverlay();
-    const hits = score; // 0..maxRounds correct rounds completed
+    const hits = score; // 0 or 1 complete round
     if (hits > 0) {
       const flavor = FORAGE_FLAVOR_SUCCESS[rand(0, FORAGE_FLAVOR_SUCCESS.length - 1)];
       const fr = Math.ceil(hits / 2) + (hits >= maxRounds ? 1 : 0);
